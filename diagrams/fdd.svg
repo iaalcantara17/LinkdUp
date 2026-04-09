@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" font-family="Inter, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6C3EF4"/><stop offset="1" stop-color="#00C2FF"/></linearGradient>
+    <style>
+      .root{fill:url(#g);rx:12}
+      .feat{fill:#15151F;stroke:#6C3EF4;stroke-width:2;rx:10}
+      .leaf{fill:#1F1F2E;stroke:#00C2FF;stroke-width:1.5;rx:8}
+      .lt{fill:white;font-size:13px;font-weight:700;text-anchor:middle}
+      .sub{fill:#A1A1AA;font-size:10px;text-anchor:middle}
+      .line{stroke:#6C3EF4;stroke-width:1.5;fill:none}
+    </style>
+  </defs>
+  <rect width="1100" height="600" fill="#0B0B14"/>
+  <text x="550" y="32" text-anchor="middle" fill="white" font-size="22" font-weight="800">LinkdUp — Feature Driven Diagram</text>
+
+  <rect class="root" x="450" y="60" width="200" height="50"/>
+  <text class="lt" x="550" y="92">LinkdUp MVP</text>
+
+  <!-- 5 main features -->
+  <rect class="feat" x="20" y="170" width="180" height="50"/>
+  <text class="lt" x="110" y="200">Auth & Profile</text>
+
+  <rect class="feat" x="220" y="170" width="180" height="50"/>
+  <text class="lt" x="310" y="200">Location</text>
+
+  <rect class="feat" x="420" y="170" width="180" height="50"/>
+  <text class="lt" x="510" y="200">Party System</text>
+
+  <rect class="feat" x="620" y="170" width="180" height="50"/>
+  <text class="lt" x="710" y="200">Swipe & Match</text>
+
+  <rect class="feat" x="820" y="170" width="260" height="50"/>
+  <text class="lt" x="950" y="200">Date & Calendar Export</text>
+
+  <!-- leaves -->
+  <rect class="leaf" x="20" y="270" width="180" height="36"/><text class="sub" x="110" y="293">Sign up + login</text>
+  <rect class="leaf" x="20" y="316" width="180" height="36"/><text class="sub" x="110" y="339">School + grad year</text>
+  <rect class="leaf" x="20" y="362" width="180" height="36"/><text class="sub" x="110" y="385">Profile + sign out</text>
+
+  <rect class="leaf" x="220" y="270" width="180" height="36"/><text class="sub" x="310" y="293">GPS permission</text>
+  <rect class="leaf" x="220" y="316" width="180" height="36"/><text class="sub" x="310" y="339">Manual city fallback</text>
+  <rect class="leaf" x="220" y="362" width="180" height="36"/><text class="sub" x="310" y="385">Midpoint calc</text>
+
+  <rect class="leaf" x="420" y="270" width="180" height="36"/><text class="sub" x="510" y="293">Create with code</text>
+  <rect class="leaf" x="420" y="316" width="180" height="36"/><text class="sub" x="510" y="339">Join with code</text>
+  <rect class="leaf" x="420" y="362" width="180" height="36"/><text class="sub" x="510" y="385">Lobby + presence</text>
+  <rect class="leaf" x="420" y="408" width="180" height="36"/><text class="sub" x="510" y="431">Host start</text>
+
+  <rect class="leaf" x="620" y="270" width="180" height="36"/><text class="sub" x="710" y="293">Places search</text>
+  <rect class="leaf" x="620" y="316" width="180" height="36"/><text class="sub" x="710" y="339">Swipe cards</text>
+  <rect class="leaf" x="620" y="362" width="180" height="36"/><text class="sub" x="710" y="385">Realtime votes</text>
+  <rect class="leaf" x="620" y="408" width="180" height="36"/><text class="sub" x="710" y="431">Strict majority match</text>
+
+  <rect class="leaf" x="820" y="270" width="260" height="36"/><text class="sub" x="950" y="293">Group availability picker</text>
+  <rect class="leaf" x="820" y="316" width="260" height="36"/><text class="sub" x="950" y="339">Lock date (host)</text>
+  <rect class="leaf" x="820" y="362" width="260" height="36"/><text class="sub" x="950" y="385">Google Calendar OAuth + export</text>
+  <rect class="leaf" x="820" y="408" width="260" height="36"/><text class="sub" x="950" y="431">ICS fallback download</text>
+
+  <path class="line" d="M 550 110 L 110 170 M 550 110 L 310 170 M 550 110 L 510 170 M 550 110 L 710 170 M 550 110 L 950 170"/>
+</svg>

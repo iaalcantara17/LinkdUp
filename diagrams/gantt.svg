@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" font-family="Inter, system-ui, sans-serif" font-size="12">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6C3EF4"/><stop offset="1" stop-color="#00C2FF"/></linearGradient>
+  </defs>
+  <rect width="1200" height="560" fill="#0B0B14"/>
+  <text x="600" y="32" text-anchor="middle" fill="white" font-size="22" font-weight="800">LinkdUp — 4-Week Sprint Gantt (Apr 8 → May 7, 2026)</text>
+
+  <!-- column header -->
+  <line x1="280" y1="70" x2="1160" y2="70" stroke="#2A2A3A"/>
+  <line x1="280" y1="540" x2="1160" y2="540" stroke="#2A2A3A"/>
+  <line x1="280" y1="70" x2="280" y2="540" stroke="#2A2A3A"/>
+  <line x1="500" y1="70" x2="500" y2="540" stroke="#2A2A3A"/>
+  <line x1="720" y1="70" x2="720" y2="540" stroke="#2A2A3A"/>
+  <line x1="940" y1="70" x2="940" y2="540" stroke="#2A2A3A"/>
+  <line x1="1160" y1="70" x2="1160" y2="540" stroke="#2A2A3A"/>
+
+  <text fill="#A1A1AA" x="390" y="60" text-anchor="middle">Wk 1 (Apr 8-14)</text>
+  <text fill="#A1A1AA" x="610" y="60" text-anchor="middle">Wk 2 (Apr 15-21)</text>
+  <text fill="#A1A1AA" x="830" y="60" text-anchor="middle">Wk 3 (Apr 22-28)</text>
+  <text fill="#A1A1AA" x="1050" y="60" text-anchor="middle">Wk 4 (Apr 29-May 7)</text>
+
+  <!-- task rows -->
+  <text fill="white" x="20" y="105" font-weight="600">Setup (GH + Supabase + GCP)</text>
+  <rect x="280" y="92" width="110" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="135" font-weight="600">Schema + backend core</text>
+  <rect x="280" y="122" width="220" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="165" font-weight="600">Mobile theme + nav</text>
+  <rect x="320" y="152" width="180" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="195" font-weight="600">Auth + signup flow</text>
+  <rect x="500" y="182" width="120" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="225" font-weight="600">Party + lobby + Places</text>
+  <rect x="500" y="212" width="220" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="255" font-weight="600">Swipe screen + match engine</text>
+  <rect x="610" y="242" width="220" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="285" font-weight="600">Realtime vote sync</text>
+  <rect x="720" y="272" width="160" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="315" font-weight="600">Date picker + Calendar export</text>
+  <rect x="800" y="302" width="200" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="345" font-weight="600">Railway deploy + EAS update</text>
+  <rect x="940" y="332" width="120" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="375" font-weight="600">UAT + bug fix pass</text>
+  <rect x="940" y="362" width="180" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="405" font-weight="600">Demo rehearsal</text>
+  <rect x="1060" y="392" width="80" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="435" font-weight="600">Documentation polish</text>
+  <rect x="1000" y="422" width="140" height="20" rx="4" fill="url(#g)"/>
+
+  <text fill="white" x="20" y="465" font-weight="600">Final presentation prep</text>
+  <rect x="1080" y="452" width="60" height="20" rx="4" fill="url(#g)"/>
+
+  <!-- milestone diamonds -->
+  <polygon points="500,520 510,510 520,520 510,530" fill="#F59E0B"/>
+  <text fill="#F59E0B" x="500" y="505" text-anchor="middle" font-size="10">Backend live</text>
+
+  <polygon points="940,520 950,510 960,520 950,530" fill="#F59E0B"/>
+  <text fill="#F59E0B" x="950" y="505" text-anchor="middle" font-size="10">Deployed</text>
+
+  <polygon points="1140,520 1150,510 1160,520 1150,530" fill="#22C55E"/>
+  <text fill="#22C55E" x="1150" y="505" text-anchor="middle" font-size="10">Demo May 7</text>
+</svg>

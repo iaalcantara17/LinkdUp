@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 620" font-family="Inter, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6C3EF4"/><stop offset="1" stop-color="#00C2FF"/></linearGradient>
+    <style>
+      .root{fill:url(#g);rx:12}
+      .phase{fill:#15151F;stroke:#6C3EF4;stroke-width:2;rx:10}
+      .task{fill:#1F1F2E;stroke:#00C2FF;stroke-width:1;rx:6}
+      .lt{fill:white;font-size:13px;font-weight:700;text-anchor:middle}
+      .tt{fill:#E5E7EB;font-size:11px;text-anchor:middle}
+      .line{stroke:#6C3EF4;stroke-width:1.5;fill:none}
+    </style>
+  </defs>
+  <rect width="1100" height="620" fill="#0B0B14"/>
+  <text x="550" y="32" text-anchor="middle" fill="white" font-size="22" font-weight="800">LinkdUp — Work Breakdown Structure</text>
+
+  <rect class="root" x="450" y="60" width="200" height="50"/>
+  <text class="lt" x="550" y="92">LinkdUp Capstone</text>
+
+  <!-- 5 phases (MDDE) -->
+  <rect class="phase" x="20" y="160" width="190" height="50"/><text class="lt" x="115" y="190">1. Manage</text>
+  <rect class="phase" x="230" y="160" width="190" height="50"/><text class="lt" x="325" y="190">2. Divide</text>
+  <rect class="phase" x="440" y="160" width="190" height="50"/><text class="lt" x="535" y="190">3. Design</text>
+  <rect class="phase" x="650" y="160" width="190" height="50"/><text class="lt" x="745" y="190">4. Develop</text>
+  <rect class="phase" x="860" y="160" width="220" height="50"/><text class="lt" x="970" y="190">5. Evaluate</text>
+
+  <!-- tasks under each -->
+  <rect class="task" x="20" y="240" width="190" height="32"/><text class="tt" x="115" y="261">Sprint plan + Gantt</text>
+  <rect class="task" x="20" y="282" width="190" height="32"/><text class="tt" x="115" y="303">GitHub + Kanban</text>
+  <rect class="task" x="20" y="324" width="190" height="32"/><text class="tt" x="115" y="345">Risk register</text>
+  <rect class="task" x="20" y="366" width="190" height="32"/><text class="tt" x="115" y="387">Weekly standups</text>
+
+  <rect class="task" x="230" y="240" width="190" height="32"/><text class="tt" x="325" y="261">Stakeholder panel</text>
+  <rect class="task" x="230" y="282" width="190" height="32"/><text class="tt" x="325" y="303">Scope v2 lock</text>
+  <rect class="task" x="230" y="324" width="190" height="32"/><text class="tt" x="325" y="345">FDD</text>
+  <rect class="task" x="230" y="366" width="190" height="32"/><text class="tt" x="325" y="387">Phase 2 cuts</text>
+
+  <rect class="task" x="440" y="240" width="190" height="32"/><text class="tt" x="535" y="261">User flow</text>
+  <rect class="task" x="440" y="282" width="190" height="32"/><text class="tt" x="535" y="303">Figma mockups</text>
+  <rect class="task" x="440" y="324" width="190" height="32"/><text class="tt" x="535" y="345">System architecture</text>
+  <rect class="task" x="440" y="366" width="190" height="32"/><text class="tt" x="535" y="387">DB ERD (8 tables)</text>
+
+  <rect class="task" x="650" y="240" width="190" height="32"/><text class="tt" x="745" y="261">Auth + profile</text>
+  <rect class="task" x="650" y="282" width="190" height="32"/><text class="tt" x="745" y="303">Places + midpoint</text>
+  <rect class="task" x="650" y="324" width="190" height="32"/><text class="tt" x="745" y="345">Party + swipe + match</text>
+  <rect class="task" x="650" y="366" width="190" height="32"/><text class="tt" x="745" y="387">Date + Calendar export</text>
+  <rect class="task" x="650" y="408" width="190" height="32"/><text class="tt" x="745" y="429">Realtime sync</text>
+  <rect class="task" x="650" y="450" width="190" height="32"/><text class="tt" x="745" y="471">Railway deploy</text>
+
+  <rect class="task" x="860" y="240" width="220" height="32"/><text class="tt" x="970" y="261">20 test cases</text>
+  <rect class="task" x="860" y="282" width="220" height="32"/><text class="tt" x="970" y="303">User acceptance test</text>
+  <rect class="task" x="860" y="324" width="220" height="32"/><text class="tt" x="970" y="345">Bug fix pass</text>
+  <rect class="task" x="860" y="366" width="220" height="32"/><text class="tt" x="970" y="387">Demo rehearsal</text>
+  <rect class="task" x="860" y="408" width="220" height="32"/><text class="tt" x="970" y="429">Final presentation</text>
+
+  <path class="line" d="M 550 110 L 115 160 M 550 110 L 325 160 M 550 110 L 535 160 M 550 110 L 745 160 M 550 110 L 970 160"/>
+</svg>

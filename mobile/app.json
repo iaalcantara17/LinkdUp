@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "LinkdUp",
+    "slug": "linkdup",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0B0B14",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.linkdup.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "LinkdUp needs your location to find a fair meetup spot for your crew."
+      }
+    },
+    "android": {
+      "package": "com.linkdup.app",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow LinkdUp to use your location."
+        }
+      ]
+    ]
+  }
+}
