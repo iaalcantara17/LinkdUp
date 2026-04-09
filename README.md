@@ -57,21 +57,10 @@ npx expo start             # scan the QR with Expo Go
 | Role | Name |
 |---|---|
 | Project Manager | Luis Duarte |
-| Tech Lead / Backend / Sole Developer | Israel Alcantara |
+| Tech Lead / Backend | Israel Alcantara |
 | Frontend QA | Joshua Hernandez |
 | Integration & Testing | Nekhi Glover |
 | UX & Business Logic | Yash Amin |
-
-## Timeline
-
-| Date | Event |
-|---|---|
-| Feb 17, 2026 | Project start |
-| Apr 8, 2026 | Build window opens (Israel solo) |
-| Apr 25, 2026 | Backend deployed to Railway |
-| May 5, 2026 | Full team demo rehearsal |
-| May 7, 2026 | Final capstone presentation |
-| May 8, 2026 | Project end |
 
 ## License
 
