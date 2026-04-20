@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 760" font-family="Inter, system-ui, sans-serif" font-size="11">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6C3EF4"/>
+      <stop offset="100%" stop-color="#00C2FF"/>
+    </linearGradient>
+    <style>
+      .box { fill: #15151F; stroke: url(#grad); stroke-width: 2; }
+      .h { fill: url(#grad); }
+      .ht { fill: white; font-weight: 700; font-size: 13px; }
+      .col { fill: #E5E7EB; }
+      .pk { fill: #FBBF24; font-weight: 700; }
+      .fk { fill: #60A5FA; }
+      .line { stroke: #6C3EF4; stroke-width: 1.5; fill: none; }
+    </style>
+  </defs>
+  <rect width="1100" height="760" fill="#0B0B14"/>
+  <text x="550" y="32" text-anchor="middle" fill="white" font-size="22" font-weight="800">LinkdUp — Entity Relationship Diagram</text>
+
+  <!-- users -->
+  <g transform="translate(40,80)">
+    <rect class="box" width="220" height="180" rx="8"/>
+    <rect class="h" width="220" height="28" rx="8"/>
+    <text class="ht" x="110" y="19" text-anchor="middle">users</text>
+    <text class="pk" x="14" y="50">PK id (uuid)</text>
+    <text class="col" x="14" y="68">email</text>
+    <text class="col" x="14" y="86">display_name</text>
+    <text class="fk" x="14" y="104">FK school_id</text>
+    <text class="col" x="14" y="122">graduation_year</text>
+    <text class="col" x="14" y="140">latitude, longitude</text>
+    <text class="col" x="14" y="158">avatar_color</text>
+    <text class="col" x="14" y="172">google_calendar_token</text>
+  </g>
+
+  <!-- schools -->
+  <g transform="translate(40,310)">
+    <rect class="box" width="220" height="100" rx="8"/>
+    <rect class="h" width="220" height="28" rx="8"/>
+    <text class="ht" x="110" y="19" text-anchor="middle">schools</text>
+    <text class="pk" x="14" y="50">PK id (uuid)</text>
+    <text class="col" x="14" y="68">name (unique)</text>
+    <text class="col" x="14" y="86">city, state, country</text>
+  </g>
+
+  <!-- parties -->
+  <g transform="translate(440,80)">
+    <rect class="box" width="220" height="200" rx="8"/>
+    <rect class="h" width="220" height="28" rx="8"/>
+    <text class="ht" x="110" y="19" text-anchor="middle">parties</text>
+    <text class="pk" x="14" y="50">PK id</text>
+    <text class="col" x="14" y="68">code (unique 6-char)</text>
+    <text class="col" x="14" y="86">name</text>
+    <text class="fk" x="14" y="104">FK host_user_id</text>
+    <text class="col" x="14" y="122">status (enum)</text>
+    <text class="fk" x="14" y="140">FK matched_location_id</text>
+    <text class="fk" x="14" y="158">FK locked_date_id</text>
+    <text class="col" x="14" y="176">midpoint_lat, midpoint_lng</text>
+  </g>
+
+  <!-- party_members -->
+  <g transform="translate(740,80)">
+    <rect class="box" width="220" height="120" rx="8"/>
+    <rect class="h" width="220" height="28" rx="8"/>
+    <text class="ht" x="110" y="19" text-anchor="middle">party_members</text>
+    <text class="pk" x="14" y="50">PK (party_id, user_id)</text>
+    <text class="fk" x="14" y="68">FK party_id</text>
+    <text class="fk" x="14" y="86">FK user_id</text>
+    <text class="col" x="14" y="104">is_online, joined_at</text>
+  </g>
+
+  <!-- locations -->
+  <g transform="translate(440,330)">
+    <rect class="box" width="220" height="180" rx="8"/>
+    <rect class="h" width="220" height="28" rx="8"/>
+    <text class="ht" x="110" y="19" text-anchor="middle">locations</text>
+    <text class="pk" x="14" y="50">PK id</text>
+    <text class="fk" x="14" y="68">FK party_id</text>
+    <text class="col" x="14" y="86">google_place_id</text>
+    <text class="col" x="14" y="104">name, address</text>
+    <text class="col" x="14" y="122">latitude, longitude</text>
+    <text class="col" x="14" y="140">photo_url</text>
+    <text class="col" x="14" y="158">rating, category, price</text>
+  </g>
+
+  <!-- votes -->
+  <g transform="translate(740,330)">
+    <rect class="box" width="220" height="140" rx="8"/>
+    <rect class="h" width="220" height="28" rx="8"/>
+    <text class="ht" x="110" y="19" text-anchor="middle">votes</text>
+    <text class="pk" x="14" y="50">PK id</text>
+    <text class="fk" x="14" y="68">FK party_id</text>
+    <text class="fk" x="14" y="86">FK user_id</text>
+    <text class="fk" x="14" y="104">FK location_id</text>
+    <text class="col" x="14" y="122">vote (bool), voted_at</text>
+  </g>
+
+  <!-- party_dates -->
+  <g transform="translate(440,560)">
+    <rect class="box" width="220" height="120" rx="8"/>
+    <rect class="h" width="220" height="28" rx="8"/>
+    <text class="ht" x="110" y="19" text-anchor="middle">party_dates</text>
+    <text class="pk" x="14" y="50">PK id</text>
+    <text class="fk" x="14" y="68">FK party_id</text>
+    <text class="col" x="14" y="86">starts_at</text>
+    <text class="col" x="14" y="104">ends_at</text>
+  </g>
+
+  <!-- date_votes -->
+  <g transform="translate(740,560)">
+    <rect class="box" width="220" height="120" rx="8"/>
+    <rect class="h" width="220" height="28" rx="8"/>
+    <text class="ht" x="110" y="19" text-anchor="middle">date_votes</text>
+    <text class="pk" x="14" y="50">PK id</text>
+    <text class="fk" x="14" y="68">FK party_date_id</text>
+    <text class="fk" x="14" y="86">FK user_id</text>
+    <text class="col" x="14" y="104">available, voted_at</text>
+  </g>
+
+  <!-- relationship lines -->
+  <path class="line" d="M 260 130 L 440 130"/>
+  <path class="line" d="M 260 350 Q 350 350 350 130 L 440 130"/>
+  <path class="line" d="M 660 130 L 740 130"/>
+  <path class="line" d="M 260 130 Q 700 30 850 80"/>
+  <path class="line" d="M 550 280 L 550 330"/>
+  <path class="line" d="M 660 380 L 740 380"/>
+  <path class="line" d="M 550 510 L 550 560"/>
+  <path class="line" d="M 660 600 L 740 600"/>
+</svg>
