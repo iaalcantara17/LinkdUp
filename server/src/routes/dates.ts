@@ -12,11 +12,11 @@ async function assertHost(partyId: string, userId: string) {
     if (data.host_user_id !== userId) throw new HttpError(403, 'not_host');
 }
 
-// Generate 14-day x 4-slot grid (morning/lunch/evening/night)
+// Generate 30-day x 4-slot grid (morning/lunch/evening/night)
 const SLOTS_PER_DAY = [
-    { hour: 11, minute: 0, label: 'late morning' },
+    { hour: 11, minute: 0, label: 'morning' },
     { hour: 13, minute: 30, label: 'lunch' },
-    { hour: 18, minute: 0, label: 'dinner' },
+    { hour: 18, minute: 0, label: 'evening' },
     { hour: 21, minute: 0, label: 'night' },
 ];
 
@@ -25,10 +25,18 @@ router.post('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => 
         const partyId = req.params.id;
         await assertHost(partyId, req.user!.id);
 
-        // Generate 14 days starting tomorrow
+        // Idempotent: if dates already exist for this party, return them.
+        const { data: existing } = await supabaseAdmin
+            .from('party_dates')
+            .select('id, starts_at, ends_at')
+            .eq('party_id', partyId)
+            .order('starts_at');
+        if (existing && existing.length > 0) return res.json(existing);
+
+        // Generate 30 days starting tomorrow
         const rows: Array<{ party_id: string; starts_at: string; ends_at: string }> = [];
         const now = new Date();
-        for (let day = 1; day <= 14; day++) {
+        for (let day = 1; day <= 30; day++) {
             for (const slot of SLOTS_PER_DAY) {
                 const start = new Date(now);
                 start.setDate(start.getDate() + day);
@@ -54,7 +62,13 @@ router.post('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => 
             .eq('id', partyId)
             .eq('status', 'matched');
 
-        res.json({ ok: true, slots_generated: rows.length });
+        const { data: created } = await supabaseAdmin
+            .from('party_dates')
+            .select('id, starts_at, ends_at')
+            .eq('party_id', partyId)
+            .order('starts_at');
+
+        res.json(created ?? []);
     } catch (e) { next(e); }
 });
 
@@ -124,6 +138,52 @@ router.post('/:id/dates/vote', requireAuth, async (req: AuthedRequest, res, next
         }
 
         res.json({ ok: true, count: body.date_slot_ids.length });
+    } catch (e) { next(e); }
+});
+
+// ── POST /:id/dates/custom ────────────────────────────────────────────────────
+// Insert a single custom party_date chosen by the user (any datetime, not only
+// the auto-generated 30-day grid). Idempotent: returns the existing row if the
+// same starts_at already exists for this party.
+const customDateSchema = z.object({
+    datetime: z.string().min(1), // ISO datetime string
+});
+
+router.post('/:id/dates/custom', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+
+        // Assert caller is a party member (not just the host)
+        const { data: membership } = await supabaseAdmin
+            .from('party_members')
+            .select('user_id')
+            .eq('party_id', partyId)
+            .eq('user_id', req.user!.id)
+            .maybeSingle();
+        if (!membership) throw new HttpError(403, 'not_a_member');
+
+        const body = customDateSchema.parse(req.body);
+        const start = new Date(body.datetime);
+        if (isNaN(start.getTime())) throw new HttpError(400, 'invalid_datetime');
+        const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+
+        // Return existing row if this exact slot already exists
+        const { data: existing } = await supabaseAdmin
+            .from('party_dates')
+            .select('id, starts_at, ends_at')
+            .eq('party_id', partyId)
+            .eq('starts_at', start.toISOString())
+            .maybeSingle();
+        if (existing) return res.json(existing);
+
+        const { data: created, error } = await supabaseAdmin
+            .from('party_dates')
+            .insert({ party_id: partyId, starts_at: start.toISOString(), ends_at: end.toISOString() })
+            .select('id, starts_at, ends_at')
+            .single();
+        if (error || !created) throw new HttpError(500, 'date_create_failed', error?.message);
+
+        res.status(201).json(created);
     } catch (e) { next(e); }
 });
 

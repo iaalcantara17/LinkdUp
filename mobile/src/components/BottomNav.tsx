@@ -18,7 +18,7 @@ export default function BottomNav() {
         { key: 'Home', label: 'Home', Icon: HomeIcon, onPress: () => nav.navigate('Home') },
         { key: 'Discover', label: 'Discover', Icon: Compass, onPress: () => nav.navigate('Discover') },
         { key: 'CreateParty', label: 'Party', Icon: Users, onPress: () => nav.navigate('CreateParty') },
-        { key: 'Calendar', label: 'Calendar', Icon: Calendar, onPress: () => {} },
+        { key: 'Hangouts', label: 'Calendar', Icon: Calendar, onPress: () => nav.navigate('Hangouts') },
         { key: 'Profile', label: 'Profile', Icon: User, onPress: () => nav.navigate('Profile') },
     ];
 

@@ -47,11 +47,9 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
         );
         if (voteErr) throw new HttpError(500, 'vote_failed', voteErr.message);
 
-        // Evaluate match (only triggers if a yes vote — small optimization)
-        let match = null;
-        if (body.vote) {
-            match = await evaluateMatch(partyId);
-        }
+        // Always evaluate match after any vote so a solo user who swipes
+        // left on the final card still reaches the match or end state.
+        const match = await evaluateMatch(partyId);
 
         res.json({ ok: true, match });
     } catch (e) { next(e); }

@@ -18,41 +18,75 @@ router.post('/signup', async (req, res, next) => {
     try {
         const body = signupSchema.parse(req.body);
 
-        // Create the auth user via admin API
+        // Step 1: create (or recover) the auth user
+        let userId: string;
         const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
             email: body.email,
             password: body.password,
             email_confirm: true,
         });
-        if (authErr || !authData.user) {
-            throw new HttpError(400, 'signup_failed', authErr?.message ?? 'unknown');
+
+        if (authErr) {
+            const msg = authErr.message ?? '';
+            const alreadyExists =
+                msg.toLowerCase().includes('already registered') ||
+                msg.toLowerCase().includes('already been registered') ||
+                msg.toLowerCase().includes('user already exists');
+
+            if (!alreadyExists) {
+                // Hard auth error — surface it
+                throw new HttpError(400, 'signup_failed', msg || 'unknown');
+            }
+
+            // Auth user exists but profile row may be missing (orphaned auth user).
+            // Sign in with the provided credentials to prove ownership, then recover.
+            const { data: signInData, error: signInErr } = await supabaseAdmin.auth.signInWithPassword({
+                email: body.email,
+                password: body.password,
+            });
+            if (signInErr || !signInData?.user) {
+                // Wrong password or some other issue — treat as "email taken"
+                throw new HttpError(409, 'email_taken', 'Email is already registered. Use a different email or log in.');
+            }
+            userId = signInData.user.id;
+        } else if (!authData?.user) {
+            throw new HttpError(400, 'signup_failed', 'No user returned from auth provider');
+        } else {
+            userId = authData.user.id;
         }
 
-        // Insert into our users table
-        const { error: userErr } = await supabaseAdmin.from('users').insert({
-            id: authData.user.id,
-            email: body.email,
-            display_name: body.display_name,
-            school_id: body.school_id ?? null,
-            graduation_year: body.graduation_year ?? null,
-        });
-        if (userErr) {
-            // Rollback the auth user
-            await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-            throw new HttpError(500, 'profile_create_failed', userErr.message);
+        // Step 2: upsert the profile row (idempotent — safe to call on retry)
+        const { error: upsertErr } = await supabaseAdmin
+            .from('users')
+            .upsert(
+                {
+                    id: userId,
+                    email: body.email,
+                    display_name: body.display_name,
+                    school_id: body.school_id ?? null,
+                    graduation_year: body.graduation_year ?? null,
+                },
+                { onConflict: 'id' }
+            );
+        if (upsertErr) {
+            // Only delete the auth user if WE just created it (not on a recovery path)
+            if (authData?.user) {
+                await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => {});
+            }
+            throw new HttpError(500, 'profile_create_failed', upsertErr.message);
         }
 
-        // Sign in immediately to return a session
-        const { data: sessionData, error: signInErr } = await supabaseAdmin.auth.signInWithPassword({
+        // Step 3: sign in and return the session
+        const { data: sessionData, error: sessionErr } = await supabaseAdmin.auth.signInWithPassword({
             email: body.email,
             password: body.password,
         });
-        if (signInErr || !sessionData.session) {
-            throw new HttpError(500, 'signin_after_signup_failed', signInErr?.message);
+        if (sessionErr || !sessionData?.session) {
+            throw new HttpError(500, 'signin_after_signup_failed', sessionErr?.message);
         }
 
         res.status(201).json({
-            user: { id: authData.user.id, email: body.email, display_name: body.display_name },
+            user: { id: userId, email: body.email, display_name: body.display_name },
             session: {
                 access_token: sessionData.session.access_token,
                 refresh_token: sessionData.session.refresh_token,
@@ -103,15 +137,53 @@ router.post('/logout', requireAuth, async (req: AuthedRequest, res, next) => {
     }
 });
 
+// POST /api/auth/ensure-profile — idempotent upsert for OAuth users.
+// Called by AuthCallbackScreen after a successful Google sign-in to guarantee
+// a public.users row exists.  Safe to call multiple times.
+const ensureProfileSchema = z.object({
+    email:        z.string().email(),
+    display_name: z.string().min(1).max(100),
+});
+
+router.post('/ensure-profile', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const body = ensureProfileSchema.parse(req.body);
+        const { data, error } = await supabaseAdmin
+            .from('users')
+            .upsert(
+                {
+                    id:           req.user!.id,
+                    email:        body.email,
+                    display_name: body.display_name,
+                },
+                { onConflict: 'id', ignoreDuplicates: false }
+            )
+            .select('id, email, display_name, graduation_year, school_id, avatar_color')
+            .single();
+        if (error) throw new HttpError(500, 'ensure_profile_failed', error.message);
+        res.json(data);
+    } catch (e) { next(e); }
+});
+
 router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('users')
-            .select('id, email, display_name, school_id, graduation_year, avatar_color')
+            .select('id, email, display_name, school_id, graduation_year, avatar_color, avatar_url, latitude, longitude, google_calendar_refresh, pronouns, birthday, bio')
             .eq('id', req.user!.id)
             .single();
         if (error) throw new HttpError(404, 'profile_not_found');
-        res.json(data);
+        const token = (data as any)?.google_calendar_refresh;
+        const google_calendar_connected = token !== null && token !== undefined && String(token).trim() !== '';
+        const { google_calendar_refresh: _omit, ...rest } = data as any;
+        // Compute age from birthday so it's always fresh
+        const age = (() => {
+            if (!rest.birthday) return null;
+            const d = new Date(rest.birthday);
+            if (isNaN(d.getTime())) return null;
+            return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+        })();
+        res.json({ ...rest, google_calendar_connected, age });
     } catch (e) {
         next(e);
     }

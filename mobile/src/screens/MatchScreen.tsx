@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, Linking, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, Linking, Dimensions, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Sparkles, Calendar, ArrowRight, MapPin, Star } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
+import AvatarBubble from '../components/AvatarBubble';
+import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
 import { colors, typography, spacing, radii } from '../theme';
 
@@ -133,19 +135,17 @@ function GlowOrb({
     );
 }
 
-const CREW_AVATARS = [
-    'https://i.pravatar.cc/150?img=1',
-    'https://i.pravatar.cc/150?img=2',
-    'https://i.pravatar.cc/150?img=3',
-    'https://i.pravatar.cc/150?img=11',
-];
-
 export default function MatchScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
-    const [venue, setVenue] = useState<any>(DEMO_VENUE);
+    const [venue, setVenue] = useState<any>(null);
+    const [venueLoaded, setVenueLoaded] = useState(false);
     const [showConfetti, setShowConfetti] = useState(true);
+    const [crew, setCrew] = useState<Array<{ id: string; name: string; color?: string; avatarUrl?: string }>>([]);
+    const [profileUserId, setProfileUserId] = useState<string | null>(null);
+    const [myId, setMyId] = useState<string | null>(null);
+    const [keepLoading, setKeepLoading] = useState(false);
 
     // Sparkle icon rotation
     const sparkleRotate = useSharedValue(0);
@@ -162,10 +162,35 @@ export default function MatchScreen() {
 
         const t = setTimeout(() => setShowConfetti(false), 3500);
 
-        // Try to fetch real match data
+        // Try to fetch real match data - fall back to demo if no partyId or API fails
         api.getMatch(partyId).then((data) => {
-            if (data?.location) setVenue(data.location);
-        }).catch(() => {});
+            if (data?.location) {
+                setVenue(data.location);
+            } else {
+                setVenue(DEMO_VENUE);
+            }
+            setVenueLoaded(true);
+        }).catch(() => {
+            setVenue(DEMO_VENUE);
+            setVenueLoaded(true);
+        });
+
+        // Fetch real crew members
+        Promise.all([api.getMembers(partyId).catch(() => []), api.me().catch(() => null)]).then(
+            ([members, me]) => {
+                if (me?.id) setMyId(me.id);
+                if (Array.isArray(members) && members.length > 0) {
+                    setCrew(
+                        members.map((m: any) => ({
+                            id: m.user_id,
+                            name: m.user_id === me?.id ? 'You' : (m.users?.display_name ?? '?'),
+                            color: m.users?.avatar_color,
+                            avatarUrl: m.users?.avatar_url ?? undefined,
+                        }))
+                    );
+                }
+            }
+        );
 
         return () => clearTimeout(t);
     }, [partyId]);
@@ -178,6 +203,26 @@ export default function MatchScreen() {
         api.generateDates(partyId).catch(() => {});
         nav.replace('DateTimeSetup', { partyId });
     };
+
+    const handleKeepSwiping = async () => {
+        setKeepLoading(true);
+        try {
+            await api.resetParty(partyId);
+            nav.replace('Swipe', { partyId });
+        } catch (e: any) {
+            Alert.alert('Could not reset', e?.message ?? 'Unknown error');
+        } finally {
+            setKeepLoading(false);
+        }
+    };
+
+    if (!venueLoaded || !venue) {
+        return (
+            <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={{ color: colors.text60, fontFamily: 'Inter_500Medium' }}>Loading your match...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.root}>
@@ -249,18 +294,26 @@ export default function MatchScreen() {
 
                             {venue.address && <Text style={styles.venueAddress}>{venue.address}</Text>}
 
-                            <View style={styles.crewSection}>
-                                <Text style={styles.crewSectionLabel}>Everyone's in!</Text>
-                                <View style={{ flexDirection: 'row' }}>
-                                    {CREW_AVATARS.map((a, i) => (
-                                        <Image
-                                            key={i}
-                                            source={{ uri: a }}
-                                            style={[styles.crewAvatar, { marginLeft: i === 0 ? 0 : -12 }]}
-                                        />
-                                    ))}
+                            {crew.length > 0 && (
+                                <View style={styles.crewSection}>
+                                    <Text style={styles.crewSectionLabel}>
+                                        {crew.length === 1 ? "You're in!" : "Everyone's in!"}
+                                    </Text>
+                                    <View style={{ flexDirection: 'row' }}>
+                                        {crew.map((m, i) => (
+                                            <View key={m.id} style={{ marginLeft: i === 0 ? 0 : -12 }}>
+                                                <AvatarBubble
+                                                    name={m.name}
+                                                    color={m.color}
+                                                    avatarUrl={m.avatarUrl}
+                                                    size={44}
+                                                    onPress={m.id !== myId ? () => setProfileUserId(m.id) : undefined}
+                                                />
+                                            </View>
+                                        ))}
+                                    </View>
                                 </View>
-                            </View>
+                            )}
                         </View>
                     </Animated.View>
 
@@ -276,11 +329,18 @@ export default function MatchScreen() {
                         <GradientButton
                             title="Keep Swiping"
                             variant="ghost"
-                            onPress={() => nav.goBack()}
+                            onPress={handleKeepSwiping}
+                            loading={keepLoading}
                         />
                     </Animated.View>
                 </ScrollView>
             </SafeAreaView>
+
+            <UserProfileSheet
+                userId={profileUserId}
+                visible={profileUserId !== null}
+                onClose={() => setProfileUserId(null)}
+            />
         </View>
     );
 }

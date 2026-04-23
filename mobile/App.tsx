@@ -4,7 +4,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, LinkingOptions } from '@react-navigation/native';
 import {
     useFonts,
     Inter_400Regular,
@@ -17,6 +17,20 @@ import {
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme';
+
+// Deep-link + web-URL linking config.
+// 'auth-callback' is used as the OAuth redirect landing path on web.
+// On native, Supabase redirects to linkdup://auth-callback which is
+// handled by the same screen.
+const linking: LinkingOptions<any> = {
+    prefixes: ['linkdup://', 'http://localhost:8081', 'exp://'],
+    config: {
+        screens: {
+            AuthCallback: 'auth-callback',
+            CompleteProfile: 'complete-profile',
+        },
+    },
+};
 
 const navTheme = {
     ...DefaultTheme,
@@ -53,7 +67,7 @@ export default function App() {
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
             <SafeAreaProvider>
                 <AuthProvider>
-                    <NavigationContainer theme={navTheme}>
+                    <NavigationContainer theme={navTheme} linking={linking}>
                         <StatusBar style="light" />
                         <RootNavigator />
                     </NavigationContainer>

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import AvatarBubble from '../components/AvatarBubble';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -19,18 +20,7 @@ import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
 import { colors, typography, spacing, radii } from '../theme';
 
-const DEMO_EVENT = {
-    venue: 'Maple Pool Lounge',
-    date: 'Friday, March 14, 2026',
-    time: '6:00 PM',
-    address: '789 Game Street, Midtown',
-    attendees: [
-        { id: 1, name: 'Alex', avatar: 'https://i.pravatar.cc/150?img=1' },
-        { id: 2, name: 'Jordan', avatar: 'https://i.pravatar.cc/150?img=2' },
-        { id: 3, name: 'Sam', avatar: 'https://i.pravatar.cc/150?img=3' },
-        { id: 4, name: 'You', avatar: 'https://i.pravatar.cc/150?img=11' },
-    ],
-};
+type Attendee = { id: string; name: string; color?: string; avatarUrl?: string };
 
 function GoogleCalIcon() {
     return (
@@ -46,6 +36,13 @@ export default function CalendarConfirmationScreen() {
     const partyId: string = route.params?.partyId ?? 'demo';
     const [loading, setLoading] = useState(false);
     const [reminderOn, setReminderOn] = useState(true);
+    const [googleConnected, setGoogleConnected] = useState(false);
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const [venue, setVenue] = useState<{ name: string; address?: string } | null>(null);
+    const [lockedDate, setLockedDate] = useState<string | null>(null);
+    const [attendees, setAttendees] = useState<Attendee[]>([]);
+    const [partyCode, setPartyCode] = useState<string | null>(null);
 
     // Pulsing calendar badge
     const scale = useSharedValue(1);
@@ -67,18 +64,222 @@ export default function CalendarConfirmationScreen() {
     }, [reminderOn]);
     const knobStyle = useAnimatedStyle(() => ({ transform: [{ translateX: knobX.value }] }));
 
+    useEffect(() => {
+        api.me().then((me: any) => {
+            const connected =
+                (typeof me?.google_calendar_connected === 'boolean' && me.google_calendar_connected) ||
+                (me?.google_refresh_token !== null && me?.google_refresh_token !== undefined && String(me.google_refresh_token).trim() !== '');
+            setGoogleConnected(!!connected);
+        }).catch((e: any) => {
+            console.error('[gcal]', e);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!partyId || partyId === 'demo') return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const [matchData, partyData, members, me] = await Promise.all([
+                    api.getMatch(partyId).catch(() => null),
+                    api.getParty(partyId).catch(() => null),
+                    api.getMembers(partyId).catch(() => []),
+                    api.me().catch(() => null),
+                ]);
+
+                if (!cancelled && matchData?.location) {
+                    setVenue({ name: matchData.location.name, address: matchData.location.address });
+                }
+
+                if (!cancelled && partyData?.party?.locked_date_id) {
+                    const dates = await api.getDates(partyId).catch(() => []);
+                    const locked = (dates as any[]).find((d: any) => d.id === partyData.party.locked_date_id);
+                    if (locked?.starts_at) setLockedDate(locked.starts_at);
+                }
+
+                if (!cancelled && partyData?.party?.code) {
+                    setPartyCode(partyData.party.code);
+                }
+
+                if (!cancelled && Array.isArray(members) && members.length > 0) {
+                    setAttendees(
+                        members.map((m: any) => ({
+                            id: m.user_id,
+                            name: m.user_id === me?.id ? 'You' : (m.users?.display_name ?? '?'),
+                            color: m.users?.avatar_color,
+                            avatarUrl: m.users?.avatar_url ?? undefined,
+                        }))
+                    );
+                }
+            } catch (e: any) {
+                console.error('[calendar-confirm]', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [partyId]);
+
+    useEffect(() => {
+        return () => {
+            if (pollRef.current) {
+                clearInterval(pollRef.current);
+                pollRef.current = null;
+            }
+        };
+    }, []);
+
+    const startPollingForGoogleConnect = (party: string) => {
+        if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+        }
+
+        let tries = 0;
+        pollRef.current = setInterval(async () => {
+            tries += 1;
+            try {
+                const me: any = await api.me();
+                const connected =
+                    (typeof me?.google_calendar_connected === 'boolean' && me.google_calendar_connected) ||
+                    (me?.google_refresh_token !== null && me?.google_refresh_token !== undefined && String(me.google_refresh_token).trim() !== '');
+
+                if (connected) {
+                    if (pollRef.current) {
+                        clearInterval(pollRef.current);
+                        pollRef.current = null;
+                    }
+                    setGoogleConnected(true);
+                    try {
+                        await api.calendarExport(party);
+                        Alert.alert('Added to Google Calendar ✓');
+                    } catch (e: any) {
+                        console.error('[gcal]', e);
+                        Alert.alert('Could not export', e?.message ?? 'unknown');
+                    }
+                } else if (tries >= 10) {
+                    if (pollRef.current) {
+                        clearInterval(pollRef.current);
+                        pollRef.current = null;
+                    }
+                }
+            } catch (e: any) {
+                console.error('[gcal]', e);
+                if (tries >= 10 && pollRef.current) {
+                    clearInterval(pollRef.current);
+                    pollRef.current = null;
+                }
+            }
+        }, 2000);
+    };
+
+    const handleShare = async () => {
+        const venueName    = venue?.name ?? 'TBD';
+        const venueAddress = venue?.address ?? '';
+        const dateStr = lockedDate
+            ? new Date(lockedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+            : 'Date TBD';
+        const timeStr = lockedDate
+            ? new Date(lockedDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+            : '';
+        const dateTime = lockedDate ? `${dateStr} at ${timeStr}` : dateStr;
+        const code = partyCode ?? '';
+
+        const message =
+            `LinkdUp meetup locked in! 🎉\n\n${venueName}\n${venueAddress}\n\n${dateTime}\n\nJoin with code: ${code}`;
+        const title = 'LinkdUp Meetup';
+
+        if (Platform.OS !== 'web') {
+            const { Share } = require('react-native');
+            try {
+                await Share.share({ message, title });
+            } catch (e: any) {
+                console.error('[share]', e);
+            }
+        } else {
+            try {
+                if ((navigator as any).canShare?.({ title, text: message })) {
+                    await (navigator as any).share({ title, text: message });
+                } else {
+                    await navigator.clipboard.writeText(message);
+                    Alert.alert('Copied to clipboard — paste it anywhere to share');
+                }
+            } catch (e: any) {
+                // User cancelled native share — not an error
+                if ((e as any)?.name !== 'AbortError') console.error('[share]', e);
+            }
+        }
+    };
+
     const handleAddToGoogle = async () => {
+        console.log('[gcal] click, connected=', googleConnected, 'party=', partyId);
         setLoading(true);
         try {
-            await api.calendarExport(partyId);
-            Alert.alert('Added to your Google Calendar ✓', 'Check your calendar app.');
-        } catch (e: any) {
-            if (e?.message?.includes('user_not_connected_to_google') || e?.message?.includes('user_not_connected')) {
-                try {
-                    const { url } = await api.calendarOAuthStart();
+            if (!googleConnected) {
+                let popup: Window | null = null;
+                if (Platform.OS === 'web') {
+                    try {
+                        popup = window.open('about:blank', '_blank', 'width=500,height=700');
+                    } catch (e: any) {
+                        console.error('[gcal]', e);
+                    }
+                }
+
+                const { url } = await api.calendarOAuthStart();
+
+                if (Platform.OS === 'web') {
+                    if (popup && !popup.closed) {
+                        try {
+                            popup.location.href = url;
+                        } catch (e: any) {
+                            console.error('[gcal]', e);
+                            try { window.open(url, '_blank', 'width=500,height=700'); } catch (e2: any) { console.error('[gcal]', e2); }
+                        }
+                    } else {
+                        try { window.open(url, '_blank', 'width=500,height=700'); } catch (e: any) { console.error('[gcal]', e); }
+                    }
+                } else {
                     await WebBrowser.openBrowserAsync(url);
-                    Alert.alert('Almost there', 'After granting permission, tap Add to Google Calendar again.');
+                }
+
+                Alert.alert('Almost there', "After you grant permission, tap 'Add to Google Calendar' again.");
+                startPollingForGoogleConnect(partyId);
+                return;
+            }
+
+            await api.calendarExport(partyId);
+            Alert.alert('Added to Google Calendar ✓');
+        } catch (e: any) {
+            console.error('[gcal]', e);
+            if (e?.message?.includes('user_not_connected_to_google') || e?.message?.includes('user_not_connected')) {
+                setGoogleConnected(false);
+                try {
+                    let popup: Window | null = null;
+                    if (Platform.OS === 'web') {
+                        try {
+                            popup = window.open('about:blank', '_blank', 'width=500,height=700');
+                        } catch (e: any) {
+                            console.error('[gcal]', e);
+                        }
+                    }
+
+                    const { url } = await api.calendarOAuthStart();
+                    if (Platform.OS === 'web') {
+                        if (popup && !popup.closed) {
+                            try {
+                                popup.location.href = url;
+                            } catch (e: any) {
+                                console.error('[gcal]', e);
+                                try { window.open(url, '_blank', 'width=500,height=700'); } catch (e2: any) { console.error('[gcal]', e2); }
+                            }
+                        } else {
+                            try { window.open(url, '_blank', 'width=500,height=700'); } catch (e: any) { console.error('[gcal]', e); }
+                        }
+                    } else {
+                        await WebBrowser.openBrowserAsync(url);
+                    }
+                    Alert.alert('Almost there', "After you grant permission, tap 'Add to Google Calendar' again.");
+                    startPollingForGoogleConnect(partyId);
                 } catch (inner: any) {
+                    console.error('[gcal]', inner);
                     Alert.alert('Could not connect', inner?.message ?? 'unknown');
                 }
             } else {
@@ -115,11 +316,13 @@ export default function CalendarConfirmationScreen() {
                     {/* Event preview */}
                     <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.eventCard}>
                         <View style={styles.venueBlock}>
-                            <Text style={styles.venueName}>{DEMO_EVENT.venue}</Text>
-                            <View style={styles.venueAddress}>
-                                <MapPin size={14} color={colors.text60} />
-                                <Text style={styles.venueAddressText}>{DEMO_EVENT.address}</Text>
-                            </View>
+                            <Text style={styles.venueName}>{venue?.name ?? 'Loading...'}</Text>
+                            {!!venue?.address && (
+                                <View style={styles.venueAddress}>
+                                    <MapPin size={14} color={colors.text60} />
+                                    <Text style={styles.venueAddressText}>{venue.address}</Text>
+                                </View>
+                            )}
                         </View>
 
                         <View style={styles.row}>
@@ -128,7 +331,16 @@ export default function CalendarConfirmationScreen() {
                             </IconBadge>
                             <View style={{ flex: 1, marginLeft: 16 }}>
                                 <Text style={styles.rowLabel}>Date</Text>
-                                <Text style={styles.rowValue}>{DEMO_EVENT.date}</Text>
+                                <Text style={styles.rowValue}>
+                                    {lockedDate
+                                        ? new Date(lockedDate).toLocaleDateString('en-US', {
+                                              weekday: 'long',
+                                              month: 'long',
+                                              day: 'numeric',
+                                              year: 'numeric',
+                                          })
+                                        : 'Loading...'}
+                                </Text>
                             </View>
                         </View>
 
@@ -138,7 +350,14 @@ export default function CalendarConfirmationScreen() {
                             </IconBadge>
                             <View style={{ flex: 1, marginLeft: 16 }}>
                                 <Text style={styles.rowLabel}>Time</Text>
-                                <Text style={styles.rowValue}>{DEMO_EVENT.time}</Text>
+                                <Text style={styles.rowValue}>
+                                    {lockedDate
+                                        ? new Date(lockedDate).toLocaleTimeString('en-US', {
+                                              hour: 'numeric',
+                                              minute: '2-digit',
+                                          })
+                                        : 'Loading...'}
+                                </Text>
                             </View>
                         </View>
 
@@ -147,14 +366,12 @@ export default function CalendarConfirmationScreen() {
                                 <Users size={22} color="white" />
                             </IconBadge>
                             <View style={{ flex: 1, marginLeft: 16 }}>
-                                <Text style={styles.rowLabel}>Attendees ({DEMO_EVENT.attendees.length})</Text>
+                                <Text style={styles.rowLabel}>Attendees ({attendees.length})</Text>
                                 <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                                    {DEMO_EVENT.attendees.map((a, i) => (
-                                        <Image
-                                            key={a.id}
-                                            source={{ uri: a.avatar }}
-                                            style={[styles.attendeeAvatar, { marginLeft: i === 0 ? 0 : -10 }]}
-                                        />
+                                    {attendees.map((a, i) => (
+                                        <View key={a.id} style={{ marginLeft: i === 0 ? 0 : -10 }}>
+                                            <AvatarBubble name={a.name} color={a.color} avatarUrl={a.avatarUrl} size={36} />
+                                        </View>
                                     ))}
                                 </View>
                             </View>
@@ -208,7 +425,7 @@ export default function CalendarConfirmationScreen() {
                             <View style={{ flex: 1 }}>
                                 <GradientButton
                                     title="Share"
-                                    onPress={() => Alert.alert('Share', 'Share link coming soon.')}
+                                    onPress={handleShare}
                                 />
                             </View>
                         </View>

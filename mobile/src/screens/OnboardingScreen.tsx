@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ import { ChevronRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { colors, typography, radii } from '../theme';
 
-const { width } = Dimensions.get('window');
+// width is now read from useWindowDimensions() inside the component
 
 const slides = [
     {
@@ -77,6 +77,7 @@ function Splash() {
 
 export default function OnboardingScreen() {
     const nav = useNavigation<any>();
+    const { width } = useWindowDimensions();
     const [showSplash, setShowSplash] = useState(true);
     const [currentSlide, setCurrentSlide] = useState(0);
     const scrollRef = React.useRef<ScrollView>(null);
@@ -85,6 +86,11 @@ export default function OnboardingScreen() {
         const t = setTimeout(() => setShowSplash(false), 1500);
         return () => clearTimeout(t);
     }, []);
+
+    // Keep the current slide aligned when the window is resized
+    useEffect(() => {
+        scrollRef.current?.scrollTo({ x: currentSlide * width, animated: false });
+    }, [width, currentSlide]);
 
     if (showSplash) return <Splash />;
 
@@ -119,7 +125,7 @@ export default function OnboardingScreen() {
                 style={{ flex: 1 }}
             >
                 {slides.map((slide, i) => (
-                    <View key={i} style={styles.slide}>
+                    <View key={i} style={[styles.slide, { width }]}>
                         <View style={styles.imageWrap}>
                             <Image source={{ uri: slide.image }} style={styles.image} resizeMode="cover" />
                         </View>
@@ -132,9 +138,9 @@ export default function OnboardingScreen() {
             <View style={styles.actions}>
                 {isLastSlide ? (
                     <>
-                        <GradientButton title="Get Started" onPress={() => nav.navigate('Login')} />
+                        <GradientButton title="Get Started" onPress={() => nav.navigate('Login', { mode: 'signup' })} />
                         <View style={{ height: 16 }} />
-                        <GradientButton title="Log In" variant="ghost" onPress={() => nav.navigate('Login')} />
+                        <GradientButton title="Log In" variant="ghost" onPress={() => nav.navigate('Login', { mode: 'login' })} />
                     </>
                 ) : (
                     <View style={styles.navRow}>
@@ -166,7 +172,7 @@ const styles = StyleSheet.create({
     progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingTop: 16 },
     progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden' },
     progressFill: { height: '100%' },
-    slide: { width, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+    slide: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },    
     imageWrap: {
         width: 300,
         height: 300,

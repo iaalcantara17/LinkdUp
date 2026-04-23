@@ -205,11 +205,18 @@ alter table public.schools enable row level security;
 create policy "schools_read_authenticated" on public.schools
     for select using (auth.role() = 'authenticated');
 
--- Users: a user can read and update only themselves
+-- Users: a user can read only themselves
 create policy "users_self_read" on public.users
     for select using (auth.uid() = id);
+
+-- INSERT: WITH CHECK (true) — only the Express backend (service_role) inserts profiles.
+-- auth.uid() is NULL for service_role requests, so "= id" would silently block inserts.
+create policy "users_self_insert" on public.users
+    for insert with check (true);
+
+-- UPDATE: permissive — backend updates coordinates, avatar_color, google tokens, etc.
 create policy "users_self_update" on public.users
-    for update using (auth.uid() = id);
+    for update using (true) with check (true);
 
 -- Party members can see their party rows
 create policy "parties_member_read" on public.parties
@@ -217,10 +224,34 @@ create policy "parties_member_read" on public.parties
         exists (select 1 from public.party_members pm where pm.party_id = parties.id and pm.user_id = auth.uid())
     );
 
+create policy "parties_insert" on public.parties
+    for insert with check (auth.uid() = host_user_id);
+
+create policy "parties_update" on public.parties
+    for update using (auth.uid() = host_user_id);
+
+create policy "parties_delete" on public.parties
+    for delete using (auth.uid() = host_user_id);
+
+-- Simple non-recursive policy: user sees only their own membership rows.
+-- The OR EXISTS form that checked co-members caused infinite recursion because
+-- it queried party_members from within the policy on party_members.
 create policy "party_members_self_read" on public.party_members
-    for select using (
+    for select using (user_id = auth.uid());
+
+create policy "party_members_insert" on public.party_members
+    for insert with check (true);
+
+create policy "party_members_update" on public.party_members
+    for update using (
         user_id = auth.uid()
-        or exists (select 1 from public.party_members pm where pm.party_id = party_members.party_id and pm.user_id = auth.uid())
+        or exists (select 1 from public.parties where id = party_members.party_id and host_user_id = auth.uid())
+    );
+
+create policy "party_members_delete" on public.party_members
+    for delete using (
+        user_id = auth.uid()
+        or exists (select 1 from public.parties where id = party_members.party_id and host_user_id = auth.uid())
     );
 
 create policy "locations_member_read" on public.locations

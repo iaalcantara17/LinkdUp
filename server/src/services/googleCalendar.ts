@@ -83,6 +83,25 @@ export async function createCalendarEventForUser(userId: string, ev: CalendarEve
     return result.data;
 }
 
+export async function deleteCalendarEventForUser(userId: string, eventId: string): Promise<void> {
+    const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('google_calendar_token, google_calendar_refresh')
+        .eq('id', userId)
+        .single();
+
+    if (!user?.google_calendar_token) return; // user not connected — nothing to delete
+
+    const oauth2Client = makeOAuthClient();
+    oauth2Client.setCredentials({
+        access_token: user.google_calendar_token,
+        refresh_token: user.google_calendar_refresh ?? undefined,
+    });
+
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    await calendar.events.delete({ calendarId: 'primary', eventId });
+}
+
 // ICS fallback for users not connected to Google
 export function buildICS(ev: CalendarEventInput): string {
     const fmt = (iso: string) => iso.replace(/[-:]/g, '').replace(/\.\d{3}/, '');

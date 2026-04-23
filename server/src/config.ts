@@ -29,4 +29,9 @@ export const config = {
         oauthClientSecret: required('GOOGLE_OAUTH_CLIENT_SECRET'),
         oauthRedirectUri: required('GOOGLE_OAUTH_REDIRECT_URI'),
     },
+
+    anthropic: {
+        // Optional — if absent, AI pitches fall back to a static message.
+        apiKey: optional('ANTHROPIC_API_KEY'),
+    },
 };

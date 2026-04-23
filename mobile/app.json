@@ -2,6 +2,7 @@
   "expo": {
     "name": "LinkdUp",
     "slug": "linkdup",
+    "scheme": "linkdup",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",

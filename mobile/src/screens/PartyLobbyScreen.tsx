@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import GlassCard from '../components/GlassCard';
 import AvatarBubble from '../components/AvatarBubble';
+import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { colors, typography, spacing, radii } from '../theme';
@@ -19,6 +20,9 @@ export default function PartyLobbyScreen() {
     const [members, setMembers] = useState<any[]>([]);
     const [me, setMe] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [profileUserId, setProfileUserId] = useState<string | null>(null);
+    const [lobbyTab, setLobbyTab] = useState<'party' | 'invite'>('party');
+    const [friendsList, setFriendsList] = useState<any[]>([]);
 
     const refresh = useCallback(async () => {
         try {
@@ -30,9 +34,14 @@ export default function PartyLobbyScreen() {
             if (p?.party) setParty(p.party);
             setMembers(ms);
             setMe(sess.data.user?.id ?? null);
-            if (p?.party?.status === 'swiping') {
-                nav.replace('Swipe', { partyId });
+            try {
+                const fr = await api.getFriends();
+                setFriendsList(fr ?? []);
+            } catch {
+                setFriendsList([]);
             }
+            // Auto-jump removed - let user tap the button to enter swipe
+            // The status-aware button in the render tree handles this
         } catch {}
     }, [partyId, nav]);
 
@@ -44,18 +53,57 @@ export default function PartyLobbyScreen() {
         }, [refresh])
     );
 
+    // Realtime: re-fetch members the moment someone new joins
+    useEffect(() => {
+        if (!partyId) return;
+        const channel = supabase
+            .channel(`lobby_members:${partyId}`)
+            .on('postgres_changes', {
+                event: 'INSERT', schema: 'public', table: 'party_members',
+                filter: `party_id=eq.${partyId}`,
+            }, () => { refresh(); })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [partyId, refresh]);
+
     const isHost = party?.host_user_id === me;
+    const isMatched = party?.status === 'matched';
+    const isSwiping = party?.status === 'swiping';
 
     const handleStart = async () => {
         setLoading(true);
         try {
-            nav.navigate('LocationPermission');
-            await new Promise((r) => setTimeout(r, 500));
             await api.startParty(partyId);
             nav.replace('Swipe', { partyId });
         } catch (e: any) {
-            Alert.alert('Could not start', e?.message ?? 'unknown');
-            nav.replace('Swipe', { partyId }); // fall through to demo mode
+            const msg = e?.message ?? 'unknown';
+            if (msg.includes('no_member_locations')) {
+                Alert.alert(
+                    'Location needed',
+                    'At least one party member needs to set their location before starting.'
+                );
+            } else if (msg.includes('party_already_started')) {
+                // Party already swiping - just jump into it
+                nav.replace('Swipe', { partyId });
+            } else {
+                Alert.alert('Could not start', msg);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleJumpIntoSwipe = () => nav.replace('Swipe', { partyId });
+    const handleSeeMatch = () => nav.replace('Match', { partyId });
+
+    const handleReset = async () => {
+        setLoading(true);
+        try {
+            await api.resetParty(partyId);
+            await refresh();
+            nav.replace('Swipe', { partyId });
+        } catch (e: any) {
+            Alert.alert('Could not reset', e?.message ?? 'unknown');
         } finally {
             setLoading(false);
         }
@@ -82,6 +130,48 @@ export default function PartyLobbyScreen() {
                         <Text style={styles.title}>{party?.name ?? 'Loading...'}</Text>
                         <Text style={styles.sub}>Status: {party?.status ?? '...'}</Text>
 
+                        <View style={styles.tabRow}>
+                            <TouchableOpacity
+                                style={[styles.tabPill, lobbyTab === 'party' && styles.tabPillOn]}
+                                onPress={() => setLobbyTab('party')}
+                            >
+                                <Text style={[styles.tabPillText, lobbyTab === 'party' && styles.tabPillTextOn]}>Party</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.tabPill, lobbyTab === 'invite' && styles.tabPillOn]}
+                                onPress={() => setLobbyTab('invite')}
+                            >
+                                <Text style={[styles.tabPillText, lobbyTab === 'invite' && styles.tabPillTextOn]}>Invite friends</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {lobbyTab === 'invite' ? (
+                            <View style={{ marginVertical: 16 }}>
+                                <Text style={styles.inviteHint}>
+                                    Share your party code with friends — they can join in LinkdUp with this code.
+                                </Text>
+                                <GlassCard style={{ marginBottom: 16, alignItems: 'center' }}>
+                                    <Text style={styles.codeLabel}>CODE</Text>
+                                    <TouchableOpacity onPress={handleShare} activeOpacity={0.8}>
+                                        <Text style={styles.code}>{party?.code ?? '------'}</Text>
+                                    </TouchableOpacity>
+                                </GlassCard>
+                                <Text style={styles.crewLabel}>Your friends</Text>
+                                {friendsList.length === 0 ? (
+                                    <Text style={styles.waiting}>No friends yet — add some from Home → Friends.</Text>
+                                ) : (
+                                    friendsList.map((f: any) => (
+                                        <View key={f.id} style={styles.friendRow}>
+                                            <Text style={styles.friendName}>{f.display_name}</Text>
+                                            <Text style={styles.friendMeta}>Share the code above</Text>
+                                        </View>
+                                    ))
+                                )}
+                            </View>
+                        ) : null}
+
+                        {lobbyTab === 'party' && (
+                        <>
                         <GlassCard style={{ marginVertical: 24, alignItems: 'center' }}>
                             <Text style={styles.codeLabel}>JOIN CODE</Text>
                             <TouchableOpacity onPress={handleShare} activeOpacity={0.8}>
@@ -97,20 +187,47 @@ export default function PartyLobbyScreen() {
                                     <AvatarBubble
                                         name={m.users?.display_name ?? '?'}
                                         color={m.users?.avatar_color}
+                                        avatarUrl={m.users?.avatar_url ?? undefined}
+                                        onPress={m.user_id !== me ? () => setProfileUserId(m.user_id) : undefined}
                                     />
                                     <Text style={styles.crewName}>{m.users?.display_name ?? '?'}</Text>
                                 </View>
                             ))}
                         </View>
 
-                        {isHost ? (
+                        {isMatched ? (
+                            <>
+                                <GradientButton title="See the match" onPress={handleSeeMatch} />
+                                {isHost && (
+                                    <>
+                                        <View style={{ height: 12 }} />
+                                        <GradientButton
+                                            title="Swipe again (clears votes)"
+                                            variant="ghost"
+                                            onPress={handleReset}
+                                            loading={loading}
+                                        />
+                                    </>
+                                )}
+                            </>
+                        ) : isSwiping ? (
+                            <GradientButton title="Jump into swiping" onPress={handleJumpIntoSwipe} />
+                        ) : isHost ? (
                             <GradientButton title="Start swiping" onPress={handleStart} loading={loading} />
                         ) : (
                             <Text style={styles.waiting}>Waiting for the host to start...</Text>
                         )}
+                        </>
+                        )}
                     </Animated.View>
                 </ScrollView>
             </SafeAreaView>
+
+            <UserProfileSheet
+                userId={profileUserId}
+                visible={profileUserId !== null}
+                onClose={() => setProfileUserId(null)}
+            />
         </View>
     );
 }
@@ -128,4 +245,24 @@ const styles = StyleSheet.create({
     crew: { flexDirection: 'row', flexWrap: 'wrap' },
     crewName: { color: 'white', fontSize: 12, marginTop: 4, fontFamily: 'Inter_500Medium' },
     waiting: { color: colors.text60, textAlign: 'center', marginTop: 32, fontFamily: 'Inter_500Medium' },
+    tabRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+    tabPill: {
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: radii.pill,
+        borderWidth: 1,
+        borderColor: colors.glassBorder,
+        alignItems: 'center',
+    },
+    tabPillOn: { borderColor: colors.primary, backgroundColor: 'rgba(108,62,244,0.15)' },
+    tabPillText: { color: colors.text60, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+    tabPillTextOn: { color: 'white' },
+    inviteHint: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19, marginBottom: 8 },
+    friendRow: {
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.glassBorder,
+    },
+    friendName: { color: 'white', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+    friendMeta: { color: colors.text40, fontSize: 12, marginTop: 2, fontFamily: 'Inter_400Regular' },
 });

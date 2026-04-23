@@ -12,6 +12,13 @@ export class HttpError extends Error {
 }
 
 export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
+    console.error('\n[error]', err?.message || err);
+    if (err?.stack) console.error(err.stack);
+    if (err?.details) console.error('details:', err.details);
+    if (err?.hint) console.error('hint:', err.hint);
+    if (err?.code) console.error('code:', err.code);
+    console.error('');
+
     if (err instanceof ZodError) {
         return res.status(400).json({ error: 'validation_error', issues: err.issues });
     }

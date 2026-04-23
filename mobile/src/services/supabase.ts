@@ -10,6 +10,7 @@ export const supabase = createClient(url, anonKey, {
         storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,  // parse #access_token hash on web OAuth redirect
+        flowType: 'implicit',      // required for hash-fragment OAuth on web
     },
 });

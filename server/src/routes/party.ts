@@ -4,7 +4,9 @@ import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoint';
-import { searchNearbyVenues } from '../services/places';
+import { searchNearbyVenues, searchNearbyVenuesPaged, getVenuesWithRotation } from '../services/places';
+import { deleteCalendarEventForUser } from '../services/googleCalendar';
+import { generateVenuePitch } from '../services/aiPitch';
 
 const router = Router();
 
@@ -95,12 +97,22 @@ router.get('/:id', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
         await assertMember(partyId, req.user!.id);
+
         const { data: party } = await supabaseAdmin.from('parties').select('*').eq('id', partyId).single();
-        const { data: members } = await supabaseAdmin
+
+        const { data: rawMembers } = await supabaseAdmin
             .from('party_members')
-            .select('user_id, joined_at, is_online, users(id, display_name, avatar_color)')
+            .select('user_id, joined_at, is_online')
             .eq('party_id', partyId);
-        res.json({ party, members: members ?? [] });
+
+        const memberUserIds = (rawMembers ?? []).map((m: any) => m.user_id);
+        const { data: memberUsers } = memberUserIds.length > 0
+            ? await supabaseAdmin.from('users').select('id, display_name, avatar_color, avatar_url').in('id', memberUserIds)
+            : { data: [] as any[] };
+        const userMap: Record<string, any> = Object.fromEntries((memberUsers ?? []).map((u: any) => [u.id, u]));
+
+        const members = (rawMembers ?? []).map((m: any) => ({ ...m, users: userMap[m.user_id] ?? null }));
+        res.json({ party, members });
     } catch (e) { next(e); }
 });
 
@@ -108,23 +120,91 @@ router.get('/:id/members', requireAuth, async (req: AuthedRequest, res, next) =>
     try {
         const partyId = req.params.id;
         await assertMember(partyId, req.user!.id);
-        const { data, error } = await supabaseAdmin
+
+        const { data: rawMembers, error: memberErr } = await supabaseAdmin
             .from('party_members')
-            .select('user_id, is_online, joined_at, users(id, display_name, avatar_color)')
+            .select('user_id, is_online, joined_at')
             .eq('party_id', partyId);
-        if (error) throw error;
-        res.json(data ?? []);
+        if (memberErr) throw memberErr;
+
+        const memberUserIds = (rawMembers ?? []).map((m: any) => m.user_id);
+        const { data: memberUsers } = memberUserIds.length > 0
+            ? await supabaseAdmin.from('users').select('id, display_name, avatar_color, avatar_url').in('id', memberUserIds)
+            : { data: [] as any[] };
+        const userMap: Record<string, any> = Object.fromEntries((memberUsers ?? []).map((u: any) => [u.id, u]));
+
+        res.json((rawMembers ?? []).map((m: any) => ({ ...m, users: userMap[m.user_id] ?? null })));
     } catch (e) { next(e); }
 });
 
 router.delete('/:id/leave', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
+        const userId = req.user!.id;
+
+        // Fire-and-forget: delete the user's GCal copy of the party event (if any)
+        (async () => {
+            try {
+                const { data: party } = await supabaseAdmin
+                    .from('parties').select('gcal_event_id').eq('id', partyId).single();
+                if (party?.gcal_event_id) {
+                    await deleteCalendarEventForUser(userId, party.gcal_event_id);
+                    console.log('[party:leave] deleted GCal event for user', userId);
+                }
+            } catch (e) { console.error('[party:leave] gcal delete failed (non-fatal):', e); }
+        })();
+
         await supabaseAdmin
             .from('party_members')
             .delete()
             .eq('party_id', partyId)
-            .eq('user_id', req.user!.id);
+            .eq('user_id', userId);
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
+// DELETE /api/party/:id — host-only full party deletion.
+// Deletes in FK-safe order so we don't rely on CASCADE being set up.
+router.delete('/:id', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+        const hostId = req.user!.id;
+        await assertHost(partyId, hostId);
+
+        // Fire-and-forget: delete the host's GCal copy of the event (if any)
+        (async () => {
+            try {
+                const { data: party } = await supabaseAdmin
+                    .from('parties').select('gcal_event_id').eq('id', partyId).single();
+                if (party?.gcal_event_id) {
+                    await deleteCalendarEventForUser(hostId, party.gcal_event_id);
+                    console.log('[party:delete] deleted GCal event for host', hostId);
+                }
+            } catch (e) { console.error('[party:delete] gcal delete failed (non-fatal):', e); }
+        })();
+
+        // 1. date_votes → party_dates
+        const { data: pDates } = await supabaseAdmin
+            .from('party_dates').select('id').eq('party_id', partyId);
+        const dateIds = (pDates ?? []).map((d: any) => d.id);
+        if (dateIds.length > 0) {
+            await supabaseAdmin.from('date_votes').delete().in('party_date_id', dateIds);
+        }
+        await supabaseAdmin.from('party_dates').delete().eq('party_id', partyId);
+
+        // 2. votes
+        await supabaseAdmin.from('votes').delete().eq('party_id', partyId);
+
+        // 3. locations
+        await supabaseAdmin.from('locations').delete().eq('party_id', partyId);
+
+        // 4. party_members
+        await supabaseAdmin.from('party_members').delete().eq('party_id', partyId);
+
+        // 5. party
+        const { error } = await supabaseAdmin.from('parties').delete().eq('id', partyId);
+        if (error) throw new HttpError(500, 'delete_failed', error.message);
+
         res.json({ ok: true });
     } catch (e) { next(e); }
 });
@@ -138,15 +218,19 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
         if (!party) throw new HttpError(404, 'party_not_found');
         if (party.status !== 'waiting') throw new HttpError(409, 'party_already_started');
 
-        // Pull all member coordinates
-        const { data: members } = await supabaseAdmin
+        // Pull all member coordinates (two queries — avoids PostgREST join dependency)
+        const { data: memberRows } = await supabaseAdmin
             .from('party_members')
-            .select('user_id, users(latitude, longitude)')
+            .select('user_id')
             .eq('party_id', partyId);
 
-        const points: LatLng[] = (members ?? [])
-            .map((m: any) => m.users)
-            .filter((u: any) => u && u.latitude != null && u.longitude != null)
+        const startUserIds = (memberRows ?? []).map((m: any) => m.user_id);
+        const { data: startUsers } = startUserIds.length > 0
+            ? await supabaseAdmin.from('users').select('id, latitude, longitude').in('id', startUserIds)
+            : { data: [] as any[] };
+
+        const points: LatLng[] = (startUsers ?? [])
+            .filter((u: any) => u.latitude != null && u.longitude != null)
             .map((u: any) => ({ latitude: u.latitude, longitude: u.longitude }));
 
         if (points.length === 0) throw new HttpError(400, 'no_member_locations');
@@ -178,6 +262,24 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
             .eq('id', partyId);
         if (updateErr) throw new HttpError(500, 'status_update_failed', updateErr.message);
 
+        // Fire-and-forget: call the Legacy Places API to seed the initial nextPageToken.
+        // This ensures the first /more-venues call gets page-2 results (genuinely new
+        // venues) rather than a fresh page-1 that duplicates the initial New API results.
+        (async () => {
+            try {
+                const { nextPageToken } = await searchNearbyVenuesPaged(center, radiusMeters);
+                if (nextPageToken) {
+                    await supabaseAdmin
+                        .from('parties')
+                        .update({ next_page_token: nextPageToken })
+                        .eq('id', partyId);
+                    console.log('[party:start] legacy token seeded for', partyId);
+                }
+            } catch (e) {
+                console.error('[party:start] legacy token seed failed (non-fatal):', e);
+            }
+        })();
+
         res.json({
             ok: true,
             midpoint: center,
@@ -200,17 +302,22 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
             .order('rating', { ascending: false, nullsFirst: false });
         if (error) throw error;
 
-        // Compute distance from each member for the match screen
-        const { data: members } = await supabaseAdmin
+        // Compute distance from each member (two queries — avoids PostgREST join dependency)
+        const { data: locMemberRows } = await supabaseAdmin
             .from('party_members')
-            .select('user_id, users(id, display_name, latitude, longitude)')
+            .select('user_id')
             .eq('party_id', partyId);
 
-        const memberCoords = (members ?? []).map((m: any) => ({
-            user_id: m.users?.id,
-            display_name: m.users?.display_name,
-            latitude: m.users?.latitude,
-            longitude: m.users?.longitude,
+        const locUserIds = (locMemberRows ?? []).map((m: any) => m.user_id);
+        const { data: locUsers } = locUserIds.length > 0
+            ? await supabaseAdmin.from('users').select('id, display_name, latitude, longitude').in('id', locUserIds)
+            : { data: [] as any[] };
+
+        const memberCoords = (locUsers ?? []).map((u: any) => ({
+            user_id: u.id,
+            display_name: u.display_name,
+            latitude: u.latitude,
+            longitude: u.longitude,
         }));
 
         const enriched = (locations ?? []).map((loc) => ({
@@ -228,6 +335,153 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
         }));
 
         res.json(enriched);
+    } catch (e) { next(e); }
+});
+
+// GET /api/party/:id/pitch?venue_id=... — AI-generated venue pitch for this party.
+// Requires party membership. Responses are cached process-wide by venue+member_count.
+router.get('/:id/pitch', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+        const venueId = req.query.venue_id as string;
+        if (!venueId) throw new HttpError(400, 'missing_venue_id');
+
+        await assertMember(partyId, req.user!.id);
+
+        const [venueRes, memberRes, partyRes] = await Promise.all([
+            supabaseAdmin
+                .from('locations')
+                .select('name, category, rating, price_level, address, user_ratings_total')
+                .eq('id', venueId)
+                .eq('party_id', partyId)
+                .single(),
+            supabaseAdmin
+                .from('party_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('party_id', partyId),
+            supabaseAdmin.from('parties').select('name').eq('id', partyId).single(),
+        ]);
+
+        if (venueRes.error || !venueRes.data) throw new HttpError(404, 'venue_not_found');
+
+        const v = venueRes.data;
+        const result = await generateVenuePitch(
+            {
+                name: v.name,
+                category: v.category,
+                rating: v.rating,
+                price_level: v.price_level,
+                address: v.address,
+                user_ratings_total: v.user_ratings_total,
+            },
+            {
+                member_count: memberRes.count ?? 1,
+                party_name: partyRes.data?.name ?? null,
+            },
+        );
+
+        res.json(result);
+    } catch (e) { next(e); }
+});
+
+// GET /api/party/:id/more-venues — fetch the next page of Google Places results
+// and append them to the party's locations table. Requires auth + membership.
+// Returns { new_venue_count, exhausted } so the client knows how many were added.
+router.get('/:id/more-venues', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+        await assertMember(partyId, req.user!.id);
+
+        const { data: party } = await supabaseAdmin
+            .from('parties')
+            .select('midpoint_lat, midpoint_lng, next_page_token, venue_rotation_seed')
+            .eq('id', partyId)
+            .single();
+
+        if (!party?.midpoint_lat || !party?.midpoint_lng) {
+            const response = { new_venue_count: 0, exhausted: false };
+            console.log('[load-more] response:', response);
+            return res.json(response);
+        }
+
+        const center = { latitude: party.midpoint_lat, longitude: party.midpoint_lng };
+        const rotationSeed: number = party.venue_rotation_seed ?? 0;
+        const pageToken: string | undefined = party.next_page_token ?? undefined;
+
+        const { data: existing } = await supabaseAdmin
+            .from('locations')
+            .select('google_place_id')
+            .eq('party_id', partyId);
+        const existingIds = new Set((existing ?? []).map((r: any) => r.google_place_id));
+
+        console.log('[load-more] entry, existing count:', existingIds.size);
+        console.log('[load-more] pageToken:', pageToken ? `${pageToken.slice(0, 24)}…` : 'none');
+        console.log('[load-more] rotation seed:', rotationSeed);
+        console.log('[load-more] includedTypes: (legacy keyword buckets via getVenuesWithRotation)');
+
+        const { venues, nextPageToken, newSeed, exhausted } = await getVenuesWithRotation({
+            center,
+            pageToken,
+            rotationSeed,
+            excludeIds: existingIds,
+        });
+
+        console.log('[load-more] Places returned:', venues.length);
+        console.log('[load-more] after dedup:', venues.length);
+
+        await supabaseAdmin
+            .from('parties')
+            .update({ next_page_token: nextPageToken, venue_rotation_seed: newSeed })
+            .eq('id', partyId);
+
+        if (venues.length === 0) {
+            const response = { new_venue_count: 0, exhausted };
+            console.log('[load-more] inserted:', 0);
+            console.log('[load-more] response:', response);
+            return res.json(response);
+        }
+
+        const rows = venues.map((v) => ({ ...v, party_id: partyId }));
+        const { data: inserted, error: insertErr } = await supabaseAdmin
+            .from('locations')
+            .upsert(rows, { onConflict: 'party_id,google_place_id', ignoreDuplicates: true })
+            .select('id');
+
+        if (insertErr) {
+            console.error('[load-more] insert error:', insertErr.message);
+        }
+
+        const insertedCount = inserted?.length ?? 0;
+        console.log('[load-more] inserted:', insertedCount);
+        const response = { new_venue_count: insertedCount, exhausted, newToken: nextPageToken ? true : false };
+        console.log('[load-more] response:', response);
+        return res.json(response);
+    } catch (e) { next(e); }
+});
+
+// POST /api/party/:id/reset - host-only, clears votes and returns party to swiping state
+// Useful for demo/testing a solo party multiple times without creating a new one each time
+router.post('/:id/reset', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+        await assertHost(partyId, req.user!.id);
+
+        // Delete all votes for this party
+        const { error: voteErr } = await supabaseAdmin.from('votes').delete().eq('party_id', partyId);
+        if (voteErr) throw new HttpError(500, 'reset_votes_failed', voteErr.message);
+
+        // Flip status back to swiping and clear the matched location
+        const { error: updateErr } = await supabaseAdmin
+            .from('parties')
+            .update({
+                status: 'swiping',
+                matched_location_id: null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', partyId);
+        if (updateErr) throw new HttpError(500, 'reset_status_failed', updateErr.message);
+
+        res.json({ ok: true });
     } catch (e) { next(e); }
 });
 

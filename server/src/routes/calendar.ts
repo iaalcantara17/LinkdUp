@@ -78,6 +78,15 @@ router.post('/party/:id/export', requireAuth, async (req: AuthedRequest, res, ne
         };
 
         const result = await createCalendarEventForUser(req.user!.id, ev);
+
+        // Persist the GCal event ID so we can delete it later on party delete/leave
+        if (result.id) {
+            await supabaseAdmin
+                .from('parties')
+                .update({ gcal_event_id: result.id })
+                .eq('id', partyId);
+        }
+
         res.json({ ok: true, event_id: result.id, html_link: result.htmlLink });
     } catch (e) { next(e); }
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Share } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,44 +7,24 @@ import Animated, { FadeInRight } from 'react-native-reanimated';
 import { ArrowLeft, Copy, Check, ArrowRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
-import { colors, typography, spacing, radii } from '../theme';
+import { colors, typography, radii } from '../theme';
 
 const SUGGESTIONS = ['Weekend Warriors', 'Alumni Hangout', 'Study Group Reunion', 'Friday Night Crew'];
-
-const ALUMNI_MOCK = [
-    { id: 1, name: 'Alex Chen', school: "NJIT '26", avatar: 'https://i.pravatar.cc/150?img=1' },
-    { id: 2, name: 'Jordan Lee', school: "NJIT '26", avatar: 'https://i.pravatar.cc/150?img=2' },
-    { id: 3, name: 'Sam Parker', school: "NJIT '25", avatar: 'https://i.pravatar.cc/150?img=3' },
-    { id: 4, name: 'Casey Morgan', school: "NJIT '26", avatar: 'https://i.pravatar.cc/150?img=4' },
-    { id: 5, name: 'Riley Davis', school: "NJIT '27", avatar: 'https://i.pravatar.cc/150?img=5' },
-    { id: 6, name: 'Taylor Kim', school: "NJIT '26", avatar: 'https://i.pravatar.cc/150?img=6' },
-];
 
 export default function CreatePartyScreen() {
     const nav = useNavigation<any>();
     const [step, setStep] = useState<'name' | 'invite'>('name');
     const [partyName, setPartyName] = useState('');
-    const [selected, setSelected] = useState<Set<number>>(new Set());
     const [partyCode, setPartyCode] = useState<string | null>(null);
     const [partyId, setPartyId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(false);
-
-    const selectedCount = selected.size;
-
-    const toggle = (id: number) => {
-        const next = new Set(selected);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        setSelected(next);
-    };
 
     const handleNext = async () => {
         if (step === 'name') {
             if (!partyName) return;
             setLoading(true);
             try {
-                // Create the party now so we have a real code to share
                 const r = await api.createParty(partyName);
                 setPartyCode(r.code);
                 setPartyId(r.party_id);
@@ -55,7 +35,6 @@ export default function CreatePartyScreen() {
                 setLoading(false);
             }
         } else {
-            // Jump to the lobby where the host waits for joiners
             if (partyId) nav.replace('PartyLobby', { partyId });
         }
     };
@@ -63,14 +42,15 @@ export default function CreatePartyScreen() {
     const handleCopy = async () => {
         if (!partyCode) return;
         setCopied(true);
-        await Share.share({ message: `Join my LinkdUp party! Code: ${partyCode}` });
+        try {
+            await Share.share({ message: `Join my LinkdUp party! Code: ${partyCode}` });
+        } catch {}
         setTimeout(() => setCopied(false), 2000);
     };
 
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-                {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
                         <ArrowLeft size={24} color="white" />
@@ -79,7 +59,6 @@ export default function CreatePartyScreen() {
                     <View style={{ width: 40 }} />
                 </View>
 
-                {/* Progress */}
                 <View style={styles.progressRow}>
                     <LinearGradient
                         colors={colors.gradient as any}
@@ -87,18 +66,13 @@ export default function CreatePartyScreen() {
                         end={{ x: 1, y: 0 }}
                         style={styles.progressBar}
                     />
-                    <View
-                        style={[
-                            styles.progressBar,
-                            step === 'invite' ? { overflow: 'hidden' } : { backgroundColor: colors.glassStrong },
-                        ]}
-                    >
+                    <View style={styles.progressBar}>
                         {step === 'invite' && (
                             <LinearGradient
                                 colors={colors.gradient as any}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
-                                style={{ flex: 1 }}
+                                style={StyleSheet.absoluteFill}
                             />
                         )}
                     </View>
@@ -135,9 +109,8 @@ export default function CreatePartyScreen() {
                     ) : (
                         <Animated.View entering={FadeInRight.duration(300)}>
                             <Text style={styles.stepTitle}>Invite your crew</Text>
-                            <Text style={styles.stepSub}>Share the code or pick from your alumni</Text>
+                            <Text style={styles.stepSub}>Share this code so friends can join</Text>
 
-                            {/* Code share card */}
                             <View style={styles.shareCard}>
                                 <View style={styles.shareCardHeader}>
                                     <Text style={styles.shareLabel}>Share invite code</Text>
@@ -148,11 +121,7 @@ export default function CreatePartyScreen() {
                                             end={{ x: 1, y: 0 }}
                                             style={styles.copyBtn}
                                         >
-                                            {copied ? (
-                                                <Check size={16} color="white" />
-                                            ) : (
-                                                <Copy size={16} color="white" />
-                                            )}
+                                            {copied ? <Check size={16} color="white" /> : <Copy size={16} color="white" />}
                                             <Text style={styles.copyText}>{copied ? 'Shared!' : 'Share'}</Text>
                                         </LinearGradient>
                                     </TouchableOpacity>
@@ -160,57 +129,29 @@ export default function CreatePartyScreen() {
                                 <View style={styles.codeBox}>
                                     <Text style={styles.codeText}>{partyCode ?? '------'}</Text>
                                 </View>
+                                <Text style={styles.hint}>
+                                    Friends can enter this 6-character code on the Join Party screen.
+                                </Text>
                             </View>
 
-                            <Text style={[styles.suggestLabel, { marginTop: 20 }]}>Selected: {selectedCount}</Text>
-                            <View style={{ marginTop: 8 }}>
-                                {ALUMNI_MOCK.map((friend, i) => {
-                                    const isSelected = selected.has(friend.id);
-                                    return (
-                                        <Animated.View key={friend.id} entering={FadeInRight.delay(i * 50).duration(300)}>
-                                            <TouchableOpacity
-                                                onPress={() => toggle(friend.id)}
-                                                activeOpacity={0.85}
-                                                style={[
-                                                    styles.friendRow,
-                                                    isSelected && {
-                                                        borderColor: colors.primary,
-                                                        borderWidth: 2,
-                                                        backgroundColor: 'rgba(108,62,244,0.12)',
-                                                    },
-                                                ]}
-                                            >
-                                                <Image source={{ uri: friend.avatar }} style={styles.friendAvatar} />
-                                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                                    <Text style={styles.friendName}>{friend.name}</Text>
-                                                    <Text style={styles.friendSchool}>{friend.school}</Text>
-                                                </View>
-                                                <View
-                                                    style={[
-                                                        styles.checkCircle,
-                                                        isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
-                                                    ]}
-                                                >
-                                                    {isSelected && <Check size={14} color="white" />}
-                                                </View>
-                                            </TouchableOpacity>
-                                        </Animated.View>
-                                    );
-                                })}
+                            <View style={styles.nextStep}>
+                                <Text style={styles.nextStepTitle}>What's next?</Text>
+                                <Text style={styles.nextStepBody}>
+                                    Head to the party lobby to see who's joined, then tap "Start swiping" when you're ready.
+                                </Text>
                             </View>
                         </Animated.View>
                     )}
                 </ScrollView>
             </SafeAreaView>
 
-            {/* Bottom CTA */}
             <LinearGradient
                 colors={['transparent', colors.bg, colors.bg]}
                 style={styles.bottomFade}
                 pointerEvents="box-none"
             >
                 <GradientButton
-                    title={step === 'name' ? 'Continue' : 'Start Party'}
+                    title={step === 'name' ? 'Continue' : 'Go to Lobby'}
                     onPress={handleNext}
                     disabled={step === 'name' ? !partyName : false}
                     loading={loading}
@@ -263,6 +204,7 @@ const styles = StyleSheet.create({
         padding: 20,
         borderWidth: 1,
         borderColor: colors.glassBorder,
+        marginBottom: 16,
     },
     shareCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
     shareLabel: { color: 'white', fontFamily: 'Inter_500Medium', fontSize: 14 },
@@ -278,33 +220,22 @@ const styles = StyleSheet.create({
     codeBox: {
         backgroundColor: colors.glassStrong,
         borderRadius: radii.md,
-        paddingVertical: 14,
+        paddingVertical: 18,
         alignItems: 'center',
+        marginBottom: 12,
     },
-    codeText: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 28, letterSpacing: 6 },
+    codeText: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 32, letterSpacing: 8 },
+    hint: { color: colors.text60, fontSize: 12, textAlign: 'center', fontFamily: 'Inter_400Regular' },
 
-    friendRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 14,
+    nextStep: {
+        padding: 16,
         borderRadius: radii.lg,
-        backgroundColor: colors.glass,
-        borderWidth: 2,
-        borderColor: 'transparent',
-        marginBottom: 8,
+        backgroundColor: 'rgba(108,62,244,0.10)',
+        borderWidth: 1,
+        borderColor: 'rgba(108,62,244,0.20)',
     },
-    friendAvatar: { width: 48, height: 48, borderRadius: 24 },
-    friendName: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
-    friendSchool: { color: colors.text60, fontSize: 12, fontFamily: 'Inter_400Regular' },
-    checkCircle: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        borderWidth: 2,
-        borderColor: colors.text30,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    nextStepTitle: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14, marginBottom: 4 },
+    nextStepBody: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
 
     bottomFade: {
         position: 'absolute',

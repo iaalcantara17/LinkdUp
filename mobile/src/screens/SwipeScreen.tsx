@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Modal, ActivityIndicator, Platform, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -16,6 +16,9 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { X, Heart, MapPin, Info, ArrowLeft, Star } from 'lucide-react-native';
 import { api } from '../services/api';
+import { supabase } from '../services/supabase';
+import AvatarBubble from '../components/AvatarBubble';
+import UserProfileSheet from '../components/UserProfileSheet';
 import { colors, typography, spacing, radii } from '../theme';
 
 const { width, height } = Dimensions.get('window');
@@ -28,6 +31,8 @@ interface Venue {
     address: string | null;
     photo_url: string | null;
     rating: number | null;
+    user_ratings_total?: number | null;
+    google_place_id?: string | null;
     distances?: Array<{ user_id: string; display_name: string; miles: number }>;
 }
 
@@ -36,6 +41,7 @@ interface CrewMember {
     display_name: string;
     status: 'waiting' | 'liked' | 'passed' | 'active';
     avatar_color?: string;
+    avatar_url?: string;
 }
 
 // Fallback demo data - used when API fails so the demo always works
@@ -69,19 +75,6 @@ const DEMO_VENUES: Venue[] = [
     },
 ];
 
-const DEMO_CREW: CrewMember[] = [
-    { user_id: '1', display_name: 'Alex', status: 'liked' },
-    { user_id: '2', display_name: 'Jordan', status: 'liked' },
-    { user_id: '3', display_name: 'Sam', status: 'waiting' },
-    { user_id: '4', display_name: 'You', status: 'active' },
-];
-
-const AVATARS = [
-    'https://i.pravatar.cc/150?img=1',
-    'https://i.pravatar.cc/150?img=2',
-    'https://i.pravatar.cc/150?img=3',
-    'https://i.pravatar.cc/150?img=11',
-];
 
 export default function SwipeScreen() {
     const nav = useNavigation<any>();
@@ -89,23 +82,84 @@ export default function SwipeScreen() {
     const partyId: string = route.params?.partyId ?? 'demo';
 
     const [venues, setVenues] = useState<Venue[]>([]);
-    const [crew] = useState<CrewMember[]>(DEMO_CREW);
+    const [crew, setCrew] = useState<CrewMember[]>([]);
     const [index, setIndex] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [noMatch, setNoMatch] = useState(false);
+    const [resetting, setResetting] = useState(false);
+
+    // Realtime
+    const myUserIdRef = useRef<string | null>(null);
+    const venuesRef   = useRef<Venue[]>([]);
+    const crewRef     = useRef<CrewMember[]>([]);
+    const [toast, setToast] = useState<string | null>(null);
+
+    // Load-more guard: prevents concurrent calls
+    const loadingMoreRef = useRef(false);
+
+    // "Keep swiping?" prompt — fires every BATCH_SIZE votes so users aren't stuck
+    // scrolling endlessly. Capping stops further auto-loads but keeps remaining
+    // venues in the deck swipeable, so match can still fire.
+    const BATCH_SIZE = 15;
+    const [batchVoteCount, setBatchVoteCount] = useState(0);
+    const [votingCapped, setVotingCapped] = useState(false);
+    const [keepSwipingModal, setKeepSwipingModal] = useState(false);
+    const totalVotesRef = useRef(0);
+
+    // Tappable crew profiles
+    const [profileUserId, setProfileUserId] = useState<string | null>(null);
+
+    // Party info modal (Info button)
+    const [infoModal, setInfoModal] = useState(false);
+    const [partyInfo, setPartyInfo] = useState<any>(null);
+
+    // AI pitch modal
+    const [pitchModal, setPitchModal] = useState<{
+        venueId: string;
+        venueName: string;
+        photo_url: string | null;
+        pitch: string | null;
+        loading: boolean;
+    } | null>(null);
 
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
 
     const load = useCallback(async () => {
         try {
-            const locs = await api.getLocations(partyId);
-            if (Array.isArray(locs) && locs.length > 0) {
-                setVenues(locs);
+            const [locs, members, me] = await Promise.all([
+                api.getLocations(partyId).catch(() => []),
+                api.getMembers(partyId).catch(() => []),
+                api.me().catch(() => null),
+            ]);
+
+            myUserIdRef.current = me?.id ?? null;
+
+            const nextVenues = Array.isArray(locs) && locs.length > 0
+                ? locs
+                : partyId === 'demo' ? DEMO_VENUES : [];
+            setVenues(nextVenues);
+            venuesRef.current = nextVenues;
+
+            if (Array.isArray(members) && members.length > 0) {
+                const realCrew: CrewMember[] = members.map((m: any) => ({
+                    user_id: m.user_id,
+                    display_name: m.user_id === me?.id ? 'You' : (m.users?.display_name ?? '?'),
+                    status: m.user_id === me?.id ? 'active' : 'waiting',
+                    avatar_color: m.users?.avatar_color,
+                    avatar_url: m.users?.avatar_url ?? undefined,
+                }));
+                setCrew(realCrew);
+                crewRef.current = realCrew;
             } else {
-                setVenues(DEMO_VENUES);
+                const fallback: CrewMember[] = [{ user_id: me?.id ?? 'you', display_name: 'You', status: 'active' }];
+                setCrew(fallback);
+                crewRef.current = fallback;
             }
         } catch {
             setVenues(DEMO_VENUES);
+            venuesRef.current = DEMO_VENUES;
+            setCrew([{ user_id: 'you', display_name: 'You', status: 'active' }]);
         } finally {
             setLoading(false);
         }
@@ -113,30 +167,208 @@ export default function SwipeScreen() {
 
     useEffect(() => { load(); }, [load]);
 
-    const advance = (liked: boolean) => {
-        // Fire the vote async (non-blocking)
-        const current = venues[index];
-        if (current && !current.id.startsWith('demo-')) {
-            api.vote(partyId, current.id, liked).then((r) => {
-                if (r?.match?.matched) {
-                    nav.replace('Match', { partyId });
+    // Keep refs in sync when state updates via realtime
+    useEffect(() => { venuesRef.current = venues; }, [venues]);
+    useEffect(() => { crewRef.current = crew; }, [crew]);
+
+    // ── Toast helper ──────────────────────────────────────────────────────────
+    const showToast = useCallback((msg: string) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 2500);
+    }, []);
+
+    // ── Realtime subscriptions ────────────────────────────────────────────────
+    useEffect(() => {
+        if (partyId === 'demo') return;
+
+        // Channel 1: votes — reflect partner swipes live
+        const votesChannel = supabase
+            .channel(`votes:${partyId}`)
+            .on('postgres_changes', {
+                event: 'INSERT', schema: 'public', table: 'votes',
+                filter: `party_id=eq.${partyId}`,
+            }, (payload: any) => {
+                const v = payload.new;
+                if (!v || v.user_id === myUserIdRef.current) return;
+
+                // Update crew HUD
+                setCrew((prev) => {
+                    const updated = prev.map((m) =>
+                        m.user_id === v.user_id
+                            ? { ...m, status: (v.vote ? 'liked' : 'passed') as CrewMember['status'] }
+                            : m
+                    );
+                    crewRef.current = updated;
+                    return updated;
+                });
+
+                // Toast
+                const voter = crewRef.current.find((m) => m.user_id === v.user_id);
+                const name = voter?.display_name ?? 'Someone';
+                if (v.vote) {
+                    const venue = venuesRef.current.find((vn) => vn.id === v.location_id);
+                    showToast(venue ? `${name} liked ${venue.name}` : `${name} swiped right`);
                 }
-            }).catch(() => {});
+
+                // Silent match check — navigate instantly if the partner tipped the scale
+                api.getMatch(partyId).then((m: any) => {
+                    if (m?.matched) nav.replace('Match', { partyId });
+                }).catch(() => {});
+            })
+            .subscribe();
+
+        // Channel 2: party_members — show new joins live
+        const membersChannel = supabase
+            .channel(`party_members:${partyId}`)
+            .on('postgres_changes', {
+                event: 'INSERT', schema: 'public', table: 'party_members',
+                filter: `party_id=eq.${partyId}`,
+            }, (payload: any) => {
+                const m = payload.new;
+                if (!m || m.user_id === myUserIdRef.current) return;
+
+                api.getMembers(partyId).then((ms: any[]) => {
+                    const found = ms.find((mem: any) => mem.user_id === m.user_id);
+                    if (!found) return;
+                    const name = found.users?.display_name ?? 'Someone';
+                    setCrew((prev) => {
+                        if (prev.some((c) => c.user_id === m.user_id)) return prev;
+                        const updated = [...prev, {
+                            user_id: m.user_id,
+                            display_name: name,
+                            status: 'waiting' as const,
+                            avatar_color: found.users?.avatar_color,
+                            avatar_url: found.users?.avatar_url ?? undefined,
+                        }];
+                        crewRef.current = updated;
+                        return updated;
+                    });
+                    showToast(`${name} joined the party`);
+                }).catch(() => {});
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(votesChannel);
+            supabase.removeChannel(membersChannel);
+        };
+    }, [partyId, showToast, nav]);
+
+    // ── AI pitch ──────────────────────────────────────────────────────────────
+    const handleWhyThis = useCallback(async () => {
+        const cur = venuesRef.current[index];
+        if (!cur || cur.id.startsWith('demo-')) return;
+        setPitchModal({
+            venueId: cur.id,
+            venueName: cur.name,
+            photo_url: cur.photo_url ?? null,
+            pitch: null,
+            loading: true,
+        });
+        try {
+            const { pitch } = await api.getVenuePitch(partyId, cur.id);
+            setPitchModal((prev) => prev ? { ...prev, pitch, loading: false } : null);
+        } catch {
+            setPitchModal(null);
+            showToast("Couldn't generate — try again later");
+        }
+    }, [index, partyId, showToast]);
+
+    const triggerLoadMore = useCallback(() => {
+        if (loadingMoreRef.current || partyId === 'demo') return;
+        loadingMoreRef.current = true;
+        const deckBefore = venuesRef.current.length;
+        console.log('[swipe load-more] deck size before:', deckBefore);
+        (async () => {
+            try {
+                const result = await api.loadMoreVenues(partyId);
+                console.log('[swipe load-more] api response:', result);
+                const locs = await api.getLocations(partyId);
+                const existingIds = new Set(venuesRef.current.map((v) => v.id));
+                const newVenues = (locs ?? []).filter((l: any) => !existingIds.has(l.id));
+                if (newVenues.length > 0) {
+                    const updated = [...venuesRef.current, ...newVenues];
+                    setVenues(updated);
+                    venuesRef.current = updated;
+                }
+                console.log('[swipe load-more] deck size after:', venuesRef.current.length);
+                const count = result?.new_venue_count ?? 0;
+                const exhausted = result?.exhausted ?? false;
+                if (count > 0) {
+                    showToast(`Found ${count} more spot${count === 1 ? '' : 's'} nearby!`);
+                } else if (exhausted) {
+                    showToast('That\'s all the spots in your area!');
+                } else {
+                    showToast('No more spots right now — check back later');
+                }
+            } catch {
+                showToast('Could not load more venues');
+            } finally {
+                loadingMoreRef.current = false;
+            }
+        })();
+    }, [partyId, showToast]);
+
+    const advance = async (liked: boolean) => {
+        const current = venues[index];
+        if (votingCapped) {
+            const remainingAfter = venues.length - (index + 1);
+            if (remainingAfter === 0) {
+                // last card was just voted on — banner message
+                showToast("That's everyone — checking for a match...");
+            }
+        }
+        const isRealVenue = current && !current.id.startsWith('demo-');
+        const isLastCard = index + 1 >= venues.length;
+
+        // Silently pre-fetch more venues when 3 cards remain — skipped if user capped
+        const remaining = venues.length - (index + 1);
+        if (remaining <= 3 && !loadingMoreRef.current && !votingCapped) {
+            triggerLoadMore();
         }
 
-        if (index + 1 >= venues.length) {
-            // End of deck: check for match, otherwise show end state
-            api.getMatch(partyId).then((m) => {
-                if (m?.matched) nav.replace('Match', { partyId });
-                else Alert.alert('All swiped', 'Waiting for the rest of the crew.');
-            }).catch(() => {
-                // Demo mode: always "match" at end
-                if (partyId === 'demo' || partyId.startsWith('party')) {
-                    nav.replace('Match', { partyId });
-                }
-            });
+        // Every BATCH_SIZE votes, prompt the user to keep going or call it
+        totalVotesRef.current += 1;
+        const nextBatchCount = batchVoteCount + 1;
+        if (!votingCapped && nextBatchCount >= BATCH_SIZE) {
+            setKeepSwipingModal(true);
+            setBatchVoteCount(0);
+        } else {
+            setBatchVoteCount(nextBatchCount);
         }
-        setIndex((i) => i + 1);
+
+        // Await the vote so we can react to the match synchronously instead of
+        // letting it race the next swipe. Only adds ~150-300ms per swipe which
+        // feels like natural card-exit animation time.
+        if (isRealVenue) {
+            try {
+                const r = await api.vote(partyId, current.id, liked);
+                if (r?.match?.matched) {
+                    // Match fired - go straight to Match screen, don't advance the index
+                    nav.replace('Match', { partyId });
+                    return;
+                }
+            } catch (err: any) {
+                console.warn('[swipe] vote failed', err?.message);
+            }
+        }
+
+        if (isLastCard) {
+            // End of deck - check match one more time in case the last vote triggered it
+            try {
+                const m = await api.getMatch(partyId);
+                if (m?.matched) {
+                    nav.replace('Match', { partyId });
+                    return;
+                }
+                // No match after all cards - show in-screen no-match card
+                setNoMatch(true);
+            } catch {
+                if (!isRealVenue) nav.replace('Match', { partyId });
+            }
+        }
+
+        setIndex(index + 1);
         translateX.value = 0;
         translateY.value = 0;
     };
@@ -193,7 +425,81 @@ export default function SwipeScreen() {
         );
     }
 
+    if (venues.length === 0) {
+        return (
+            <View style={[styles.root, { alignItems: 'center', justifyContent: 'center', padding: 32 }]}>
+                <MapPin size={64} color={colors.primary} style={{ marginBottom: 20 }} />
+                <Text style={[typography.h1, { color: 'white', textAlign: 'center', marginBottom: 12 }]}>
+                    No spots in this area yet
+                </Text>
+                <Text style={[typography.body, { color: colors.text60, textAlign: 'center', marginBottom: 32, lineHeight: 22 }]}>
+                    Try expanding your party's search area, or invite more people to pull the midpoint somewhere busier.
+                </Text>
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => nav.navigate('PartyLobby', { partyId })}
+                >
+                    <LinearGradient
+                        colors={colors.gradient as any}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={{ paddingHorizontal: 36, paddingVertical: 18, borderRadius: radii.lg }}
+                    >
+                        <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 }}>
+                            Back to lobby
+                        </Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     if (index >= venues.length) {
+        if (noMatch) {
+            return (
+                <View style={[styles.root, { alignItems: 'center', justifyContent: 'center', padding: 32 }]}>
+                    <Text style={{ fontSize: 52, marginBottom: 20 }}>🤷</Text>
+                    <Text style={[typography.h1, { color: 'white', textAlign: 'center', marginBottom: 12 }]}>
+                        No match yet
+                    </Text>
+                    <Text style={[typography.body, { color: colors.text60, textAlign: 'center', marginBottom: 32, lineHeight: 22 }]}>
+                        Nobody clicked yes on the same place.{'\n'}Want to reset and try again?
+                    </Text>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        disabled={resetting}
+                        onPress={async () => {
+                            setResetting(true);
+                            try {
+                                await api.resetParty(partyId);
+                                setNoMatch(false);
+                                setIndex(0);
+                                await load();
+                            } catch (err: any) {
+                                console.warn('[swipe] reset failed', err?.message);
+                            } finally {
+                                setResetting(false);
+                            }
+                        }}
+                    >
+                        <LinearGradient
+                            colors={colors.gradient as any}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={{ paddingHorizontal: 36, paddingVertical: 18, borderRadius: radii.lg, opacity: resetting ? 0.6 : 1 }}
+                        >
+                            <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 }}>
+                                {resetting ? 'Resetting…' : 'Reset & Try Again'}
+                            </Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => nav.navigate('Home')} style={{ marginTop: 16, padding: 12 }}>
+                        <Text style={{ color: colors.text60, fontFamily: 'Inter_500Medium', fontSize: 14 }}>Back to Home</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
         return (
             <View style={[styles.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
                 <Text style={[typography.h1, { color: 'white', textAlign: 'center' }]}>No more venues!</Text>
@@ -215,6 +521,43 @@ export default function SwipeScreen() {
 
     return (
         <View style={styles.root}>
+            {/* Toast overlay */}
+            {toast && (
+                <View style={styles.toast} pointerEvents="none">
+                    <Text style={styles.toastText}>{toast}</Text>
+                </View>
+            )}
+
+            {/* AI Pitch modal */}
+            <Modal
+                visible={!!pitchModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setPitchModal(null)}
+            >
+                <View style={styles.pitchOverlay}>
+                    <View style={styles.pitchSheet}>
+                        <View style={styles.pitchDragBar} />
+                        {pitchModal?.photo_url ? (
+                            <Image source={{ uri: pitchModal.photo_url }} style={styles.pitchPhoto} />
+                        ) : null}
+                        <Text style={styles.pitchVenueName}>{pitchModal?.venueName}</Text>
+                        {pitchModal?.loading ? (
+                            <ActivityIndicator color={colors.primary} style={{ paddingVertical: 32 }} />
+                        ) : (
+                            <Text style={styles.pitchBody}>{pitchModal?.pitch}</Text>
+                        )}
+                        <TouchableOpacity
+                            onPress={() => setPitchModal(null)}
+                            style={styles.pitchDismiss}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.pitchDismissText}>Got it</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 {/* Top bar */}
                 <View style={styles.topBar}>
@@ -225,7 +568,16 @@ export default function SwipeScreen() {
                         <MapPin size={14} color={colors.primary} />
                         <Text style={styles.midpointText}>{distance.toFixed(1)} mi from midpoint</Text>
                     </BlurView>
-                    <TouchableOpacity style={styles.topIconBtn}>
+                    <TouchableOpacity
+                        style={styles.topIconBtn}
+                        onPress={() => {
+                            if (partyId === 'demo') return;
+                            api.getParty(partyId).then((d: any) => {
+                                setPartyInfo(d);
+                                setInfoModal(true);
+                            }).catch(() => {});
+                        }}
+                    >
                         <Info size={22} color="white" />
                     </TouchableOpacity>
                 </View>
@@ -278,7 +630,18 @@ export default function SwipeScreen() {
                                         <Text style={styles.categoryText}>{current.category}</Text>
                                     </BlurView>
                                 )}
-                                <Text style={styles.venueName}>{current.name}</Text>
+                                <View style={styles.venueRow}>
+                                    <Text style={[styles.venueName, { flex: 1 }]}>{current.name}</Text>
+                                    {!current.id.startsWith('demo-') && (
+                                        <TouchableOpacity
+                                            onPress={handleWhyThis}
+                                            activeOpacity={0.85}
+                                            style={styles.whyChip}
+                                        >
+                                            <Text style={styles.whyChipText}>✨ Why this?</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                                 <View style={styles.venueMeta}>
                                     {current.rating && (
                                         <View style={styles.metaRow}>
@@ -297,21 +660,23 @@ export default function SwipeScreen() {
                 {/* Crew HUD */}
                 <BlurView intensity={40} tint="dark" style={styles.crewHud}>
                     <View style={styles.crewHeader}>
-                        <Text style={styles.crewLabel}>Crew votes</Text>
+                        <Text style={styles.crewLabel}>Crew</Text>
                         <Text style={styles.crewCount}>
                             {crew.filter((c) => c.status === 'liked' || c.status === 'passed').length}/{crew.length} voted
                         </Text>
                     </View>
                     <View style={styles.crewRow}>
-                        {crew.map((member, i) => (
+                        {crew.map((member) => (
                             <View key={member.user_id} style={{ alignItems: 'center' }}>
-                                <View>
-                                    <Image
-                                        source={{ uri: AVATARS[i % AVATARS.length] }}
-                                        style={[
-                                            styles.crewAvatar,
-                                            member.status === 'waiting' && { opacity: 0.4 },
-                                        ]}
+                                <View style={{ opacity: member.status === 'waiting' ? 0.4 : 1 }}>
+                                    <AvatarBubble
+                                        name={member.display_name}
+                                        color={member.avatar_color}
+                                        avatarUrl={member.avatar_url}
+                                        size={44}
+                                        onPress={member.user_id !== myUserIdRef.current
+                                            ? () => setProfileUserId(member.user_id)
+                                            : undefined}
                                     />
                                     {member.status === 'liked' && (
                                         <View style={styles.crewBadgeLiked}>
@@ -328,25 +693,199 @@ export default function SwipeScreen() {
                     </View>
                 </BlurView>
 
-                {/* Action buttons */}
-                <View style={styles.actions}>
-                    <TouchableOpacity onPress={() => swipeOff('left')} activeOpacity={0.85}>
-                        <View style={styles.passBtn}>
-                            <X size={32} color={colors.danger} />
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => swipeOff('right')} activeOpacity={0.85}>
-                        <LinearGradient
-                            colors={colors.gradient as any}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.likeBtn}
-                        >
-                            <Heart size={40} color="white" fill="white" />
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </View>
+                {/* Action buttons — native: large asymmetric pair; web: equal 56px circles */}
+                {Platform.OS !== 'web' ? (
+                    <View style={styles.actions}>
+                        <TouchableOpacity onPress={() => swipeOff('left')} activeOpacity={0.85}>
+                            <View style={styles.passBtn}>
+                                <X size={32} color={colors.danger} />
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => swipeOff('right')} activeOpacity={0.85}>
+                            <LinearGradient
+                                colors={colors.gradient as any}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.likeBtn}
+                            >
+                                <Heart size={40} color="white" fill="white" />
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <View style={styles.webActions}>
+                        <TouchableOpacity onPress={() => swipeOff('left')} activeOpacity={0.85} style={styles.webPassBtn}>
+                            <X size={26} color={colors.danger} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => swipeOff('right')} activeOpacity={0.85}>
+                            <LinearGradient
+                                colors={colors.gradient as any}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.webLikeBtn}
+                            >
+                                <Heart size={26} color="white" fill="white" />
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </SafeAreaView>
+
+            <UserProfileSheet
+                userId={profileUserId}
+                visible={profileUserId !== null}
+                onClose={() => setProfileUserId(null)}
+            />
+
+            {/* Party info modal */}
+            <Modal
+                visible={infoModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setInfoModal(false)}
+            >
+                <View style={styles.pitchOverlay}>
+                    <View style={styles.pitchSheet}>
+                        <View style={styles.pitchDragBar} />
+                        <Text style={styles.pitchVenueName}>
+                            {partyInfo?.party?.name ?? 'Party Info'}
+                        </Text>
+
+                        <View style={{ gap: 12, marginTop: 4 }}>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                onPress={() => {
+                                    const code = partyInfo?.party?.code;
+                                    if (!code) return;
+                                    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard?.writeText) {
+                                        (navigator as any).clipboard.writeText(code);
+                                        showToast('Code copied');
+                                        return;
+                                    }
+                                    Share.share({ message: `LinkdUp party code: ${code}` }).catch(() => {});
+                                }}
+                            >
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={styles.pitchBody}>Party code (tap to copy / share)</Text>
+                                    <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: 3 }}>
+                                        {partyInfo?.party?.code ?? '—'}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                                {(partyInfo?.members ?? []).map((m: any) => (
+                                    <View key={m.user_id} style={{ alignItems: 'center' }}>
+                                        <AvatarBubble
+                                            name={m.users?.display_name ?? '?'}
+                                            color={m.users?.avatar_color}
+                                            avatarUrl={m.users?.avatar_url}
+                                            size={40}
+                                        />
+                                        <Text style={{ color: colors.text60, fontSize: 10, marginTop: 4, maxWidth: 56 }} numberOfLines={1}>
+                                            {m.users?.display_name ?? ''}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={styles.pitchBody}>Members</Text>
+                                <Text style={{ color: 'white', fontFamily: 'Inter_600SemiBold', fontSize: 15 }}>
+                                    {partyInfo?.members?.length ?? 0}
+                                </Text>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={styles.pitchBody}>Venues in deck / voted</Text>
+                                <Text style={{ color: 'white', fontFamily: 'Inter_600SemiBold', fontSize: 15 }}>
+                                    {venues.length} / {crew.filter((c) => c.status === 'liked' || c.status === 'passed').length}
+                                </Text>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <Text style={styles.pitchBody}>Search radius</Text>
+                                <Text style={{ color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 12, flex: 1, textAlign: 'right', marginLeft: 12 }}>
+                                    Google Places near the crew midpoint; load-more expands ~3 km per category pass (cap ~25 km).
+                                </Text>
+                            </View>
+
+                            {partyInfo?.party?.midpoint_lat && (
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <Text style={styles.pitchBody}>Midpoint</Text>
+                                    <Text style={{ color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
+                                        {partyInfo.party.midpoint_lat.toFixed(4)}, {partyInfo.party.midpoint_lng.toFixed(4)}
+                                    </Text>
+                                </View>
+                            )}
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <Text style={styles.pitchBody}>Status</Text>
+                                <Text style={{ color: colors.success, fontFamily: 'Inter_600SemiBold', fontSize: 14, textTransform: 'uppercase' }}>
+                                    {partyInfo?.party?.status ?? '—'}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            onPress={() => setInfoModal(false)}
+                            style={[styles.pitchDismiss, { marginTop: 24 }]}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.pitchDismissText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Keep-swiping prompt — appears every BATCH_SIZE votes */}
+            <Modal
+                visible={keepSwipingModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setKeepSwipingModal(false)}
+            >
+                <View style={styles.pitchOverlay}>
+                    <View style={styles.pitchSheet}>
+                        <View style={styles.pitchDragBar} />
+                        <Text style={styles.pitchVenueName}>
+                            Nice work — {totalVotesRef.current} spots rated 👀
+                        </Text>
+                        <Text style={styles.pitchBody}>
+                            Want to keep seeing more spots, or ready to let the crew lock it in based on what you've voted on?
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setKeepSwipingModal(false);
+                            }}
+                            style={[styles.pitchDismiss, { marginBottom: 10 }]}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.pitchDismissText}>Show me more</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setVotingCapped(true);
+                                setKeepSwipingModal(false);
+                                showToast("OK — finish voting on what's left to match.");
+                            }}
+                            style={{
+                                backgroundColor: 'transparent',
+                                borderWidth: 1,
+                                borderColor: colors.glassBorder,
+                                borderRadius: radii.md,
+                                paddingVertical: 12,
+                                alignItems: 'center',
+                            }}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={{ color: colors.text80, fontFamily: 'Inter_700Bold', fontSize: 15 }}>
+                                I'm done — pick from what we've seen
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -489,4 +1028,109 @@ const styles = StyleSheet.create({
         shadowRadius: 16,
         elevation: 12,
     },
+
+    // ── Venue row (name + why chip) ───────────────────────────────────────────
+    venueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
+    whyChip: {
+        flexShrink: 0,
+        backgroundColor: 'rgba(108,62,244,0.75)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: radii.pill,
+        marginBottom: 2,
+    },
+    whyChipText: { color: 'white', fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+
+    // ── Web-only action buttons (56 px circles, shown instead of native pair) ─
+    webActions: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 16,
+        paddingVertical: 16,
+        marginTop: 24,
+    },
+    webPassBtn: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderColor: colors.danger,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    webLikeBtn: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    // ── Floating toast ────────────────────────────────────────────────────────
+    toast: {
+        position: 'absolute',
+        top: 60,
+        alignSelf: 'center',
+        zIndex: 999,
+        backgroundColor: 'rgba(20,20,30,0.88)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: radii.pill,
+        borderWidth: 1,
+        borderColor: colors.glassBorder,
+    },
+    toastText: { color: 'white', fontSize: 13, fontFamily: 'Inter_500Medium' },
+
+    // ── AI pitch modal ────────────────────────────────────────────────────────
+    pitchOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+    },
+    pitchSheet: {
+        backgroundColor: '#12121A',
+        borderTopLeftRadius: radii.xl,
+        borderTopRightRadius: radii.xl,
+        padding: 24,
+        paddingBottom: 40,
+        borderWidth: 1,
+        borderColor: colors.glassBorder,
+    },
+    pitchDragBar: {
+        width: 40,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: colors.text40,
+        alignSelf: 'center',
+        marginBottom: 20,
+    },
+    pitchPhoto: {
+        width: '100%',
+        height: 160,
+        borderRadius: radii.md,
+        marginBottom: 12,
+        resizeMode: 'cover',
+    },
+    pitchVenueName: {
+        color: 'white',
+        fontFamily: 'Inter_700Bold',
+        fontSize: 18,
+        marginBottom: 14,
+    },
+    pitchBody: {
+        color: colors.text80,
+        fontSize: 15,
+        fontFamily: 'Inter_400Regular',
+        lineHeight: 22,
+        marginBottom: 24,
+    },
+    pitchDismiss: {
+        backgroundColor: colors.primary,
+        borderRadius: radii.md,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    pitchDismissText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
 });

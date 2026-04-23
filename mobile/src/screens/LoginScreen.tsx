@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Image, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
@@ -6,6 +6,8 @@ import { Mail, ArrowRight } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaskedView from '@react-native-masked-view/masked-view';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import GradientButton from '../components/GradientButton';
@@ -51,13 +53,36 @@ function GoogleIcon() {
 }
 
 export default function LoginScreen() {
+    const nav   = useNavigation<any>();
+    const route = useRoute<any>();
+    const { session } = useAuth();
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [schoolName, setSchoolName] = useState('');
     const [gradYear, setGradYear] = useState('');
     const [displayName, setDisplayName] = useState('');
-    const [mode, setMode] = useState<'signup' | 'login'>('signup');
+    const [mode, setMode] = useState<'signup' | 'login'>(route.params?.mode ?? 'signup');
     const [loading, setLoading] = useState(false);
+
+    // Refs for keyboard-tab-through
+    const emailRef    = useRef<TextInput>(null);
+    const passwordRef = useRef<TextInput>(null);
+    const schoolRef   = useRef<TextInput>(null);
+    const gradRef     = useRef<TextInput>(null);
+
+    // When the OAuth hash is hydrated by AuthContext, session flips from null → Session.
+    // RootNavigator switches stacks automatically, but this also handles the case where
+    // the LoginScreen is still mounted during the brief transition.
+    useEffect(() => {
+        if (session) {
+            try {
+                nav.reset({ index: 0, routes: [{ name: 'Home' }] });
+            } catch {
+                // RootNavigator will handle it via key-based remount
+            }
+        }
+    }, [session]);
 
     const handleSubmit = async () => {
         if (!email || !password) {
@@ -75,10 +100,21 @@ export default function LoginScreen() {
                     setLoading(false);
                     return;
                 }
+                let schoolId: string | undefined;
+                if (schoolName.trim()) {
+                    try {
+                        const school = await api.lookupSchool(schoolName.trim());
+                        schoolId = school.id;
+                    } catch {
+                        // Non-fatal — continue signup without school_id
+                    }
+                }
+
                 const result = await api.signup({
                     email,
                     password,
                     display_name: displayName,
+                    school_id: schoolId,
                     graduation_year: gradYear ? parseInt(gradYear, 10) : undefined,
                 });
                 await supabase.auth.setSession({
@@ -131,6 +167,9 @@ export default function LoginScreen() {
                                         placeholderTextColor={colors.text30}
                                         value={displayName}
                                         onChangeText={setDisplayName}
+                                        returnKeyType="next"
+                                        onSubmitEditing={() => emailRef.current?.focus()}
+                                        blurOnSubmit={false}
                                     />
                                 </View>
                             )}
@@ -140,6 +179,7 @@ export default function LoginScreen() {
                                 <View style={styles.inputIconWrap}>
                                     <Mail size={18} color={colors.text40} style={styles.inputIcon} />
                                     <TextInput
+                                        ref={emailRef}
                                         style={[styles.input, { paddingLeft: 44 }]}
                                         placeholder="your.email@alumni.edu"
                                         placeholderTextColor={colors.text30}
@@ -147,6 +187,9 @@ export default function LoginScreen() {
                                         onChangeText={setEmail}
                                         autoCapitalize="none"
                                         keyboardType="email-address"
+                                        returnKeyType="next"
+                                        onSubmitEditing={() => passwordRef.current?.focus()}
+                                        blurOnSubmit={false}
                                     />
                                 </View>
                             </View>
@@ -154,12 +197,16 @@ export default function LoginScreen() {
                             <View style={styles.fieldGroup}>
                                 <Text style={styles.label}>Password</Text>
                                 <TextInput
+                                    ref={passwordRef}
                                     style={styles.input}
                                     placeholder="••••••••"
                                     placeholderTextColor={colors.text30}
                                     value={password}
                                     onChangeText={setPassword}
                                     secureTextEntry
+                                    returnKeyType={mode === 'login' ? 'go' : 'next'}
+                                    onSubmitEditing={mode === 'login' ? handleSubmit : () => schoolRef.current?.focus()}
+                                    blurOnSubmit={mode === 'login'}
                                 />
                             </View>
 
@@ -168,22 +215,29 @@ export default function LoginScreen() {
                                     <View style={styles.fieldGroup}>
                                         <Text style={styles.label}>School Name</Text>
                                         <TextInput
+                                            ref={schoolRef}
                                             style={styles.input}
                                             placeholder="University of..."
                                             placeholderTextColor={colors.text30}
                                             value={schoolName}
                                             onChangeText={setSchoolName}
+                                            returnKeyType="next"
+                                            onSubmitEditing={() => gradRef.current?.focus()}
+                                            blurOnSubmit={false}
                                         />
                                     </View>
                                     <View style={styles.fieldGroup}>
                                         <Text style={styles.label}>Graduation Year</Text>
                                         <TextInput
+                                            ref={gradRef}
                                             style={styles.input}
                                             placeholder="2026"
                                             placeholderTextColor={colors.text30}
                                             value={gradYear}
                                             onChangeText={setGradYear}
                                             keyboardType="number-pad"
+                                            returnKeyType="go"
+                                            onSubmitEditing={handleSubmit}
                                         />
                                     </View>
                                 </>
@@ -203,9 +257,27 @@ export default function LoginScreen() {
                             </View>
 
                             <GradientButton
-                                title="Sign up with Google"
+                                title="Continue with Google"
                                 variant="white"
-                                onPress={() => Alert.alert('Coming soon', 'Google sign-in is Phase 2 for this capstone.')}
+                                onPress={async () => {
+                                    try {
+                                        // Web: redirect back to the app root.
+                                        // Supabase appends the session tokens as a URL
+                                        // hash fragment (#access_token=...) which the
+                                        // client SDK parses automatically when
+                                        // detectSessionInUrl:true + flowType:'implicit'.
+                                        const redirectTo = Platform.OS === 'web'
+                                            ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8081')
+                                            : 'linkdup://auth-callback';
+                                        const { error } = await supabase.auth.signInWithOAuth({
+                                            provider: 'google',
+                                            options: { redirectTo },
+                                        });
+                                        if (error) throw error;
+                                    } catch (e: any) {
+                                        Alert.alert('Google sign-in failed', e?.message ?? 'Unknown error');
+                                    }
+                                }}
                                 leftIcon={<GoogleIcon />}
                             />
 
