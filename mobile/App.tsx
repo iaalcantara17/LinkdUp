@@ -15,6 +15,7 @@ import {
     Inter_900Black,
 } from '@expo-google-fonts/inter';
 import { AuthProvider } from './src/context/AuthContext';
+import { HintsProvider } from './src/context/HintsContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme';
 
@@ -67,10 +68,12 @@ export default function App() {
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
             <SafeAreaProvider>
                 <AuthProvider>
-                    <NavigationContainer theme={navTheme} linking={linking}>
-                        <StatusBar style="light" />
-                        <RootNavigator />
-                    </NavigationContainer>
+                    <HintsProvider>
+                        <NavigationContainer theme={navTheme} linking={linking}>
+                            <StatusBar style="light" />
+                            <RootNavigator />
+                        </NavigationContainer>
+                    </HintsProvider>
                 </AuthProvider>
             </SafeAreaProvider>
         </GestureHandlerRootView>

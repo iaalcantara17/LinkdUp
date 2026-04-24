@@ -7,6 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, UserPlus, UserCheck, UserX, Search, Users } from 'lucide-react-native';
+import HelpButton from '../components/HelpButton';
+
+const FRIENDS_HELP: { title: string; description: string }[] = [
+    { title: 'Friends tab', description: 'See everyone you\'ve accepted.' },
+    { title: 'Requests tab', description: 'Accept or decline friend requests.' },
+    { title: 'Search', description: 'Find people by name or email to send a request.' },
+];
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
 import { colors, radii, typography } from '../theme';
@@ -152,7 +159,7 @@ export default function FriendsScreen() {
                         <ArrowLeft size={22} color="white" />
                     </TouchableOpacity>
                     <Text style={styles.title}>Friends</Text>
-                    <View style={{ width: 40 }} />
+                    <HelpButton items={FRIENDS_HELP} />
                 </View>
 
                 {/* Tab bar */}

@@ -9,8 +9,8 @@ import Animated, {
     withTiming,
     withSpring,
     withDelay,
-    FadeIn,
-    FadeOut,
+    runOnJS,
+    Easing,
 } from 'react-native-reanimated';
 import { ChevronRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
@@ -36,30 +36,78 @@ const slides = [
     },
 ];
 
-function Splash() {
-    const scale = useSharedValue(0.5);
-    const opacity = useSharedValue(0);
-    const subOpacity = useSharedValue(0);
-    const subY = useSharedValue(20);
+function SlideContent({ slide, isActive }: { slide: typeof slides[0]; isActive: boolean }) {
+    const cfg = { duration: 400, easing: Easing.out(Easing.cubic) };
+
+    const imgOp = useSharedValue(isActive ? 1 : 0);
+    const imgY  = useSharedValue(isActive ? 0 : 20);
+    const titOp = useSharedValue(isActive ? 1 : 0);
+    const titY  = useSharedValue(isActive ? 0 : 20);
+    const desOp = useSharedValue(isActive ? 1 : 0);
+    const desY  = useSharedValue(isActive ? 0 : 20);
 
     useEffect(() => {
-        opacity.value = withTiming(1, { duration: 500 });
-        scale.value = withSpring(1, { damping: 12 });
-        subOpacity.value = withDelay(300, withTiming(1, { duration: 400 }));
-        subY.value = withDelay(300, withTiming(0, { duration: 400 }));
+        if (isActive) {
+            imgOp.value = withTiming(1, cfg);
+            imgY.value  = withTiming(0, cfg);
+            titOp.value = withDelay(150, withTiming(1, cfg));
+            titY.value  = withDelay(150, withTiming(0, cfg));
+            desOp.value = withDelay(300, withTiming(1, cfg));
+            desY.value  = withDelay(300, withTiming(0, cfg));
+        } else {
+            imgOp.value = 0;
+            imgY.value  = 20;
+            titOp.value = 0;
+            titY.value  = 20;
+            desOp.value = 0;
+            desY.value  = 20;
+        }
+    }, [isActive]);
+
+    const imgStyle = useAnimatedStyle(() => ({ opacity: imgOp.value, transform: [{ translateY: imgY.value }] }));
+    const titStyle = useAnimatedStyle(() => ({ opacity: titOp.value, transform: [{ translateY: titY.value }] }));
+    const desStyle = useAnimatedStyle(() => ({ opacity: desOp.value, transform: [{ translateY: desY.value }] }));
+
+    return (
+        <>
+            <Animated.View style={[styles.imageWrap, imgStyle]}>
+                <Image source={{ uri: slide.image }} style={styles.image} resizeMode="cover" />
+            </Animated.View>
+            <Animated.Text style={[styles.title, titStyle]}>{slide.title}</Animated.Text>
+            <Animated.Text style={[styles.desc, desStyle]}>{slide.description}</Animated.Text>
+        </>
+    );
+}
+
+function Splash({ onDone }: { onDone: () => void }) {
+    const containerOpacity = useSharedValue(1);
+    const wordOpacity = useSharedValue(0);
+    const wordScale = useSharedValue(0.85);
+    const tagOpacity = useSharedValue(0);
+    const tagY = useSharedValue(20);
+
+    useEffect(() => {
+        wordOpacity.value = withTiming(1, { duration: 600 });
+        wordScale.value = withSpring(1, { damping: 14, stiffness: 100 });
+        tagOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
+        tagY.value = withDelay(400, withTiming(0, { duration: 500 }));
+        containerOpacity.value = withDelay(1500, withTiming(0, { duration: 300 }, () => {
+            runOnJS(onDone)();
+        }));
     }, []);
 
+    const containerStyle = useAnimatedStyle(() => ({ opacity: containerOpacity.value }));
     const wordStyle = useAnimatedStyle(() => ({
-        opacity: opacity.value,
-        transform: [{ scale: scale.value }],
+        opacity: wordOpacity.value,
+        transform: [{ scale: wordScale.value }],
     }));
-    const subStyle = useAnimatedStyle(() => ({
-        opacity: subOpacity.value,
-        transform: [{ translateY: subY.value }],
+    const tagStyle = useAnimatedStyle(() => ({
+        opacity: tagOpacity.value,
+        transform: [{ translateY: tagY.value }],
     }));
 
     return (
-        <Animated.View entering={FadeIn} exiting={FadeOut.duration(300)} style={StyleSheet.absoluteFill}>
+        <Animated.View style={[StyleSheet.absoluteFill, containerStyle]}>
             <LinearGradient
                 colors={colors.gradient as any}
                 start={{ x: 0, y: 0 }}
@@ -67,7 +115,7 @@ function Splash() {
                 style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             >
                 <Animated.Text style={[styles.splashWordmark, wordStyle]}>LINKDUP</Animated.Text>
-                <Animated.Text style={[styles.splashTagline, subStyle]}>
+                <Animated.Text style={[styles.splashTagline, tagStyle]}>
                     Find your people. Find your place.
                 </Animated.Text>
             </LinearGradient>
@@ -83,16 +131,8 @@ export default function OnboardingScreen() {
     const scrollRef = React.useRef<ScrollView>(null);
 
     useEffect(() => {
-        const t = setTimeout(() => setShowSplash(false), 1500);
-        return () => clearTimeout(t);
-    }, []);
-
-    // Keep the current slide aligned when the window is resized
-    useEffect(() => {
         scrollRef.current?.scrollTo({ x: currentSlide * width, animated: false });
     }, [width, currentSlide]);
-
-    if (showSplash) return <Splash />;
 
     const isLastSlide = currentSlide === slides.length - 1;
 
@@ -126,11 +166,7 @@ export default function OnboardingScreen() {
             >
                 {slides.map((slide, i) => (
                     <View key={i} style={[styles.slide, { width }]}>
-                        <View style={styles.imageWrap}>
-                            <Image source={{ uri: slide.image }} style={styles.image} resizeMode="cover" />
-                        </View>
-                        <Text style={styles.title}>{slide.title}</Text>
-                        <Text style={styles.desc}>{slide.description}</Text>
+                        <SlideContent slide={slide} isActive={currentSlide === i} />
                     </View>
                 ))}
             </ScrollView>
@@ -161,6 +197,8 @@ export default function OnboardingScreen() {
                     </View>
                 )}
             </View>
+
+            {showSplash && <Splash onDone={() => setShowSplash(false)} />}
         </SafeAreaView>
     );
 }

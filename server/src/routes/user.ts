@@ -356,4 +356,35 @@ router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
+router.get('/me/hints', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const { data } = await supabaseAdmin
+            .from('user_screen_hints')
+            .select('screen_key')
+            .eq('user_id', req.user!.id);
+        res.json((data ?? []).map((r: any) => r.screen_key));
+    } catch (e) { next(e); }
+});
+
+router.post('/me/hints', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const { screen_key } = req.body;
+        if (!screen_key || typeof screen_key !== 'string') throw new HttpError(400, 'missing_screen_key');
+        await supabaseAdmin
+            .from('user_screen_hints')
+            .upsert({ user_id: req.user!.id, screen_key }, { onConflict: 'user_id,screen_key' });
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
+router.post('/me/walkthrough-seen', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        await supabaseAdmin
+            .from('users')
+            .update({ has_seen_walkthrough: true })
+            .eq('id', req.user!.id);
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
 export default router;

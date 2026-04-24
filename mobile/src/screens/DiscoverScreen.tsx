@@ -13,6 +13,16 @@ import {
 } from 'lucide-react-native';
 import BottomNav from '../components/BottomNav';
 import GradientButton from '../components/GradientButton';
+import HelpButton from '../components/HelpButton';
+import FirstVisitHint from '../components/FirstVisitHint';
+import AnchoredHint from '../components/AnchoredHint';
+
+const DISCOVER_HELP: { title: string; description: string }[] = [
+    { title: 'Explore', description: 'Browse trending spots and parties near you.' },
+    { title: 'Like spots', description: 'Save places to Your Likes with the heart button.' },
+    { title: 'Your Likes', description: 'See everything you\'ve saved. Tap the heart to remove.' },
+    { title: 'Join a nearby party', description: 'Scroll down to see public parties you can ask to join.' },
+];
 import { api } from '../services/api';
 import { colors, radii } from '../theme';
 
@@ -392,6 +402,7 @@ export default function DiscoverScreen() {
 
     // Trending scroll (FIX 2)
     const trendingScrollRef = useRef<ScrollView>(null);
+    const featuredHeartRef  = useRef<View>(null);
     const [trendingScrollX, setTrendingScrollX] = useState(0);
 
     // Personal likes (FIX 3 + 4)
@@ -623,31 +634,34 @@ export default function DiscoverScreen() {
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 {/* ── Tab bar ───────────────────────────────────────────── */}
-                <View style={styles.tabBar}>
-                    <TouchableOpacity
-                        style={[styles.tabPill, activeTab === 'explore' && styles.tabPillActive]}
-                        onPress={() => handleTabChange('explore')}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'explore' && styles.tabTextActive]}>
-                            Explore
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tabPill, activeTab === 'likes' && styles.tabPillActive]}
-                        onPress={() => handleTabChange('likes')}
-                        activeOpacity={0.8}
-                    >
-                        <Heart
-                            size={13}
-                            color={activeTab === 'likes' ? 'white' : colors.text60}
-                            fill={activeTab === 'likes' ? 'white' : 'transparent'}
-                            style={{ marginRight: 5 }}
-                        />
-                        <Text style={[styles.tabText, activeTab === 'likes' && styles.tabTextActive]}>
-                            Your Likes
-                        </Text>
-                    </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 16 }}>
+                    <View style={[styles.tabBar, { flex: 1 }]}>
+                        <TouchableOpacity
+                            style={[styles.tabPill, activeTab === 'explore' && styles.tabPillActive]}
+                            onPress={() => handleTabChange('explore')}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'explore' && styles.tabTextActive]}>
+                                Explore
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tabPill, activeTab === 'likes' && styles.tabPillActive]}
+                            onPress={() => handleTabChange('likes')}
+                            activeOpacity={0.8}
+                        >
+                            <Heart
+                                size={13}
+                                color={activeTab === 'likes' ? 'white' : colors.text60}
+                                fill={activeTab === 'likes' ? 'white' : 'transparent'}
+                                style={{ marginRight: 5 }}
+                            />
+                            <Text style={[styles.tabText, activeTab === 'likes' && styles.tabTextActive]}>
+                                Your Likes
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                    <HelpButton items={DISCOVER_HELP} />
                 </View>
 
                 <ScrollView
@@ -757,6 +771,7 @@ export default function DiscoverScreen() {
                                                         >
                                                             <X size={24} color={colors.danger} />
                                                         </TouchableOpacity>
+                                                        <View ref={featuredHeartRef}>
                                                         <TouchableOpacity
                                                             activeOpacity={0.85}
                                                             onPress={() => {
@@ -781,6 +796,7 @@ export default function DiscoverScreen() {
                                                                 />
                                                             </LinearGradient>
                                                         </TouchableOpacity>
+                                                        </View>
                                                     </View>
                                                 </View>
                                             )}
@@ -931,6 +947,22 @@ export default function DiscoverScreen() {
                 </ScrollView>
             </SafeAreaView>
 
+            {activeTab === 'explore' && (
+                <AnchoredHint
+                    screenKey="discover_likes"
+                    title="Like spots you find cool"
+                    body="Tap the heart to save any venue to Your Likes. Great for remembering places to suggest in future parties."
+                    targetRef={featuredHeartRef}
+                    placement="top"
+                />
+            )}
+            {activeTab === 'likes' && (
+                <FirstVisitHint
+                    screenKey="discover_your_likes"
+                    title="This is where your saved spots live"
+                    body="Tap the heart again to remove a spot, or create a party to hang out at any of them."
+                />
+            )}
             <BottomNav />
 
             {/* Venue detail modal */}

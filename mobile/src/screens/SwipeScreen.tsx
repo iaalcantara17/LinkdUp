@@ -14,9 +14,19 @@ import Animated, {
     Extrapolation,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { X, Heart, MapPin, Info, ArrowLeft, Star } from 'lucide-react-native';
+import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from 'lucide-react-native';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
+import HelpButton from '../components/HelpButton';
+import FirstVisitHint from '../components/FirstVisitHint';
+import AnchoredHint from '../components/AnchoredHint';
+
+const SWIPE_HELP: { title: string; description: string }[] = [
+    { title: 'Swipe right / left', description: 'Like or pass on a spot.' },
+    { title: 'Why this?', description: 'Get an AI take on any venue.' },
+    { title: 'Party info', description: 'Tap the i button to see party details and members.' },
+    { title: 'Done (solo only)', description: 'Skip the rest of the deck and match from your likes.' },
+];
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { colors, typography, spacing, radii } from '../theme';
@@ -87,6 +97,13 @@ export default function SwipeScreen() {
     const [loading, setLoading] = useState(true);
     const [noMatch, setNoMatch] = useState(false);
     const [resetting, setResetting] = useState(false);
+    const [voteCounts, setVoteCounts] = useState<Record<string, number>>({});
+    const [forceMatchModal, setForceMatchModal] = useState(false);
+    const [forcingMatch, setForcingMatch] = useState(false);
+    const [pulsingUserId, setPulsingUserId] = useState<string | null>(null);
+    const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const whyThisRef = useRef<View>(null);
+    const donePillRef = useRef<View>(null);
 
     // Realtime
     const myUserIdRef = useRef<string | null>(null);
@@ -191,7 +208,7 @@ export default function SwipeScreen() {
                 const v = payload.new;
                 if (!v || v.user_id === myUserIdRef.current) return;
 
-                // Update crew HUD
+                // Update crew HUD status
                 setCrew((prev) => {
                     const updated = prev.map((m) =>
                         m.user_id === v.user_id
@@ -201,6 +218,16 @@ export default function SwipeScreen() {
                     crewRef.current = updated;
                     return updated;
                 });
+
+                // Pulse that member's avatar
+                if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+                setPulsingUserId(v.user_id);
+                pulseTimeoutRef.current = setTimeout(() => setPulsingUserId(null), 400);
+
+                // Track yes-vote count per venue for the card pill
+                if (v.vote) {
+                    setVoteCounts(prev => ({ ...prev, [v.location_id]: (prev[v.location_id] ?? 0) + 1 }));
+                }
 
                 // Toast
                 const voter = crewRef.current.find((m) => m.user_id === v.user_id);
@@ -274,6 +301,23 @@ export default function SwipeScreen() {
         }
     }, [index, partyId, showToast]);
 
+    const handleForceMatch = useCallback(async () => {
+        setForcingMatch(true);
+        try {
+            const result = await api.forceMatch(partyId);
+            setForceMatchModal(false);
+            if (result.matched) {
+                nav.replace('Match', { partyId });
+            } else {
+                showToast('Swipe right on at least one spot first.');
+            }
+        } catch (err: any) {
+            showToast(err?.message ?? 'Something went wrong');
+        } finally {
+            setForcingMatch(false);
+        }
+    }, [partyId, nav, showToast]);
+
     const triggerLoadMore = useCallback(() => {
         if (loadingMoreRef.current || partyId === 'demo') return;
         loadingMoreRef.current = true;
@@ -320,6 +364,10 @@ export default function SwipeScreen() {
         }
         const isRealVenue = current && !current.id.startsWith('demo-');
         const isLastCard = index + 1 >= venues.length;
+
+        if (liked && isRealVenue) {
+            setVoteCounts(prev => ({ ...prev, [current.id]: (prev[current.id] ?? 0) + 1 }));
+        }
 
         // Silently pre-fetch more venues when 3 cards remain — skipped if user capped
         const remaining = venues.length - (index + 1);
@@ -416,6 +464,8 @@ export default function SwipeScreen() {
     const nopeOpacityStyle = useAnimatedStyle(() => ({
         opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], Extrapolation.CLAMP),
     }));
+
+    const isSolo = crew.length === 1 && partyId !== 'demo';
 
     if (loading) {
         return (
@@ -568,18 +618,36 @@ export default function SwipeScreen() {
                         <MapPin size={14} color={colors.primary} />
                         <Text style={styles.midpointText}>{distance.toFixed(1)} mi from midpoint</Text>
                     </BlurView>
-                    <TouchableOpacity
-                        style={styles.topIconBtn}
-                        onPress={() => {
-                            if (partyId === 'demo') return;
-                            api.getParty(partyId).then((d: any) => {
-                                setPartyInfo(d);
-                                setInfoModal(true);
-                            }).catch(() => {});
-                        }}
-                    >
-                        <Info size={22} color="white" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <HelpButton items={SWIPE_HELP} />
+                        <TouchableOpacity
+                            style={styles.topIconBtn}
+                            onPress={() => {
+                                if (partyId === 'demo') return;
+                                api.getParty(partyId).then((d: any) => {
+                                    setPartyInfo(d);
+                                    setInfoModal(true);
+                                }).catch(() => {});
+                            }}
+                        >
+                            <Info size={22} color="white" />
+                        </TouchableOpacity>
+                        {isSolo && (
+                            <View ref={donePillRef}>
+                                <TouchableOpacity onPress={() => setForceMatchModal(true)} activeOpacity={0.85}>
+                                    <LinearGradient
+                                        colors={colors.gradient as any}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={styles.donePickPill}
+                                    >
+                                        <Check size={13} color="white" />
+                                        <Text style={styles.donePickText}>Done — pick now</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
                 </View>
 
                 {/* Progress bar */}
@@ -610,6 +678,15 @@ export default function SwipeScreen() {
                                 <Image source={{ uri: current.photo_url }} style={StyleSheet.absoluteFillObject} />
                             )}
 
+                            {/* Vote counter pill — multi-person only, appears when someone likes */}
+                            {crew.length > 1 && (voteCounts[current.id] ?? 0) > 0 && (
+                                <View style={styles.voteCountPill}>
+                                    <Text style={styles.voteCountText}>
+                                        {voteCounts[current.id]}/{crew.length}
+                                    </Text>
+                                </View>
+                            )}
+
                             {/* LIKE stamp */}
                             <Animated.View style={[styles.stamp, styles.stampLike, likeOpacityStyle]}>
                                 <Text style={styles.stampLikeText}>LIKE</Text>
@@ -633,13 +710,15 @@ export default function SwipeScreen() {
                                 <View style={styles.venueRow}>
                                     <Text style={[styles.venueName, { flex: 1 }]}>{current.name}</Text>
                                     {!current.id.startsWith('demo-') && (
-                                        <TouchableOpacity
-                                            onPress={handleWhyThis}
-                                            activeOpacity={0.85}
-                                            style={styles.whyChip}
-                                        >
-                                            <Text style={styles.whyChipText}>✨ Why this?</Text>
-                                        </TouchableOpacity>
+                                        <View ref={whyThisRef}>
+                                            <TouchableOpacity
+                                                onPress={handleWhyThis}
+                                                activeOpacity={0.85}
+                                                style={styles.whyChip}
+                                            >
+                                                <Text style={styles.whyChipText}>✨ Why this?</Text>
+                                            </TouchableOpacity>
+                                        </View>
                                     )}
                                 </View>
                                 <View style={styles.venueMeta}>
@@ -674,6 +753,7 @@ export default function SwipeScreen() {
                                         color={member.avatar_color}
                                         avatarUrl={member.avatar_url}
                                         size={44}
+                                        pulse={member.user_id === pulsingUserId}
                                         onPress={member.user_id !== myUserIdRef.current
                                             ? () => setProfileUserId(member.user_id)
                                             : undefined}
@@ -730,6 +810,23 @@ export default function SwipeScreen() {
                     </View>
                 )}
             </SafeAreaView>
+
+            <AnchoredHint
+                screenKey="swipe_why_this"
+                title="Curious about a spot?"
+                body="Tap '✨ Why this?' on any card for an instant AI take on what the place is good for."
+                targetRef={whyThisRef}
+                placement="top"
+            />
+            {isSolo && (
+                <AnchoredHint
+                    screenKey="swipe_done_button"
+                    title="Done swiping?"
+                    body="Tap 'Done — pick now' to lock in the spot you liked most. Great for when you've seen enough."
+                    targetRef={donePillRef}
+                    placement="bottom"
+                />
+            )}
 
             <UserProfileSheet
                 userId={profileUserId}
@@ -833,6 +930,50 @@ export default function SwipeScreen() {
                             activeOpacity={0.8}
                         >
                             <Text style={styles.pitchDismissText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Force-match confirmation — solo parties only */}
+            <Modal
+                visible={forceMatchModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setForceMatchModal(false)}
+            >
+                <View style={styles.pitchOverlay}>
+                    <View style={styles.pitchSheet}>
+                        <View style={styles.pitchDragBar} />
+                        <Text style={styles.pitchVenueName}>Match from your likes so far?</Text>
+                        <Text style={styles.pitchBody}>
+                            We'll pick the venue you liked most recently.
+                        </Text>
+                        <TouchableOpacity
+                            onPress={handleForceMatch}
+                            style={[styles.pitchDismiss, { marginBottom: 10, opacity: forcingMatch ? 0.6 : 1 }]}
+                            activeOpacity={0.85}
+                            disabled={forcingMatch}
+                        >
+                            <Text style={styles.pitchDismissText}>
+                                {forcingMatch ? 'Picking...' : 'Yes, pick one'}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => setForceMatchModal(false)}
+                            style={{
+                                backgroundColor: 'transparent',
+                                borderWidth: 1,
+                                borderColor: colors.glassBorder,
+                                borderRadius: radii.md,
+                                paddingVertical: 12,
+                                alignItems: 'center',
+                            }}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={{ color: colors.text80, fontFamily: 'Inter_700Bold', fontSize: 15 }}>
+                                Nope, keep swiping
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -1028,6 +1169,27 @@ const styles = StyleSheet.create({
         shadowRadius: 16,
         elevation: 12,
     },
+
+    donePickPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: radii.pill,
+    },
+    donePickText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 12 },
+
+    voteCountPill: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        backgroundColor: 'rgba(34,197,94,0.85)',
+        borderRadius: radii.pill,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+    },
+    voteCountText: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
 
     // ── Venue row (name + why chip) ───────────────────────────────────────────
     venueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },

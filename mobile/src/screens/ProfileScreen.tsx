@@ -7,9 +7,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { Pencil, Trash2 } from 'lucide-react-native';
+import { Pencil, Trash2, ChevronRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import GlassCard from '../components/GlassCard';
+import HelpButton from '../components/HelpButton';
+import FirstVisitHint from '../components/FirstVisitHint';
+import AnchoredHint from '../components/AnchoredHint';
+
+const PROFILE_HELP: { title: string; description: string }[] = [
+    { title: 'Edit profile', description: 'Tap any row to update your name, pronouns, birthday, bio, or school.' },
+    { title: 'Take the tour again', description: 'Replay the welcome walkthrough.' },
+    { title: 'Delete account', description: 'Permanently remove your account and all your data.' },
+];
 import AvatarBubble from '../components/AvatarBubble';
 import BottomNav from '../components/BottomNav';
 import { useAuth } from '../context/AuthContext';
@@ -59,6 +68,7 @@ export default function ProfileScreen() {
     const [editValue, setEditValue] = useState('');
     const [editSaving, setEditSaving] = useState(false);
     const inputRef = useRef<TextInput>(null);
+    const tourRowRef = useRef<View>(null);
 
     // Birthday stepper state (month 1-12, day 1-31, year)
     const thisYear = new Date().getFullYear();
@@ -252,7 +262,10 @@ export default function ProfileScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 140 }}>
                     <Animated.View entering={FadeInDown.duration(400)}>
-                        <Text style={styles.title}>Profile</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                            <Text style={[styles.title, { marginBottom: 0 }]}>Profile</Text>
+                            <HelpButton items={PROFILE_HELP} />
+                        </View>
 
                         {profileIncomplete && (
                             <View style={styles.tipBanner}>
@@ -394,6 +407,19 @@ export default function ProfileScreen() {
 
                         <View style={{ height: 24 }} />
                         <GradientButton title="Sign out" variant="ghost" onPress={signOut} />
+
+                        <View ref={tourRowRef}>
+                        <GlassCard style={{ marginTop: 16 }}>
+                            <TouchableOpacity
+                                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                                onPress={() => nav.navigate('Walkthrough', { fromSignup: false })}
+                                activeOpacity={0.75}
+                            >
+                                <Text style={{ color: 'white', fontFamily: 'Inter_500Medium', fontSize: 15 }}>Take the tour again</Text>
+                                <ChevronRight size={18} color={colors.text60} />
+                            </TouchableOpacity>
+                        </GlassCard>
+                        </View>
 
                         {/* ── Danger zone ── */}
                         <View style={styles.dangerDivider} />
@@ -660,6 +686,13 @@ export default function ProfileScreen() {
                 </KeyboardAvoidingView>
             </Modal>
 
+            <AnchoredHint
+                screenKey="profile_tour_replay"
+                title="Forgot something?"
+                body="Tap 'Take the tour again' below to replay the welcome tour anytime."
+                targetRef={tourRowRef}
+                placement="top"
+            />
             <BottomNav />
         </View>
     );

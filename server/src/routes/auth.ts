@@ -169,7 +169,7 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('users')
-            .select('id, email, display_name, school_id, graduation_year, avatar_color, avatar_url, latitude, longitude, google_calendar_refresh, pronouns, birthday, bio')
+            .select('id, email, display_name, school_id, graduation_year, avatar_color, avatar_url, latitude, longitude, google_calendar_refresh, pronouns, birthday, bio, has_seen_walkthrough')
             .eq('id', req.user!.id)
             .single();
         if (error) throw new HttpError(404, 'profile_not_found');

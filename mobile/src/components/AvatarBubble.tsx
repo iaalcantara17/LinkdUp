@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { colors } from '../theme';
 
 interface Props {
@@ -9,9 +10,10 @@ interface Props {
     status?: 'waiting' | 'yes' | 'no' | null;
     avatarUrl?: string | null;
     onPress?: () => void;
+    pulse?: boolean;
 }
 
-export default function AvatarBubble({ name, color = colors.primary, size = 40, status, avatarUrl, onPress }: Props) {
+export default function AvatarBubble({ name, color = colors.primary, size = 40, status, avatarUrl, onPress, pulse }: Props) {
     const initials = name
         .split(' ')
         .map((s) => s[0])
@@ -21,7 +23,20 @@ export default function AvatarBubble({ name, color = colors.primary, size = 40, 
 
     const ring = status === 'yes' ? colors.success : status === 'no' ? colors.danger : colors.glassBorder;
 
-    const bubble = (
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    useEffect(() => {
+        if (!pulse) return;
+        scale.value = withSpring(1.15, { damping: 4, stiffness: 300 }, () => {
+            scale.value = withSpring(1, { damping: 6, stiffness: 200 });
+        });
+    }, [pulse]);
+
+    const content = (
         <View style={{ alignItems: 'center' }}>
             <View
                 style={[
@@ -42,15 +57,17 @@ export default function AvatarBubble({ name, color = colors.primary, size = 40, 
         </View>
     );
 
-    if (onPress) {
-        return (
-            <TouchableOpacity onPress={onPress} activeOpacity={0.75} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
-                {bubble}
-            </TouchableOpacity>
-        );
-    }
+    const inner = onPress ? (
+        <TouchableOpacity onPress={onPress} activeOpacity={0.75} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+            {content}
+        </TouchableOpacity>
+    ) : content;
 
-    return bubble;
+    return (
+        <Animated.View style={animatedStyle}>
+            {inner}
+        </Animated.View>
+    );
 }
 
 const styles = StyleSheet.create({

@@ -89,6 +89,10 @@ export const api = {
 
     // Match
     getMatch: (partyId: string) => request<any>('GET', `/api/party/${partyId}/match`),
+    forceMatch: (partyId: string) => request<any>('POST', `/api/party/${partyId}/force-match`),
+    markWalkthroughSeen: () => request<any>('POST', '/api/user/me/walkthrough-seen'),
+    getSeenHints: () => request<string[]>('GET', '/api/user/me/hints'),
+    markHintSeen: (screenKey: string) => request<any>('POST', '/api/user/me/hints', { screen_key: screenKey }),
 
     // Dates
     generateDates: (partyId: string) => request<any>('POST', `/api/party/${partyId}/dates`),

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Modal, Image, RefreshControl, Alert, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -7,6 +7,15 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Plus, MoreVertical, Users, ChevronRight } from 'lucide-react-native';
 import BottomNav from '../components/BottomNav';
+import HelpButton from '../components/HelpButton';
+import FirstVisitHint from '../components/FirstVisitHint';
+import AnchoredHint from '../components/AnchoredHint';
+
+const HOME_HELP: { title: string; description: string }[] = [
+    { title: 'Your parties', description: 'Rejoin any party you\'ve created or accepted.' },
+    { title: 'Create a party', description: 'Tap the + button to start a new meetup.' },
+    { title: 'Find friends', description: 'Open the Friends card to search, request, and accept friends.' },
+];
 import { api } from '../services/api';
 import { colors, typography, radii } from '../theme';
 
@@ -41,6 +50,8 @@ export default function HomeScreen() {
     const [menuParty, setMenuParty] = useState<PartyRow | null>(null);
     const [displayParty, setDisplayParty] = useState<PartyRow | null>(null);
     const [pendingCount, setPendingCount] = useState(0);
+    const walkthroughCheckedRef = useRef(false);
+    const friendsCardRef = useRef<View>(null);
 
     const load = useCallback(async () => {
         try {
@@ -49,7 +60,16 @@ export default function HomeScreen() {
                 api.myParties().catch(() => []),
                 api.getPendingRequests().catch(() => []),
             ]);
-            if (myProfile) setMe(myProfile);
+            if (myProfile) {
+                setMe(myProfile);
+                if (!walkthroughCheckedRef.current) {
+                    walkthroughCheckedRef.current = true;
+                    if (!myProfile.has_seen_walkthrough && myProfile.display_name) {
+                        nav.replace('Walkthrough', { fromSignup: true });
+                        return;
+                    }
+                }
+            }
             setParties(myParties ?? []);
             setPendingCount((pendingReqs ?? []).length);
         } catch {}
@@ -137,13 +157,17 @@ export default function HomeScreen() {
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />}
                 >
                     <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-                        <GradientWordmark />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <GradientWordmark />
+                            <HelpButton items={HOME_HELP} />
+                        </View>
                         <Text style={styles.greeting}>
                             {me?.display_name ? `Hey ${me.display_name}! 👋` : 'Hey there! 👋'}
                         </Text>
                     </Animated.View>
 
                     {/* Friends card — prominent, discoverable */}
+                    <View ref={friendsCardRef}>
                     <TouchableOpacity
                         onPress={() => nav.navigate('Friends')}
                         style={styles.friendsCard}
@@ -172,6 +196,7 @@ export default function HomeScreen() {
                             <ChevronRight size={20} color="rgba(255,255,255,0.4)" />
                         </View>
                     </TouchableOpacity>
+                    </View>
 
                     <View style={{ marginTop: 32, paddingHorizontal: 24 }}>
                         <Text style={styles.sectionHeader}>Your Parties</Text>
@@ -256,6 +281,13 @@ export default function HomeScreen() {
                 </LinearGradient>
             </TouchableOpacity>
 
+            <AnchoredHint
+                screenKey="home_friends_card"
+                title="Add friends to the party"
+                body="Tap here anytime to send friend requests, see who's pending, and find people from your school."
+                targetRef={friendsCardRef}
+                placement="bottom"
+            />
             <BottomNav />
 
             {/* ── Party action sheet (works on web + native) ───────────── */}

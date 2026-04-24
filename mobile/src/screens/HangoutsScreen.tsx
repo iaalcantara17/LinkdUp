@@ -19,6 +19,13 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Calendar, Clock, MapPin, Users, ExternalLink, MoreVertical } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import BottomNav from '../components/BottomNav';
+import HelpButton from '../components/HelpButton';
+import FirstVisitHint from '../components/FirstVisitHint';
+
+const HANGOUTS_HELP: { title: string; description: string }[] = [
+    { title: 'Upcoming', description: 'Your confirmed hangouts, sorted by date.' },
+    { title: 'Open in Calendar', description: 'Tap any hangout to view it in Google Calendar.' },
+];
 import { api } from '../services/api';
 import { colors, radii } from '../theme';
 
@@ -300,7 +307,10 @@ export default function HangoutsScreen() {
                     }
                     ListHeaderComponent={
                         <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-                            <Text style={styles.title}>Upcoming Hangouts</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <Text style={styles.title}>Upcoming Hangouts</Text>
+                                <HelpButton items={HANGOUTS_HELP} />
+                            </View>
                             <Text style={styles.subtitle}>Your locked meetups, in order</Text>
                         </Animated.View>
                     }
@@ -332,6 +342,11 @@ export default function HangoutsScreen() {
                     )}
                 />
             </SafeAreaView>
+            <FirstVisitHint
+                screenKey="hangouts_gcal"
+                title="Open in Google Calendar"
+                body="Tap any hangout to open it directly in your calendar. You can edit or RSVP from there."
+            />
             <BottomNav />
 
             {/* ── Hangout action sheet (works on web + native) ─────────── */}

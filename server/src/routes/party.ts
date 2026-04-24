@@ -6,6 +6,7 @@ import { HttpError } from '../middleware/error';
 import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoint';
 import { searchNearbyVenues, searchNearbyVenuesPaged, getVenuesWithRotation } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
+import { fuzzCoords } from '../services/locationFuzz';
 import { generateVenuePitch } from '../services/aiPitch';
 
 const router = Router();
@@ -129,11 +130,23 @@ router.get('/:id/members', requireAuth, async (req: AuthedRequest, res, next) =>
 
         const memberUserIds = (rawMembers ?? []).map((m: any) => m.user_id);
         const { data: memberUsers } = memberUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, display_name, avatar_color, avatar_url').in('id', memberUserIds)
+            ? await supabaseAdmin.from('users').select('id, display_name, avatar_color, avatar_url, latitude, longitude').in('id', memberUserIds)
             : { data: [] as any[] };
         const userMap: Record<string, any> = Object.fromEntries((memberUsers ?? []).map((u: any) => [u.id, u]));
 
-        res.json((rawMembers ?? []).map((m: any) => ({ ...m, users: userMap[m.user_id] ?? null })));
+        res.json((rawMembers ?? []).map((m: any) => {
+            const u = userMap[m.user_id];
+            const fuzzed = u?.latitude != null && u?.longitude != null
+                ? fuzzCoords(u.latitude, u.longitude, m.user_id)
+                : null;
+            const { latitude, longitude, ...safeUser } = u ?? {};
+            return {
+                ...m,
+                users: u ? safeUser : null,
+                display_lat: fuzzed?.lat ?? null,
+                display_lng: fuzzed?.lng ?? null,
+            };
+        }));
     } catch (e) { next(e); }
 });
 
@@ -482,6 +495,59 @@ router.post('/:id/reset', requireAuth, async (req: AuthedRequest, res, next) => 
         if (updateErr) throw new HttpError(500, 'reset_status_failed', updateErr.message);
 
         res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
+router.post('/:id/force-match', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+        const userId = req.user!.id;
+
+        await assertMember(partyId, userId);
+
+        const { count: memberCount } = await supabaseAdmin
+            .from('party_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('party_id', partyId);
+
+        if ((memberCount ?? 0) !== 1) throw new HttpError(403, 'not_solo_party');
+
+        const { data: party } = await supabaseAdmin
+            .from('parties')
+            .select('status')
+            .eq('id', partyId)
+            .single();
+
+        if (!party) throw new HttpError(404, 'party_not_found');
+        if (party.status !== 'swiping') throw new HttpError(409, 'party_not_swiping');
+
+        const { data: recentLike } = await supabaseAdmin
+            .from('votes')
+            .select('location_id')
+            .eq('party_id', partyId)
+            .eq('user_id', userId)
+            .eq('vote', true)
+            .order('voted_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (!recentLike) {
+            return res.json({ matched: false, reason: 'no_likes_yet' });
+        }
+
+        const { error: updateErr } = await supabaseAdmin
+            .from('parties')
+            .update({
+                status: 'matched',
+                matched_location_id: recentLike.location_id,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', partyId)
+            .eq('status', 'swiping');
+
+        if (updateErr) throw new HttpError(500, 'match_failed', updateErr.message);
+
+        res.json({ matched: true, location_id: recentLike.location_id });
     } catch (e) { next(e); }
 });
 

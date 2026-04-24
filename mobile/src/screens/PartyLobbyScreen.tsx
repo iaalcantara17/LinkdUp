@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,16 @@ import GradientButton from '../components/GradientButton';
 import GlassCard from '../components/GlassCard';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
+import CrewMap from '../components/CrewMap';
+import HelpButton from '../components/HelpButton';
+import FirstVisitHint from '../components/FirstVisitHint';
+import AnchoredHint from '../components/AnchoredHint';
+
+const LOBBY_HELP: { title: string; description: string }[] = [
+    { title: 'Crew map', description: 'See where everyone\'s at. Midpoint appears once swiping starts.' },
+    { title: 'Start swiping', description: 'Kick off the matching round (host only).' },
+    { title: 'Party code', description: 'Share this code so friends can join.' },
+];
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { colors, typography, spacing, radii } from '../theme';
@@ -17,6 +27,7 @@ export default function PartyLobbyScreen() {
     const route = useRoute<any>();
     const partyId: string = route.params.partyId;
     const [party, setParty] = useState<any>(null);
+    const codeCardRef = useRef<View>(null);
     const [members, setMembers] = useState<any[]>([]);
     const [me, setMe] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -74,7 +85,7 @@ export default function PartyLobbyScreen() {
         setLoading(true);
         try {
             await api.startParty(partyId);
-            nav.replace('Swipe', { partyId });
+            nav.replace('CrewMapReveal', { partyId });
         } catch (e: any) {
             const msg = e?.message ?? 'unknown';
             if (msg.includes('no_member_locations')) {
@@ -122,7 +133,7 @@ export default function PartyLobbyScreen() {
                         <ArrowLeft size={24} color="white" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Party Lobby</Text>
-                    <View style={{ width: 40 }} />
+                    <HelpButton items={LOBBY_HELP} />
                 </View>
 
                 <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
@@ -172,6 +183,7 @@ export default function PartyLobbyScreen() {
 
                         {lobbyTab === 'party' && (
                         <>
+                        <View ref={codeCardRef}>
                         <GlassCard style={{ marginVertical: 24, alignItems: 'center' }}>
                             <Text style={styles.codeLabel}>JOIN CODE</Text>
                             <TouchableOpacity onPress={handleShare} activeOpacity={0.8}>
@@ -179,6 +191,7 @@ export default function PartyLobbyScreen() {
                             </TouchableOpacity>
                             <Text style={styles.tapHint}>tap to share</Text>
                         </GlassCard>
+                        </View>
 
                         <Text style={styles.crewLabel}>Crew ({members.length})</Text>
                         <View style={styles.crew}>
@@ -194,6 +207,37 @@ export default function PartyLobbyScreen() {
                                 </View>
                             ))}
                         </View>
+
+                        {(() => {
+                            const mapMembers = members
+                                .filter((m: any) => m.display_lat != null && m.display_lng != null)
+                                .map((m: any) => ({
+                                    user_id: m.user_id,
+                                    display_name: m.users?.display_name ?? '?',
+                                    avatar_url: m.users?.avatar_url ?? null,
+                                    avatar_color: m.users?.avatar_color ?? null,
+                                    display_lat: m.display_lat,
+                                    display_lng: m.display_lng,
+                                }));
+                            if (mapMembers.length === 0) return null;
+                            const mapMidpoint = party?.midpoint_lat
+                                ? { lat: party.midpoint_lat, lng: party.midpoint_lng }
+                                : null;
+                            return (
+                                <View style={{ marginBottom: 24 }}>
+                                    <Text style={[styles.crewLabel, { marginBottom: 4 }]}>Where everyone's at</Text>
+                                    <Text style={styles.mapPrivacyNote}>Locations are approximate for privacy.</Text>
+                                    <CrewMap
+                                        members={mapMembers}
+                                        midpoint={mapMidpoint}
+                                        radiusMeters={party?.search_radius_meters ?? 10000}
+                                        height={260}
+                                        showMidpoint={isSwiping || isMatched}
+                                        onMemberPress={(id) => setProfileUserId(id)}
+                                    />
+                                </View>
+                            );
+                        })()}
 
                         {isMatched ? (
                             <>
@@ -227,6 +271,13 @@ export default function PartyLobbyScreen() {
                 userId={profileUserId}
                 visible={profileUserId !== null}
                 onClose={() => setProfileUserId(null)}
+            />
+            <AnchoredHint
+                screenKey="party_share_code"
+                title="Invite your crew"
+                body="Share your party code with friends so they can join. The more people, the better the midpoint."
+                targetRef={codeCardRef}
+                placement="bottom"
             />
         </View>
     );
@@ -265,4 +316,5 @@ const styles = StyleSheet.create({
     },
     friendName: { color: 'white', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
     friendMeta: { color: colors.text40, fontSize: 12, marginTop: 2, fontFamily: 'Inter_400Regular' },
+    mapPrivacyNote: { color: colors.text40, fontSize: 11, fontFamily: 'Inter_400Regular', marginBottom: 12 },
 });
