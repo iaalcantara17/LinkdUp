@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../theme';
+import { darkColors as colors } from '../theme';
 
 /**
  * 48x48 (or custom) rounded square with the brand gradient background.

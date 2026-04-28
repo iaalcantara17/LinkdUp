@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,10 +6,15 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
-import { colors, typography, radii } from '../theme';
+import { typography, radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 export default function JoinPartyScreen() {
     const nav = useNavigation<any>();
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
+
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -34,7 +39,7 @@ export default function JoinPartyScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
-                        <ArrowLeft size={24} color="white" />
+                        <ArrowLeft size={24} color={colors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Join a Party</Text>
                     <View style={{ width: 40 }} />
@@ -67,24 +72,26 @@ export default function JoinPartyScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
-    headerTitle: { ...typography.h3, color: 'white' },
-    content: { flex: 1, padding: 24, paddingTop: 48 },
-    title: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 8 },
-    sub: { color: colors.text60, fontSize: 15, marginBottom: 32, fontFamily: 'Inter_400Regular' },
-    codeInput: {
-        backgroundColor: colors.glassStrong,
-        borderWidth: 1,
-        borderColor: colors.glassBorderStrong,
-        borderRadius: radii.lg,
-        paddingVertical: 28,
-        color: 'white',
-        fontSize: 40,
-        textAlign: 'center',
-        letterSpacing: 12,
-        fontFamily: 'Inter_900Black',
-        marginBottom: 20,
-    },
-});
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: c.bg },
+        header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
+        headerTitle: { ...typography.h3, color: c.textPrimary },
+        content: { flex: 1, padding: 24, paddingTop: 48 },
+        title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 8 },
+        sub: { color: c.text60, fontSize: 15, marginBottom: 32, fontFamily: 'Inter_400Regular' },
+        codeInput: {
+            backgroundColor: c.glassStrong,
+            borderWidth: 1,
+            borderColor: c.glassBorderStrong,
+            borderRadius: radii.lg,
+            paddingVertical: 28,
+            color: c.textPrimary,
+            fontSize: 40,
+            textAlign: 'center',
+            letterSpacing: 12,
+            fontFamily: 'Inter_900Black',
+            marginBottom: 20,
+        },
+    });
+}

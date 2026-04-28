@@ -12,9 +12,9 @@ import GradientButton from '../components/GradientButton';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
-import { colors, typography, radii } from '../theme';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+import { typography, radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 type Member = { id: string; name: string; color?: string; avatarUrl?: string; confirmed: boolean };
 
@@ -24,8 +24,6 @@ type DateOption = {
     ends_at: string;
     yes_count?: number;
 };
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function dayKeyFromIso(iso: string) {
     const d = new Date(iso);
@@ -39,7 +37,6 @@ function todayKey() {
     return dayKeyFromIso(new Date().toISOString());
 }
 
-// Quick-pick times: [displayLabel, 24h hour, minute]
 const QUICK_TIMES: Array<[string, number, number]> = [
     ['10:00 AM', 10, 0],
     ['12:00 PM', 12, 0],
@@ -78,14 +75,12 @@ function formatSelectedDatetime(dayKey: string, isoHint: string) {
     });
 }
 
-// ── Calendar grid helpers ─────────────────────────────────────────────────────
-
 function daysInMonth(year: number, month: number) {
     return new Date(year, month + 1, 0).getDate();
 }
 
 function firstWeekdayOfMonth(year: number, month: number) {
-    return new Date(year, month, 1).getDay(); // 0=Sun
+    return new Date(year, month, 1).getDay();
 }
 
 const MONTH_NAMES = [
@@ -94,16 +89,14 @@ const MONTH_NAMES = [
 ];
 const DAY_INITIALS = ['S','M','T','W','T','F','S'];
 
-// ── Calendar Modal ────────────────────────────────────────────────────────────
-
 interface CalendarModalProps {
     visible: boolean;
     selectedDayKey: string | null;
     onSelect: (dayKey: string) => void;
     onClose: () => void;
+    colors: AppColors;
 }
 
-// Cell height is fixed so the grid is always exactly 6 rows regardless of the month.
 const CAL_CELL_H = 46;
 const CAL_GRID_H = CAL_CELL_H * 6;
 
@@ -120,15 +113,12 @@ function buildCalendarCells(year: number, month: number): CalCell[] {
     const prevTotal = daysInMonth(prevYear, prevMonth);
 
     const cells: CalCell[] = [];
-    // Leading padding — last N days of previous month
     for (let i = offset - 1; i >= 0; i--) {
         cells.push({ type: 'prev', day: prevTotal - i });
     }
-    // Current month
     for (let d = 1; d <= totalDays; d++) {
         cells.push({ type: 'current', day: d });
     }
-    // Trailing padding — next-month days until we hit exactly 42 cells (6 rows)
     let nextDay = 1;
     while (cells.length < 42) {
         cells.push({ type: 'next', day: nextDay++ });
@@ -136,7 +126,8 @@ function buildCalendarCells(year: number, month: number): CalCell[] {
     return cells;
 }
 
-function CalendarModal({ visible, selectedDayKey, onSelect, onClose }: CalendarModalProps) {
+function CalendarModal({ visible, selectedDayKey, onSelect, onClose, colors }: CalendarModalProps) {
+    const calStyles = useMemo(() => makeCalStyles(colors), [colors]);
     const today = new Date();
     const [year, setYear]   = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth());
@@ -174,36 +165,32 @@ function CalendarModal({ visible, selectedDayKey, onSelect, onClose }: CalendarM
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
             <View style={calStyles.overlay}>
                 <SafeAreaView style={calStyles.sheet} edges={['bottom']}>
-                    {/* Header */}
                     <View style={calStyles.calHeader}>
                         <TouchableOpacity onPress={onClose} style={calStyles.closeBtn}>
-                            <X size={20} color="white" />
+                            <X size={20} color={colors.textPrimary} />
                         </TouchableOpacity>
                         <Text style={calStyles.calTitle}>Pick a Date</Text>
                         <View style={{ width: 36 }} />
                     </View>
 
-                    {/* Month nav */}
                     <View style={calStyles.monthNav}>
                         <TouchableOpacity onPress={prevMonth} style={calStyles.navBtn}>
-                            <ChevronLeft size={20} color="white" />
+                            <ChevronLeft size={20} color={colors.textPrimary} />
                         </TouchableOpacity>
                         <Text style={calStyles.monthLabel}>
                             {MONTH_NAMES[month]} {year}
                         </Text>
                         <TouchableOpacity onPress={nextMonth} style={calStyles.navBtn}>
-                            <ChevronRight size={20} color="white" />
+                            <ChevronRight size={20} color={colors.textPrimary} />
                         </TouchableOpacity>
                     </View>
 
-                    {/* Day-of-week row */}
                     <View style={calStyles.dowRow}>
                         {DAY_INITIALS.map((d, i) => (
                             <Text key={i} style={calStyles.dowLabel}>{d}</Text>
                         ))}
                     </View>
 
-                    {/* Fixed-height grid — always exactly 6 rows, no layout bounce */}
                     <View style={[calStyles.grid, { height: CAL_GRID_H }]}>
                         {cells.map((cell, i) => {
                             const key        = cellKey(cell.type, cell.day);
@@ -211,7 +198,6 @@ function CalendarModal({ visible, selectedDayKey, onSelect, onClose }: CalendarM
                             const isSelected = isCurrent && key === selectedDayKey;
                             const isToday    = isCurrent && key === todayStr;
                             const past       = isPast(key);
-                            // Padding cells (prev/next month) are greyed out and non-interactive
                             const disabled   = !isCurrent || past;
 
                             return (
@@ -253,12 +239,12 @@ function CalendarModal({ visible, selectedDayKey, onSelect, onClose }: CalendarM
     );
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
-
 export default function DateTimeSetupScreen() {
     const nav     = useNavigation<any>();
     const route   = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [dateOptions, setDateOptions]       = useState<DateOption[]>([]);
     const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
@@ -267,17 +253,14 @@ export default function DateTimeSetupScreen() {
     const [myId, setMyId]                     = useState<string | null>(null);
     const [profileUserId, setProfileUserId]   = useState<string | null>(null);
 
-    // Calendar modal
     const [showCalendar, setShowCalendar]     = useState(false);
 
-    // Time picker
     const [timeMode, setTimeMode]     = useState<'quick' | 'custom'>('quick');
     const [quickIdx, setQuickIdx]     = useState<number | null>(null);
     const [customHour, setCustomHour] = useState(7);
     const [customMin, setCustomMin]   = useState(0);
     const [customAmPm, setCustomAmPm] = useState<'AM' | 'PM'>('PM');
 
-    // Fetch dates from backend
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -292,7 +275,6 @@ export default function DateTimeSetupScreen() {
         return () => { cancelled = true; };
     }, [partyId]);
 
-    // Fetch members
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -318,7 +300,6 @@ export default function DateTimeSetupScreen() {
         return () => { cancelled = true; };
     }, [partyId]);
 
-    // Group options by day for the horizontal strip
     const days = useMemo(() => {
         const grouped = new Map<string, { key: string; date: Date; options: DateOption[]; available: number }>();
         for (const opt of dateOptions) {
@@ -343,8 +324,6 @@ export default function DateTimeSetupScreen() {
             });
     }, [dateOptions, members.length]);
 
-    // If selectedDayKey is set but not in days, add a virtual day entry so the
-    // strip can show it as selected.
     const allDays = useMemo(() => {
         if (!selectedDayKey || days.some(d => d.key === selectedDayKey)) return days;
         const [y, mo, da] = selectedDayKey.split('-').map(Number);
@@ -353,33 +332,28 @@ export default function DateTimeSetupScreen() {
             .sort((a, b) => a.date.getTime() - b.date.getTime());
     }, [days, selectedDayKey]);
 
-    // Derived: is a time chosen?
     const timeChosen = timeMode === 'custom' || quickIdx !== null;
 
-    // Full ISO string for the chosen day+time (used for display and Lock It In)
     const isoDatetime = useMemo(() => {
         if (!selectedDayKey || !timeChosen) return null;
         return buildIsoDatetime(selectedDayKey, timeMode, quickIdx, customHour, customMin, customAmPm);
     }, [selectedDayKey, timeChosen, timeMode, quickIdx, customHour, customMin, customAmPm]);
 
-    // Handler for when user picks a date from the calendar modal
     const handleCalendarSelect = (dayKey: string) => {
         setSelectedDayKey(dayKey);
-        setQuickIdx(null); // reset time selection when date changes
+        setQuickIdx(null);
     };
 
     const handleLockIn = async () => {
         if (!selectedDayKey || !isoDatetime) return;
         setLoading(true);
         try {
-            // Find existing party_date matching the exact ISO datetime, or create one
             const normalised = new Date(isoDatetime).toISOString();
             let optionId = dateOptions.find(o => new Date(o.starts_at).toISOString() === normalised)?.id ?? null;
 
             if (!optionId) {
                 const created = await api.createCustomDate(partyId, normalised);
                 optionId = created.id;
-                // Merge into local state so getDates reflects it
                 setDateOptions(prev => [...prev, { id: created.id, starts_at: created.starts_at, ends_at: created.ends_at, yes_count: 0 }]);
             }
 
@@ -399,7 +373,7 @@ export default function DateTimeSetupScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
-                        <ArrowLeft size={24} color="white" />
+                        <ArrowLeft size={24} color={colors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Set the Date</Text>
                     <View style={{ width: 40 }} />
@@ -413,7 +387,6 @@ export default function DateTimeSetupScreen() {
                         <Text style={styles.title}>When works for everyone?</Text>
                         <Text style={styles.subtitle}>Pick a day and time when your crew is available</Text>
 
-                        {/* ── Horizontal 30-day strip ─────────────────────── */}
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -467,7 +440,7 @@ export default function DateTimeSetupScreen() {
                                                                 key={j}
                                                                 style={[
                                                                     styles.availDot,
-                                                                    { backgroundColor: j < d.available ? colors.success : 'rgba(255,255,255,0.2)' },
+                                                                    { backgroundColor: j < d.available ? colors.success : colors.text30 },
                                                                 ]}
                                                             />
                                                         ))}
@@ -480,7 +453,6 @@ export default function DateTimeSetupScreen() {
                             })}
                         </ScrollView>
 
-                        {/* "Pick a specific date" link */}
                         <TouchableOpacity
                             onPress={() => setShowCalendar(true)}
                             activeOpacity={0.75}
@@ -489,7 +461,6 @@ export default function DateTimeSetupScreen() {
                             <Text style={styles.calendarLinkText}>Pick a specific date →</Text>
                         </TouchableOpacity>
 
-                        {/* ── Time picker (shown once a day is selected) ─── */}
                         {selectedDayKey !== null && (
                             <Animated.View entering={FadeInDown.duration(300)} style={{ marginTop: 24 }}>
                                 <View style={styles.timeHeader}>
@@ -497,7 +468,6 @@ export default function DateTimeSetupScreen() {
                                     <Text style={styles.timeTitle}>Select a time</Text>
                                 </View>
 
-                                {/* Segmented switch: Quick | Custom */}
                                 <View style={styles.segmentedSwitch}>
                                     {(['quick', 'custom'] as const).map((mode) => (
                                         <TouchableOpacity
@@ -520,7 +490,6 @@ export default function DateTimeSetupScreen() {
                                 </View>
 
                                 {timeMode === 'quick' ? (
-                                    /* 6 quick chips in 2-column grid */
                                     <View style={styles.timeGrid}>
                                         {QUICK_TIMES.map(([label], idx) => {
                                             const isSelected = quickIdx === idx;
@@ -550,9 +519,7 @@ export default function DateTimeSetupScreen() {
                                         })}
                                     </View>
                                 ) : (
-                                    /* Custom time: Hour : Minute  AM/PM */
                                     <View style={styles.customTimePicker}>
-                                        {/* Hour stepper (1-12) */}
                                         <View style={styles.stepperGroup}>
                                             <TouchableOpacity
                                                 style={styles.stepBtn}
@@ -571,7 +538,6 @@ export default function DateTimeSetupScreen() {
 
                                         <Text style={styles.timeSep}>:</Text>
 
-                                        {/* Minute selector: 00 / 15 / 30 / 45 */}
                                         <View style={styles.stepperGroup}>
                                             <TouchableOpacity
                                                 style={styles.stepBtn}
@@ -588,7 +554,6 @@ export default function DateTimeSetupScreen() {
                                             </TouchableOpacity>
                                         </View>
 
-                                        {/* AM / PM toggle */}
                                         <TouchableOpacity
                                             style={styles.ampmToggle}
                                             activeOpacity={0.8}
@@ -608,7 +573,6 @@ export default function DateTimeSetupScreen() {
                             </Animated.View>
                         )}
 
-                        {/* ── Who's confirmed ──────────────────────────────── */}
                         <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.confirmedCard}>
                             <Text style={styles.confirmedLabel}>Who's confirmed</Text>
                             {members.map((member, i) => {
@@ -642,7 +606,6 @@ export default function DateTimeSetupScreen() {
                     </Animated.View>
                 </ScrollView>
 
-                {/* ── Bottom CTA ──────────────────────────────────────────── */}
                 <LinearGradient
                     colors={['transparent', colors.bg, colors.bg]}
                     style={styles.bottomFade}
@@ -669,235 +632,234 @@ export default function DateTimeSetupScreen() {
                 onClose={() => setProfileUserId(null)}
             />
 
-            {/* ── Calendar Modal ───────────────────────────────────────────── */}
             <CalendarModal
                 visible={showCalendar}
                 selectedDayKey={selectedDayKey}
                 onSelect={handleCalendarSelect}
                 onClose={() => setShowCalendar(false)}
+                colors={colors}
             />
         </View>
     );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: c.bg },
+        header: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 24,
+            paddingTop: 8,
+        },
+        headerTitle: { ...typography.h3, color: c.textPrimary },
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        paddingTop: 8,
-    },
-    headerTitle: { ...typography.h3, color: 'white' },
+        title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 26, marginBottom: 6 },
+        subtitle: { color: c.text60, fontSize: 14, marginBottom: 20, fontFamily: 'Inter_400Regular' },
 
-    title: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 26, marginBottom: 6 },
-    subtitle: { color: colors.text60, fontSize: 14, marginBottom: 20, fontFamily: 'Inter_400Regular' },
+        dayList: { gap: 10, paddingRight: 24 },
+        dayCard: {
+            width: 72,
+            height: 96,
+            borderRadius: radii.lg,
+            padding: 6,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: c.glass,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        dayCellSelected: { transform: [{ scale: 1.05 }], borderColor: 'transparent' },
+        dayLabel: { color: c.text60, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 4 },
+        monthLabel: { color: c.text60, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 2 },
+        dateLabel: { color: c.textPrimary, fontSize: 18, fontFamily: 'Inter_900Black' },
+        availRow: { flexDirection: 'row', gap: 2, marginTop: 6 },
+        availDot: { width: 4, height: 4, borderRadius: 2 },
 
-    dayList: { gap: 10, paddingRight: 24 },
-    dayCard: {
-        width: 72,
-        height: 96,
-        borderRadius: radii.lg,
-        padding: 6,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.glass,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    dayCellSelected: { transform: [{ scale: 1.05 }], borderColor: 'transparent' },
-    dayLabel: { color: colors.text60, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 4 },
-    monthLabel: { color: colors.text60, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 2 },
-    dateLabel: { color: 'white', fontSize: 18, fontFamily: 'Inter_900Black' },
-    availRow: { flexDirection: 'row', gap: 2, marginTop: 6 },
-    availDot: { width: 4, height: 4, borderRadius: 2 },
+        calendarLink: { marginTop: 14, alignSelf: 'flex-start', paddingVertical: 4 },
+        calendarLinkText: { color: c.primaryAlt, fontFamily: 'Inter_500Medium', fontSize: 13 },
 
-    calendarLink: { marginTop: 14, alignSelf: 'flex-start', paddingVertical: 4 },
-    calendarLinkText: { color: colors.primaryAlt, fontFamily: 'Inter_500Medium', fontSize: 13 },
+        timeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+        timeTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
 
-    timeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-    timeTitle: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
+        segmentedSwitch: {
+            flexDirection: 'row',
+            backgroundColor: c.glass,
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            marginBottom: 16,
+            overflow: 'hidden',
+        },
+        segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center' },
+        segmentBtnActive: { backgroundColor: 'rgba(108,62,244,0.30)' },
+        segmentText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+        segmentTextActive: { color: c.textPrimary },
 
-    segmentedSwitch: {
-        flexDirection: 'row',
-        backgroundColor: colors.glass,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-        marginBottom: 16,
-        overflow: 'hidden',
-    },
-    segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-    segmentBtnActive: { backgroundColor: 'rgba(108,62,244,0.30)' },
-    segmentText: { color: colors.text60, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
-    segmentTextActive: { color: 'white' },
+        timeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
+        timeSlot: { paddingVertical: 16, borderRadius: radii.md, alignItems: 'center' },
+        timeSlotUnselected: {
+            paddingVertical: 16,
+            borderRadius: radii.md,
+            alignItems: 'center',
+            backgroundColor: c.glass,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        timeText: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
+        timeTextSelected: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
 
-    timeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
-    timeSlot: { paddingVertical: 16, borderRadius: radii.md, alignItems: 'center' },
-    timeSlotUnselected: {
-        paddingVertical: 16,
-        borderRadius: radii.md,
-        alignItems: 'center',
-        backgroundColor: colors.glass,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    timeText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
-    timeTextSelected: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
+        customTimePicker: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            paddingVertical: 12,
+        },
+        stepperGroup: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: c.glass,
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            overflow: 'hidden',
+        },
+        stepBtn: {
+            width: 40,
+            height: 52,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: c.glassStrong,
+        },
+        stepBtnText: { color: c.textPrimary, fontSize: 20, fontFamily: 'Inter_300Light', lineHeight: 24 },
+        stepValue: {
+            width: 42,
+            textAlign: 'center',
+            color: c.textPrimary,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 20,
+        },
+        timeSep: { color: c.textPrimary, fontSize: 22, fontFamily: 'Inter_700Bold' },
+        ampmToggle: { borderRadius: radii.md, overflow: 'hidden' },
+        ampmGradient: { paddingHorizontal: 18, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+        ampmText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 },
 
-    /* Custom time stepper */
-    customTimePicker: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        paddingVertical: 12,
-    },
-    stepperGroup: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.glass,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-        overflow: 'hidden',
-    },
-    stepBtn: {
-        width: 40,
-        height: 52,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255,255,255,0.05)',
-    },
-    stepBtnText: { color: 'white', fontSize: 20, fontFamily: 'Inter_300Light', lineHeight: 24 },
-    stepValue: {
-        width: 42,
-        textAlign: 'center',
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 20,
-    },
-    timeSep: { color: 'white', fontSize: 22, fontFamily: 'Inter_700Bold' },
-    ampmToggle: { borderRadius: radii.md, overflow: 'hidden' },
-    ampmGradient: { paddingHorizontal: 18, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
-    ampmText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 },
+        confirmedCard: {
+            marginTop: 24,
+            padding: 20,
+            borderRadius: radii.lg,
+            backgroundColor: c.glass,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        confirmedLabel: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15, marginBottom: 12 },
+        confirmedRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+        confirmedName: { color: c.textPrimary, flex: 1, fontFamily: 'Inter_500Medium', fontSize: 15 },
+        confirmedCheck: {
+            width: 24, height: 24, borderRadius: 12,
+            backgroundColor: c.success,
+            alignItems: 'center', justifyContent: 'center',
+        },
+        confirmedUnchecked: {
+            width: 24, height: 24, borderRadius: 12,
+            borderWidth: 2, borderColor: c.text30,
+        },
 
-    confirmedCard: {
-        marginTop: 24,
-        padding: 20,
-        borderRadius: radii.lg,
-        backgroundColor: colors.glass,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    confirmedLabel: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15, marginBottom: 12 },
-    confirmedRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-    confirmedName: { color: 'white', flex: 1, fontFamily: 'Inter_500Medium', fontSize: 15 },
-    confirmedCheck: {
-        width: 24, height: 24, borderRadius: 12,
-        backgroundColor: colors.success,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    confirmedUnchecked: {
-        width: 24, height: 24, borderRadius: 12,
-        borderWidth: 2, borderColor: colors.text30,
-    },
+        bottomFade: {
+            position: 'absolute',
+            bottom: 0, left: 0, right: 0,
+            paddingHorizontal: 24,
+            paddingTop: 40,
+            paddingBottom: 32,
+        },
+        selectedLabel: {
+            color: c.text60,
+            fontSize: 13,
+            textAlign: 'center',
+            marginTop: 12,
+            fontFamily: 'Inter_500Medium',
+        },
+    });
+}
 
-    bottomFade: {
-        position: 'absolute',
-        bottom: 0, left: 0, right: 0,
-        paddingHorizontal: 24,
-        paddingTop: 40,
-        paddingBottom: 32,
-    },
-    selectedLabel: {
-        color: colors.text60,
-        fontSize: 13,
-        textAlign: 'center',
-        marginTop: 12,
-        fontFamily: 'Inter_500Medium',
-    },
-});
-
-// ── Calendar modal styles ─────────────────────────────────────────────────────
-
-const calStyles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        backgroundColor: '#0A0A0F',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        borderTopWidth: 1,
-        borderColor: 'rgba(255,255,255,0.10)',
-        paddingHorizontal: 16,
-        paddingBottom: 32,
-    },
-    calHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 20,
-    },
-    calTitle: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 18 },
-    closeBtn: {
-        width: 36, height: 36, borderRadius: 18,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        alignItems: 'center', justifyContent: 'center',
-    },
-    monthNav: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    navBtn: {
-        width: 36, height: 36, borderRadius: 18,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        alignItems: 'center', justifyContent: 'center',
-    },
-    monthLabel: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 17 },
-    dowRow: {
-        flexDirection: 'row',
-        marginBottom: 8,
-    },
-    dowLabel: {
-        flex: 1,
-        textAlign: 'center',
-        color: colors.text40,
-        fontFamily: 'Inter_500Medium',
-        fontSize: 12,
-    },
-    grid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        overflow: 'hidden',
-    },
-    cell: {
-        width: `${100 / 7}%` as any,
-        height: CAL_CELL_H,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cellCircle: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    todayCircle: {
-        borderWidth: 1,
-        borderColor: colors.primary,
-    },
-    dayNum: {
-        color: 'white',
-        fontFamily: 'Inter_500Medium',
-        fontSize: 15,
-    },
-});
+function makeCalStyles(c: AppColors) {
+    return StyleSheet.create({
+        overlay: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            justifyContent: 'flex-end',
+        },
+        sheet: {
+            backgroundColor: c.bg,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            borderTopWidth: 1,
+            borderColor: c.glassBorder,
+            paddingHorizontal: 16,
+            paddingBottom: 32,
+        },
+        calHeader: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 20,
+        },
+        calTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18 },
+        closeBtn: {
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: c.glass,
+            alignItems: 'center', justifyContent: 'center',
+        },
+        monthNav: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 16,
+        },
+        navBtn: {
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: c.glass,
+            alignItems: 'center', justifyContent: 'center',
+        },
+        monthLabel: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 17 },
+        dowRow: {
+            flexDirection: 'row',
+            marginBottom: 8,
+        },
+        dowLabel: {
+            flex: 1,
+            textAlign: 'center',
+            color: c.text40,
+            fontFamily: 'Inter_500Medium',
+            fontSize: 12,
+        },
+        grid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            overflow: 'hidden',
+        },
+        cell: {
+            width: `${100 / 7}%` as any,
+            height: CAL_CELL_H,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        cellCircle: {
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        todayCircle: {
+            borderWidth: 1,
+            borderColor: c.primary,
+        },
+        dayNum: {
+            color: c.textPrimary,
+            fontFamily: 'Inter_500Medium',
+            fontSize: 15,
+        },
+    });
+}

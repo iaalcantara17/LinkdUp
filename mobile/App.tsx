@@ -16,13 +16,10 @@ import {
 } from '@expo-google-fonts/inter';
 import { AuthProvider } from './src/context/AuthContext';
 import { HintsProvider } from './src/context/HintsContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
-import { colors } from './src/theme';
+import { darkColors } from './src/theme';
 
-// Deep-link + web-URL linking config.
-// 'auth-callback' is used as the OAuth redirect landing path on web.
-// On native, Supabase redirects to linkdup://auth-callback which is
-// handled by the same screen.
 const linking: LinkingOptions<any> = {
     prefixes: ['linkdup://', 'http://localhost:8081', 'exp://'],
     config: {
@@ -33,18 +30,29 @@ const linking: LinkingOptions<any> = {
     },
 };
 
-const navTheme = {
-    ...DefaultTheme,
-    dark: true,
-    colors: {
-        ...DefaultTheme.colors,
-        background: colors.bg,
-        card: colors.surface,
-        text: colors.textPrimary,
-        border: colors.glassBorder,
-        primary: colors.primary,
-    },
-};
+function AppInner() {
+    const { isDark, colors } = useTheme();
+
+    const navTheme = {
+        ...DefaultTheme,
+        dark: isDark,
+        colors: {
+            ...DefaultTheme.colors,
+            background: colors.bg,
+            card: colors.surface,
+            text: colors.textPrimary,
+            border: colors.glassBorder,
+            primary: colors.primary,
+        },
+    };
+
+    return (
+        <NavigationContainer theme={navTheme} linking={linking}>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+            <RootNavigator />
+        </NavigationContainer>
+    );
+}
 
 export default function App() {
     const [fontsLoaded] = useFonts({
@@ -58,24 +66,23 @@ export default function App() {
 
     if (!fontsLoaded) {
         return (
-            <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator color={colors.primary} />
+            <View style={{ flex: 1, backgroundColor: darkColors.bg, alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator color={darkColors.primary} />
             </View>
         );
     }
 
     return (
-        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-            <SafeAreaProvider>
-                <AuthProvider>
-                    <HintsProvider>
-                        <NavigationContainer theme={navTheme} linking={linking}>
-                            <StatusBar style="light" />
-                            <RootNavigator />
-                        </NavigationContainer>
-                    </HintsProvider>
-                </AuthProvider>
-            </SafeAreaProvider>
-        </GestureHandlerRootView>
+        <ThemeProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <SafeAreaProvider>
+                    <AuthProvider>
+                        <HintsProvider>
+                            <AppInner />
+                        </HintsProvider>
+                    </AuthProvider>
+                </SafeAreaProvider>
+            </GestureHandlerRootView>
+        </ThemeProvider>
     );
 }

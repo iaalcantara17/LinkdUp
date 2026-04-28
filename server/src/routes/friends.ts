@@ -10,7 +10,7 @@ const router = Router();
 async function publicUserFields(userId: string) {
     const { data } = await supabaseAdmin
         .from('users')
-        .select('id, display_name, avatar_url, avatar_color, pronouns, school_id, graduation_year')
+        .select('id, display_name, username, avatar_url, avatar_color, pronouns, school_id, graduation_year')
         .eq('id', userId)
         .single();
     return data;
@@ -35,10 +35,14 @@ router.get('/', requireAuth, async (req: AuthedRequest, res, next) => {
 
         const { data: users } = await supabaseAdmin
             .from('users')
-            .select('id, display_name, avatar_url, avatar_color, pronouns, school_id, graduation_year')
+            .select('id, display_name, username, avatar_url, avatar_color, pronouns, school_id, graduation_year, last_seen_at')
             .in('id', friendIds);
 
-        res.json(users ?? []);
+        const onlineCutoff = new Date(Date.now() - 5 * 60 * 1000);
+        res.json((users ?? []).map((u: any) => ({
+            ...u,
+            is_online: u.last_seen_at ? new Date(u.last_seen_at) > onlineCutoff : false,
+        })));
     } catch (e) { next(e); }
 });
 
@@ -58,7 +62,7 @@ router.get('/pending', requireAuth, async (req: AuthedRequest, res, next) => {
         const { data: users } = requesterIds.length > 0
             ? await supabaseAdmin
                 .from('users')
-                .select('id, display_name, avatar_url, avatar_color')
+                .select('id, display_name, username, avatar_url, avatar_color')
                 .in('id', requesterIds)
             : { data: [] as any[] };
 
@@ -87,7 +91,7 @@ router.get('/outgoing', requireAuth, async (req: AuthedRequest, res, next) => {
         const { data: users } = addresseeIds.length > 0
             ? await supabaseAdmin
                 .from('users')
-                .select('id, display_name, avatar_url, avatar_color')
+                .select('id, display_name, username, avatar_url, avatar_color')
                 .in('id', addresseeIds)
             : { data: [] as any[] };
 
@@ -200,13 +204,19 @@ router.get('/search', requireAuth, async (req: AuthedRequest, res, next) => {
         if (!q) return res.json([]);
 
         const me = req.user!.id;
-        const safe = q.replace(/%/g, '').replace(/_/g, '').slice(0, 64);
+        const isUsernameSearch = q.startsWith('@');
+        const searchTerm = isUsernameSearch ? q.slice(1) : q;
+        const safe = searchTerm.replace(/%/g, '').slice(0, 64);
         if (!safe) return res.json([]);
+
+        const orCondition = isUsernameSearch
+            ? `username.ilike.%${safe}%`
+            : `display_name.ilike.%${safe}%,email.ilike.%${safe}%,username.ilike.%${safe}%`;
 
         const { data: users, error } = await supabaseAdmin
             .from('users')
-            .select('id, display_name, avatar_url, avatar_color')
-            .or(`display_name.ilike.%${safe}%,email.ilike.%${safe}%`)
+            .select('id, display_name, username, avatar_url, avatar_color')
+            .or(orCondition)
             .neq('id', me)
             .limit(20);
         if (error) throw error;

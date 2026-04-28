@@ -1,7 +1,8 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import { Text, TouchableOpacity, ViewStyle, ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, radii } from '../theme';
+import { radii } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
     title: string;
@@ -26,6 +27,8 @@ export default function GradientButton({
     style,
     size = 'lg',
 }: Props) {
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
     const isDisabled = disabled || loading;
     const padV = size === 'lg' ? 18 : 14;
 
@@ -89,35 +92,37 @@ export default function GradientButton({
     );
 }
 
-const styles = StyleSheet.create({
-    base: {
-        borderRadius: radii.lg, // rounded-2xl = 16
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    ghost: {
-        backgroundColor: colors.glass,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    white: {
-        backgroundColor: 'white',
-    },
-    inner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-    },
-    text: {
-        fontFamily: 'Inter_700Bold',
-        fontSize: 18,
-        color: 'white',
-    },
-});
+function makeStyles(c: ReturnType<typeof useTheme>['colors']) {
+    return StyleSheet.create({
+        base: {
+            borderRadius: radii.lg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 24,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.25,
+            shadowRadius: 12,
+            elevation: 8,
+        },
+        ghost: {
+            backgroundColor: c.glass,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        white: {
+            backgroundColor: 'white',
+        },
+        inner: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+        },
+        text: {
+            fontFamily: 'Inter_700Bold',
+            fontSize: 18,
+            color: 'white',
+        },
+    });
+}

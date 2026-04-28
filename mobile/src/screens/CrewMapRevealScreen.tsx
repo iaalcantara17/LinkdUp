@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,9 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import GradientButton from '../components/GradientButton';
 import CrewMap from '../components/CrewMap';
 import { api } from '../services/api';
-import { colors, typography, radii } from '../theme';
+import { typography, radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const { height: WINDOW_HEIGHT } = Dimensions.get('window');
 
@@ -15,6 +17,8 @@ export default function CrewMapRevealScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params.partyId;
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [mapMembers, setMapMembers] = useState<any[]>([]);
     const [midpoint, setMidpoint] = useState<{ lat: number; lng: number } | null>(null);
@@ -119,37 +123,39 @@ export default function CrewMapRevealScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    topGradient: {
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        paddingBottom: 48,
-    },
-    heading: {
-        color: 'white',
-        fontFamily: 'Inter_900Black',
-        fontSize: 28,
-        marginBottom: 8,
-    },
-    subheading: {
-        color: colors.text60,
-        fontFamily: 'Inter_400Regular',
-        fontSize: 14,
-    },
-    bottomSection: {
-        width: '100%',
-    },
-    bottomGradient: {
-        paddingHorizontal: 24,
-        paddingTop: 48,
-        paddingBottom: 24,
-        gap: 12,
-    },
-    autoHint: {
-        color: colors.text40,
-        fontFamily: 'Inter_400Regular',
-        fontSize: 12,
-        textAlign: 'center',
-    },
-});
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: c.bg },
+        topGradient: {
+            paddingHorizontal: 24,
+            paddingTop: 16,
+            paddingBottom: 48,
+        },
+        heading: {
+            color: 'white',
+            fontFamily: 'Inter_900Black',
+            fontSize: 28,
+            marginBottom: 8,
+        },
+        subheading: {
+            color: 'rgba(255,255,255,0.60)',
+            fontFamily: 'Inter_400Regular',
+            fontSize: 14,
+        },
+        bottomSection: {
+            width: '100%',
+        },
+        bottomGradient: {
+            paddingHorizontal: 24,
+            paddingTop: 48,
+            paddingBottom: 24,
+            gap: 12,
+        },
+        autoHint: {
+            color: 'rgba(255,255,255,0.40)',
+            fontFamily: 'Inter_400Regular',
+            fontSize: 12,
+            textAlign: 'center',
+        },
+    });
+}

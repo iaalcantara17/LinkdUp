@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     View, Text, StyleSheet, Modal, TouchableOpacity,
     ActivityIndicator, ScrollView, Alert,
@@ -7,11 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, GraduationCap, UserPlus, UserCheck, Clock } from 'lucide-react-native';
 import AvatarBubble from './AvatarBubble';
 import { api } from '../services/api';
-import { colors, radii } from '../theme';
+import { radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface PublicUser {
     id: string;
     display_name: string;
+    username: string | null;
     avatar_url: string | null;
     avatar_color: string | null;
     school: string | null;
@@ -30,6 +33,9 @@ interface Props {
 type FriendUi = 'loading' | 'self' | 'none' | 'pending_out' | 'pending_in' | 'accepted';
 
 export default function UserProfileSheet({ userId, visible, onClose }: Props) {
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
+
     const [profile, setProfile] = useState<PublicUser | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -98,7 +104,6 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                             <Text style={styles.errorText}>{error}</Text>
                         ) : profile ? (
                             <>
-                                {/* Avatar */}
                                 <View style={styles.avatarWrap}>
                                     <AvatarBubble
                                         name={name}
@@ -108,10 +113,11 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                     />
                                 </View>
 
-                                {/* Name */}
                                 <Text style={styles.name}>{name}</Text>
+                                {profile.username ? (
+                                    <Text style={styles.username}>@{profile.username}</Text>
+                                ) : null}
 
-                                {/* Pronouns + Age */}
                                 {hasMeta && (
                                     <Text style={styles.meta}>
                                         {[profile.pronouns, profile.age !== null ? `${profile.age} y/o` : null]
@@ -120,7 +126,6 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                     </Text>
                                 )}
 
-                                {/* School + grad year */}
                                 {hasSchool && (
                                     <View style={styles.infoRow}>
                                         <GraduationCap size={14} color={colors.text40} />
@@ -132,7 +137,6 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                     </View>
                                 )}
 
-                                {/* Bio */}
                                 {profile.bio ? (
                                     <View style={styles.bioBox}>
                                         <Text style={styles.bioText}>{profile.bio}</Text>
@@ -205,115 +209,124 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.65)',
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        backgroundColor: '#0A0A0F',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        borderTopWidth: 1,
-        borderColor: 'rgba(255,255,255,0.10)',
-        minHeight: 280,
-        paddingBottom: 24,
-    },
-    closeBtn: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: 'rgba(255,255,255,0.10)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10,
-    },
-    body: {
-        paddingHorizontal: 24,
-        paddingTop: 32,
-        paddingBottom: 16,
-        alignItems: 'center',
-    },
-    avatarWrap: { marginBottom: 14 },
-    name: {
-        color: 'white',
-        fontFamily: 'Inter_900Black',
-        fontSize: 22,
-        textAlign: 'center',
-        marginBottom: 6,
-    },
-    meta: {
-        color: colors.text60,
-        fontFamily: 'Inter_400Regular',
-        fontSize: 14,
-        textAlign: 'center',
-        marginBottom: 10,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 16,
-    },
-    infoText: {
-        color: colors.text60,
-        fontSize: 13,
-        fontFamily: 'Inter_400Regular',
-    },
-    bioBox: {
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        borderRadius: radii.lg,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
-        padding: 14,
-        alignSelf: 'stretch',
-        marginTop: 4,
-    },
-    bioText: {
-        color: colors.text80,
-        fontSize: 14,
-        fontFamily: 'Inter_400Regular',
-        lineHeight: 20,
-        textAlign: 'center',
-    },
-    errorText: {
-        color: colors.text40,
-        fontSize: 14,
-        fontFamily: 'Inter_400Regular',
-        textAlign: 'center',
-        paddingVertical: 48,
-    },
-    friendBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        backgroundColor: colors.primary,
-        borderRadius: radii.md,
-        paddingVertical: 12,
-    },
-    friendBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
-    friendPending: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 12,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    friendPendingText: { color: colors.text60, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
-    friendOk: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 12,
-    },
-    friendOkText: { color: colors.success, fontFamily: 'Inter_700Bold', fontSize: 15 },
-});
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        overlay: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.65)',
+            justifyContent: 'flex-end',
+        },
+        sheet: {
+            backgroundColor: c.bg,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            borderTopWidth: 1,
+            borderColor: c.glassBorder,
+            minHeight: 280,
+            paddingBottom: 24,
+        },
+        closeBtn: {
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            backgroundColor: c.glassStrong,
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+        },
+        body: {
+            paddingHorizontal: 24,
+            paddingTop: 32,
+            paddingBottom: 16,
+            alignItems: 'center',
+        },
+        avatarWrap: { marginBottom: 14 },
+        name: {
+            color: c.textPrimary,
+            fontFamily: 'Inter_900Black',
+            fontSize: 22,
+            textAlign: 'center',
+            marginBottom: 2,
+        },
+        username: {
+            color: c.text40,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 13,
+            textAlign: 'center',
+            marginBottom: 6,
+        },
+        meta: {
+            color: c.text60,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 14,
+            textAlign: 'center',
+            marginBottom: 10,
+        },
+        infoRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 16,
+        },
+        infoText: {
+            color: c.text60,
+            fontSize: 13,
+            fontFamily: 'Inter_400Regular',
+        },
+        bioBox: {
+            backgroundColor: c.glass,
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            padding: 14,
+            alignSelf: 'stretch',
+            marginTop: 4,
+        },
+        bioText: {
+            color: c.text80,
+            fontSize: 14,
+            fontFamily: 'Inter_400Regular',
+            lineHeight: 20,
+            textAlign: 'center',
+        },
+        errorText: {
+            color: c.text40,
+            fontSize: 14,
+            fontFamily: 'Inter_400Regular',
+            textAlign: 'center',
+            paddingVertical: 48,
+        },
+        friendBtn: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            backgroundColor: c.primary,
+            borderRadius: radii.md,
+            paddingVertical: 12,
+        },
+        friendBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
+        friendPending: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            paddingVertical: 12,
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        friendPendingText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+        friendOk: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            paddingVertical: 12,
+        },
+        friendOkText: { color: c.success, fontFamily: 'Inter_700Bold', fontSize: 15 },
+    });
+}

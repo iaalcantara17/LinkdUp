@@ -43,7 +43,10 @@ async function assertHost(partyId: string, userId: string) {
     if (data.host_user_id !== userId) throw new HttpError(403, 'not_host');
 }
 
-const createSchema = z.object({ name: z.string().max(100).optional() });
+const createSchema = z.object({
+    name: z.string().max(100).optional(),
+    is_public: z.boolean().optional().default(false),
+});
 
 router.post('/', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
@@ -56,6 +59,7 @@ router.post('/', requireAuth, async (req: AuthedRequest, res, next) => {
                 name: body.name ?? null,
                 host_user_id: req.user!.id,
                 status: 'waiting',
+                is_public: body.is_public ?? false,
             })
             .select()
             .single();
@@ -130,7 +134,7 @@ router.get('/:id/members', requireAuth, async (req: AuthedRequest, res, next) =>
 
         const memberUserIds = (rawMembers ?? []).map((m: any) => m.user_id);
         const { data: memberUsers } = memberUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, display_name, avatar_color, avatar_url, latitude, longitude').in('id', memberUserIds)
+            ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_color, avatar_url, latitude, longitude').in('id', memberUserIds)
             : { data: [] as any[] };
         const userMap: Record<string, any> = Object.fromEntries((memberUsers ?? []).map((u: any) => [u.id, u]));
 
@@ -147,6 +151,19 @@ router.get('/:id/members', requireAuth, async (req: AuthedRequest, res, next) =>
                 display_lng: fuzzed?.lng ?? null,
             };
         }));
+    } catch (e) { next(e); }
+});
+
+router.patch('/:id/visibility', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const { is_public } = z.object({ is_public: z.boolean() }).parse(req.body);
+        await assertHost(req.params.id, req.user!.id);
+        const { error } = await supabaseAdmin
+            .from('parties')
+            .update({ is_public })
+            .eq('id', req.params.id);
+        if (error) throw new HttpError(500, 'update_failed', error.message);
+        res.json({ ok: true, is_public });
     } catch (e) { next(e); }
 });
 
@@ -312,6 +329,7 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
             .from('locations')
             .select('*')
             .eq('party_id', partyId)
+            .order('is_priority', { ascending: false })
             .order('rating', { ascending: false, nullsFirst: false });
         if (error) throw error;
 

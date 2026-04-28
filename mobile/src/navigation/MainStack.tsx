@@ -15,8 +15,11 @@ import HangoutsScreen from '../screens/HangoutsScreen';
 import AuthCallbackScreen from '../screens/AuthCallbackScreen';
 import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import FriendsScreen from '../screens/FriendsScreen';
-import CrewMapRevealScreen from '../screens/CrewMapRevealScreen';
+import CrewMapFullscreenScreen from '../screens/CrewMapFullscreenScreen';
 import WalkthroughScreen from '../screens/WalkthroughScreen';
+import CreatePostScreen from '../screens/CreatePostScreen';
+import MyPostsScreen from '../screens/MyPostsScreen';
+import SavedScreen from '../screens/SavedScreen';
 import { colors } from '../theme';
 
 export type MainStackParamList = {
@@ -35,8 +38,11 @@ export type MainStackParamList = {
     CalendarConfirmation: { partyId: string };
     AuthCallback: undefined;
     CompleteProfile: undefined;
-    CrewMapReveal: { partyId: string };
+    CrewMapFullscreen: { partyId: string };
     Walkthrough: { fromSignup: boolean };
+    CreatePost: undefined;
+    MyPosts: undefined;
+    Saved: undefined;
 };
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -66,8 +72,11 @@ export default function MainStack() {
             <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} />
             <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="Friends" component={FriendsScreen} options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="CrewMapReveal" component={CrewMapRevealScreen} options={{ animation: 'fade' }} />
+            <Stack.Screen name="CrewMapFullscreen" component={CrewMapFullscreenScreen} options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="Walkthrough" component={WalkthroughScreen} options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="MyPosts" component={MyPostsScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="Saved" component={SavedScreen} options={{ animation: 'slide_from_right' }} />
         </Stack.Navigator>
     );
 }

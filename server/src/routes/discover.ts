@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import axios from 'axios';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { supabaseAdmin } from '../db';
 import { searchNearbyVenues, searchNearbyVenuesPaged, getVenuesWithRotation } from '../services/places';
 import { generateVenuePitch } from '../services/aiPitch';
 import { distanceMiles, LatLng } from '../services/midpoint';
+import { config } from '../config';
 
 const router = Router();
 
@@ -153,7 +155,8 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
         const { data: parties, error: partyErr } = await supabaseAdmin
             .from('parties')
             .select('id, name, code, status, host_user_id')
-            .in('status', ['waiting', 'swiping']);
+            .in('status', ['waiting', 'swiping'])
+            .eq('is_public', true);
         if (partyErr) throw new HttpError(500, 'parties_query_failed', partyErr.message);
 
         const openParties = (parties ?? []).filter((p: any) => !myPartyIds.has(p.id));
@@ -310,6 +313,50 @@ router.get('/likes', requireAuth, async (req: AuthedRequest, res, next) => {
         if (error) throw new HttpError(500, 'fetch_likes_failed', error.message);
         res.json(data ?? []);
     } catch (e) { next(e); }
+});
+
+// ── GET /api/discover/places/search?q=...&lat=...&lng=... ─────────────────────
+// Text-search for venues (used by CreatePostScreen venue picker).
+router.get('/places/search', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const q = (req.query.q as string | undefined)?.trim();
+        if (!q) throw new HttpError(400, 'missing_query');
+
+        const lat = req.query.lat ? parseFloat(req.query.lat as string) : null;
+        const lng = req.query.lng ? parseFloat(req.query.lng as string) : null;
+
+        const body: any = { textQuery: q, maxResultCount: 10 };
+        if (lat != null && lng != null) {
+            body.locationBias = {
+                circle: { center: { latitude: lat, longitude: lng }, radius: 25000 },
+            };
+        }
+
+        const response = await axios.post(
+            'https://places.googleapis.com/v1/places:searchText',
+            body,
+            {
+                headers: {
+                    'X-Goog-Api-Key': config.google.mapsApiKey,
+                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location',
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        const places = (response.data.places ?? []).map((p: any) => ({
+            google_place_id: p.id,
+            name: p.displayName?.text ?? '',
+            address: p.formattedAddress ?? '',
+            latitude: p.location?.latitude ?? null,
+            longitude: p.location?.longitude ?? null,
+        }));
+
+        res.json(places);
+    } catch (e: any) {
+        if (e instanceof HttpError) return next(e);
+        next(new HttpError(500, 'places_search_failed', e?.message));
+    }
 });
 
 export default router;

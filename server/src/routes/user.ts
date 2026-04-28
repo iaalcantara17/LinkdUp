@@ -4,8 +4,20 @@ import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { geocodeCity } from '../services/places';
+import { deleteCalendarEventForUser } from '../services/googleCalendar';
 
 const router = Router();
+
+const RESERVED_USERNAMES = ['admin', 'support', 'linkdup', 'system', 'root', 'help', 'api'];
+
+function validateUsername(u: string): { valid: boolean; reason?: string } {
+    if (u.length < 3)  return { valid: false, reason: 'too_short' };
+    if (u.length > 20) return { valid: false, reason: 'too_long' };
+    if (!/^[a-z0-9_]+$/.test(u)) return { valid: false, reason: 'invalid_chars' };
+    if (!/^[a-z]/.test(u))        return { valid: false, reason: 'starts_with_number' };
+    if (RESERVED_USERNAMES.includes(u)) return { valid: false, reason: 'reserved' };
+    return { valid: true };
+}
 
 function computeAge(birthday: string | null | undefined): number | null {
     if (!birthday) return null;
@@ -20,7 +32,7 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('users')
-            .select('id, email, display_name, school_id, graduation_year, avatar_color, avatar_url, latitude, longitude, last_location_at, pronouns, birthday, bio')
+            .select('id, email, display_name, username, school_id, graduation_year, avatar_color, avatar_url, latitude, longitude, last_location_at, pronouns, birthday, bio, theme_preference')
             .eq('id', req.user!.id)
             .single();
         if (error) throw new HttpError(404, 'profile_not_found');
@@ -52,6 +64,16 @@ const patchSchema = z.object({
         (v) => (v === '' ? null : v),
         z.string().max(200).nullable().optional(),
     ),
+    username: z.preprocess(
+        (v) => (typeof v === 'string' ? v.toLowerCase().trim() : v),
+        z.string()
+            .min(3, { message: 'too_short' })
+            .max(20, { message: 'too_long' })
+            .regex(/^[a-z][a-z0-9_]+$/, { message: 'invalid_chars' })
+            .refine(u => !RESERVED_USERNAMES.includes(u), { message: 'reserved' })
+            .optional()
+    ),
+    theme_preference: z.enum(['dark', 'light', 'system']).optional(),
 });
 
 router.patch('/me', requireAuth, async (req: AuthedRequest, res, next) => {
@@ -68,6 +90,7 @@ router.patch('/me', requireAuth, async (req: AuthedRequest, res, next) => {
             .single();
         console.log('[PATCH /me] result:', { data: data ? { id: data.id, pronouns: data.pronouns, bio: data.bio, birthday: data.birthday } : null, error });
         if (error) {
+            if (error.code === '23505') throw new HttpError(409, 'username_taken');
             throw new HttpError(500, 'update_failed', error.message);
         }
         res.json({ ...data, age: computeAge(data.birthday) });
@@ -82,14 +105,23 @@ const locationSchema = z.object({
 router.put('/location', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const body = locationSchema.parse(req.body);
+        const { data: existing } = await supabaseAdmin
+            .from('users')
+            .select('location_permission_status')
+            .eq('id', req.user!.id)
+            .single();
+        const updatePayload: Record<string, any> = {
+            latitude: body.latitude,
+            longitude: body.longitude,
+            last_location_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        if (existing?.location_permission_status !== 'granted') {
+            updatePayload.location_permission_status = 'granted';
+        }
         const { error } = await supabaseAdmin
             .from('users')
-            .update({
-                latitude: body.latitude,
-                longitude: body.longitude,
-                last_location_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            })
+            .update(updatePayload)
             .eq('id', req.user!.id);
         if (error) throw new HttpError(500, 'update_failed', error.message);
         res.json({ ok: true });
@@ -151,7 +183,7 @@ router.get('/:id/public', requireAuth, async (req: AuthedRequest, res, next) => 
     try {
         const { data, error } = await supabaseAdmin
             .from('users')
-            .select('id, display_name, avatar_url, avatar_color, school_id, graduation_year, pronouns, birthday, bio')
+            .select('id, display_name, username, avatar_url, avatar_color, school_id, graduation_year, pronouns, birthday, bio')
             .eq('id', req.params.id)
             .single();
         if (error || !data) throw new HttpError(404, 'user_not_found');
@@ -169,6 +201,7 @@ router.get('/:id/public', requireAuth, async (req: AuthedRequest, res, next) => 
         res.json({
             id: data.id,
             display_name: data.display_name,
+            username: data.username ?? null,
             avatar_url: data.avatar_url,
             avatar_color: data.avatar_color,
             school,
@@ -194,14 +227,54 @@ router.get('/me/parties', requireAuth, async (req: AuthedRequest, res, next) => 
         const partyIds = (memberships ?? []).map((m: any) => m.party_id).filter(Boolean);
         if (partyIds.length === 0) return res.json([]);
 
-        const { data: parties, error: partyErr } = await supabaseAdmin
-            .from('parties')
-            .select('id, name, code, status, host_user_id, created_at, updated_at, matched_location_id')
-            .in('id', partyIds)
-            .order('updated_at', { ascending: false });
-        if (partyErr) throw new HttpError(500, 'parties_query_failed', partyErr.message);
+        const [partiesRes, allMembersRes, votesRes, locationsRes] = await Promise.all([
+            supabaseAdmin
+                .from('parties')
+                .select('id, name, code, status, host_user_id, created_at, updated_at, matched_location_id')
+                .in('id', partyIds)
+                .order('updated_at', { ascending: false }),
+            supabaseAdmin.from('party_members').select('party_id, user_id').in('party_id', partyIds),
+            supabaseAdmin.from('votes').select('party_id').in('party_id', partyIds),
+            supabaseAdmin.from('locations').select('party_id').in('party_id', partyIds),
+        ]);
+        if (partiesRes.error) throw new HttpError(500, 'parties_query_failed', partiesRes.error.message);
 
-        res.json(parties ?? []);
+        const parties = partiesRes.data ?? [];
+        if (parties.length === 0) return res.json([]);
+
+        const memberMap: Record<string, string[]> = {};
+        for (const m of allMembersRes.data ?? []) {
+            if (!memberMap[m.party_id]) memberMap[m.party_id] = [];
+            memberMap[m.party_id].push(m.user_id);
+        }
+        const voteCountMap: Record<string, number> = {};
+        for (const v of votesRes.data ?? []) voteCountMap[v.party_id] = (voteCountMap[v.party_id] ?? 0) + 1;
+        const venueCountMap: Record<string, number> = {};
+        for (const l of locationsRes.data ?? []) venueCountMap[l.party_id] = (venueCountMap[l.party_id] ?? 0) + 1;
+
+        const allMemberIds = [...new Set((allMembersRes.data ?? []).map((m: any) => m.user_id))];
+        const { data: memberUsers } = allMemberIds.length > 0
+            ? await supabaseAdmin.from('users').select('id, display_name, avatar_url, avatar_color').in('id', allMemberIds)
+            : { data: [] as any[] };
+        const userMap: Record<string, any> = Object.fromEntries((memberUsers ?? []).map((u: any) => [u.id, u]));
+
+        res.json(parties.map((p: any) => {
+            const memberIds = memberMap[p.id] ?? [];
+            return {
+                ...p,
+                member_count: memberIds.length,
+                total_votes: voteCountMap[p.id] ?? 0,
+                venue_count: venueCountMap[p.id] ?? 0,
+                member_avatars: memberIds.slice(0, 3).map((uid: string) => {
+                    const u = userMap[uid];
+                    return {
+                        avatar_url: u?.avatar_url ?? null,
+                        avatar_color: u?.avatar_color ?? null,
+                        initial: (u?.display_name ?? '?')[0].toUpperCase(),
+                    };
+                }),
+            };
+        }));
     } catch (e) { next(e); }
 });
 
@@ -279,14 +352,45 @@ router.get('/me/hangouts', requireAuth, async (req: AuthedRequest, res, next) =>
 });
 
 // DELETE /api/user/me — permanently remove the authenticated user's account.
-// Deletes hosted parties (cascade via FKs or manual ordered deletes), cleans up
-// membership rows, removes the profile row, then deletes the auth record.
+// Order: GCal cleanup → party data → storage files → users row → auth record.
 // Partial failures are logged but do not abort the remaining steps.
 router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     const userId = req.user!.id;
     const errors: string[] = [];
 
     try {
+        // 0. Google Calendar cleanup — must happen before users row is deleted
+        //    because deleteCalendarEventForUser reads OAuth tokens from users table.
+        //    Fetch gcal_event_id for every party the user is a member of.
+        try {
+            const { data: memberRows } = await supabaseAdmin
+                .from('party_members')
+                .select('party_id')
+                .eq('user_id', userId);
+
+            const memberPartyIds = (memberRows ?? []).map((r: any) => r.party_id);
+
+            if (memberPartyIds.length > 0) {
+                const { data: partiesWithEvent } = await supabaseAdmin
+                    .from('parties')
+                    .select('gcal_event_id')
+                    .in('id', memberPartyIds)
+                    .not('gcal_event_id', 'is', null);
+
+                const eventIds = (partiesWithEvent ?? [])
+                    .map((p: any) => p.gcal_event_id as string)
+                    .filter(Boolean);
+
+                for (const eventId of eventIds) {
+                    try {
+                        await deleteCalendarEventForUser(userId, eventId);
+                    } catch (e: any) {
+                        errors.push(`gcal_event_${eventId}: ${e.message}`);
+                    }
+                }
+            }
+        } catch (e: any) { errors.push(`gcal_lookup: ${e.message}`); }
+
         // 1. Find all parties this user hosts
         const { data: hostedParties } = await supabaseAdmin
             .from('parties')
@@ -337,7 +441,24 @@ router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
             await supabaseAdmin.from('party_members').delete().eq('user_id', userId);
         } catch (e: any) { errors.push(`party_members_member: ${e.message}`); }
 
-        // 3. Delete user profile row
+        // 2a. Delete avatar from Storage
+        try {
+            await supabaseAdmin.storage.from('avatars').remove([`${userId}.jpg`]);
+        } catch (e: any) { errors.push(`storage_avatar: ${e.message}`); }
+
+        // 2b. Delete all feed photos from Storage (stored under userId/ prefix)
+        try {
+            const { data: photoFiles } = await supabaseAdmin.storage
+                .from('feed-photos')
+                .list(userId);
+            const photoPaths = (photoFiles ?? []).map((f: any) => `${userId}/${f.name}`);
+            if (photoPaths.length > 0) {
+                await supabaseAdmin.storage.from('feed-photos').remove(photoPaths);
+            }
+        } catch (e: any) { errors.push(`storage_feed_photos: ${e.message}`); }
+
+        // 3. Delete user profile row (triggers ON DELETE CASCADE for feed posts,
+        //    likes, bookmarks, comments, follows, discover_likes, screen_hints, friendships)
         try {
             await supabaseAdmin.from('users').delete().eq('id', userId);
         } catch (e: any) { errors.push(`users: ${e.message}`); }
@@ -353,6 +474,24 @@ router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
         }
 
         res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
+router.get('/username-available', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const candidate = ((req.query.u as string) ?? '').toLowerCase().trim();
+        const check = validateUsername(candidate);
+        if (!check.valid) return res.json({ available: false, valid: false, reason: check.reason });
+
+        const { data } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('username', candidate)
+            .neq('id', req.user!.id)
+            .maybeSingle();
+
+        if (data) return res.json({ available: false, valid: true, reason: 'taken' });
+        res.json({ available: true, valid: true });
     } catch (e) { next(e); }
 });
 
@@ -377,12 +516,74 @@ router.post('/me/hints', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
+const locationPermissionSchema = z.object({
+    status: z.enum(['granted', 'maybe_later']),
+});
+
+router.post('/me/location-permission', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const body = locationPermissionSchema.parse(req.body);
+        const { error } = await supabaseAdmin
+            .from('users')
+            .update({ location_permission_status: body.status, updated_at: new Date().toISOString() })
+            .eq('id', req.user!.id);
+        if (error) throw new HttpError(500, 'update_failed', error.message);
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
+router.delete('/me/location', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const { error } = await supabaseAdmin
+            .from('users')
+            .update({
+                latitude: null,
+                longitude: null,
+                location_permission_status: 'maybe_later',
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', req.user!.id);
+        if (error) throw new HttpError(500, 'update_failed', error.message);
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
 router.post('/me/walkthrough-seen', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         await supabaseAdmin
             .from('users')
             .update({ has_seen_walkthrough: true })
             .eq('id', req.user!.id);
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
+// ── POST /api/user/:id/follow ─────────────────────────────────────────────────
+router.post('/:id/follow', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const me = req.user!.id;
+        const target = req.params.id;
+        if (me === target) throw new HttpError(400, 'cannot_follow_self');
+
+        const { error } = await supabaseAdmin
+            .from('user_follows')
+            .upsert({ follower_id: me, followed_id: target }, { onConflict: 'follower_id,followed_id' });
+        if (error) throw new HttpError(500, 'follow_failed', error.message);
+
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
+// ── DELETE /api/user/:id/follow ───────────────────────────────────────────────
+router.delete('/:id/follow', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const { error } = await supabaseAdmin
+            .from('user_follows')
+            .delete()
+            .eq('follower_id', req.user!.id)
+            .eq('followed_id', req.params.id);
+        if (error) throw new HttpError(500, 'unfollow_failed', error.message);
+
         res.json({ ok: true });
     } catch (e) { next(e); }
 });

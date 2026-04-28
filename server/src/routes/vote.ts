@@ -67,4 +67,17 @@ router.get('/:id/votes', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
+router.get('/:id/my-votes', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+        const { data, error } = await supabaseAdmin
+            .from('votes')
+            .select('location_id')
+            .eq('party_id', partyId)
+            .eq('user_id', req.user!.id);
+        if (error) throw error;
+        res.json(data ?? []);
+    } catch (e) { next(e); }
+});
+
 export default router;

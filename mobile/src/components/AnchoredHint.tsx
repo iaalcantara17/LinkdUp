@@ -11,7 +11,7 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 import { useHints } from '../context/HintsContext';
-import { colors, radii } from '../theme';
+import { darkColors, radii } from '../theme';
 
 interface AnchoredHintProps {
     screenKey: string;
@@ -25,7 +25,7 @@ interface AnchoredHintProps {
 const CARD_MAX_WIDTH = 260;
 const EDGE_PAD = 12;
 const TAIL = 9;
-const CARD_BG = colors.primary;
+const CARD_BG = darkColors.primary;
 
 export default function AnchoredHint({
     screenKey,

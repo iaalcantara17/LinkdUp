@@ -74,6 +74,7 @@ export default function CrewMap({
     height = 260,
     showMidpoint = false,
     onMemberPress,
+    scrollWheelZoom = false,
 }: CrewMapProps) {
     useEffect(() => { injectLeafletAssets(); }, []);
 
@@ -100,7 +101,7 @@ export default function CrewMap({
                 center={initialCenter}
                 zoom={12}
                 style={{ height: '100%', width: '100%' }}
-                scrollWheelZoom={false}
+                scrollWheelZoom={scrollWheelZoom}
                 zoomControl={false}
             >
                 <TileLayer

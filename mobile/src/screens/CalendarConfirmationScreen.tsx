@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -18,7 +18,9 @@ import { Calendar as CalendarIcon, Clock, MapPin, Users, ArrowLeft, Bell } from 
 import IconBadge from '../components/IconBadge';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
-import { colors, typography, spacing, radii } from '../theme';
+import { typography, spacing, radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 type Attendee = { id: string; name: string; color?: string; avatarUrl?: string };
 
@@ -34,6 +36,9 @@ export default function CalendarConfirmationScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
+
     const [loading, setLoading] = useState(false);
     const [reminderOn, setReminderOn] = useState(true);
     const [googleConnected, setGoogleConnected] = useState(false);
@@ -44,7 +49,6 @@ export default function CalendarConfirmationScreen() {
     const [attendees, setAttendees] = useState<Attendee[]>([]);
     const [partyCode, setPartyCode] = useState<string | null>(null);
 
-    // Pulsing calendar badge
     const scale = useSharedValue(1);
     useEffect(() => {
         scale.value = withRepeat(
@@ -57,7 +61,6 @@ export default function CalendarConfirmationScreen() {
     }, []);
     const badgeStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-    // Reminder switch
     const knobX = useSharedValue(reminderOn ? 24 : 0);
     useEffect(() => {
         knobX.value = withSpring(reminderOn ? 24 : 0, { damping: 15, stiffness: 300 });
@@ -203,7 +206,6 @@ export default function CalendarConfirmationScreen() {
                     Alert.alert('Copied to clipboard — paste it anywhere to share');
                 }
             } catch (e: any) {
-                // User cancelled native share — not an error
                 if ((e as any)?.name !== 'AbortError') console.error('[share]', e);
             }
         }
@@ -295,14 +297,13 @@ export default function CalendarConfirmationScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
-                        <ArrowLeft size={24} color="white" />
+                        <ArrowLeft size={24} color={colors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Confirm</Text>
                     <View style={{ width: 40 }} />
                 </View>
 
                 <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
-                    {/* Success header */}
                     <Animated.View entering={FadeInDown.duration(500)} style={{ alignItems: 'center', marginBottom: 24 }}>
                         <Animated.View style={badgeStyle}>
                             <IconBadge size={80} radius={40}>
@@ -313,7 +314,6 @@ export default function CalendarConfirmationScreen() {
                         <Text style={styles.subtitle}>Your hangout is locked in. See you there!</Text>
                     </Animated.View>
 
-                    {/* Event preview */}
                     <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.eventCard}>
                         <View style={styles.venueBlock}>
                             <Text style={styles.venueName}>{venue?.name ?? 'Loading...'}</Text>
@@ -378,7 +378,6 @@ export default function CalendarConfirmationScreen() {
                         </View>
                     </Animated.View>
 
-                    {/* Actions */}
                     <Animated.View entering={FadeInDown.delay(400).duration(500)}>
                         <GradientButton
                             title="Add to Google Calendar"
@@ -388,7 +387,6 @@ export default function CalendarConfirmationScreen() {
                             leftIcon={<GoogleCalIcon />}
                         />
 
-                        {/* Reminder toggle */}
                         <TouchableOpacity
                             onPress={() => setReminderOn(!reminderOn)}
                             activeOpacity={0.85}
@@ -440,68 +438,70 @@ export default function CalendarConfirmationScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
-    headerTitle: { ...typography.h3, color: 'white' },
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: c.bg },
+        header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
+        headerTitle: { ...typography.h3, color: c.textPrimary },
 
-    title: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 36, marginTop: 16, textAlign: 'center' },
-    subtitle: { color: colors.text60, fontSize: 16, textAlign: 'center', marginTop: 6, fontFamily: 'Inter_400Regular' },
+        title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 36, marginTop: 16, textAlign: 'center' },
+        subtitle: { color: c.text60, fontSize: 16, textAlign: 'center', marginTop: 6, fontFamily: 'Inter_400Regular' },
 
-    eventCard: {
-        backgroundColor: colors.glass,
-        borderRadius: radii.xl,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-        marginBottom: 24,
-    },
-    venueBlock: { marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: colors.glassBorder },
-    venueName: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 26, marginBottom: 6 },
-    venueAddress: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    venueAddressText: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular' },
+        eventCard: {
+            backgroundColor: c.glass,
+            borderRadius: radii.xl,
+            padding: 24,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            marginBottom: 24,
+        },
+        venueBlock: { marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: c.glassBorder },
+        venueName: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 26, marginBottom: 6 },
+        venueAddress: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+        venueAddressText: { color: c.text60, fontSize: 13, fontFamily: 'Inter_400Regular' },
 
-    row: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    rowLabel: { color: colors.text60, fontSize: 12, marginBottom: 2, fontFamily: 'Inter_400Regular' },
-    rowValue: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 },
-    attendeeAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: colors.bg },
+        row: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+        rowLabel: { color: c.text60, fontSize: 12, marginBottom: 2, fontFamily: 'Inter_400Regular' },
+        rowValue: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
+        attendeeAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: c.bg },
 
-    reminderRow: {
-        marginTop: 16,
-        padding: 20,
-        borderRadius: radii.lg,
-        backgroundColor: colors.glass,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    reminderTitle: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
-    reminderSub: { color: colors.text60, fontSize: 12, fontFamily: 'Inter_400Regular' },
-    toggleTrack: {
-        width: 52,
-        height: 30,
-        borderRadius: 15,
-        backgroundColor: colors.glassStrong,
-        padding: 3,
-        overflow: 'hidden',
-    },
-    toggleTrackOn: {},
-    toggleKnob: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: 'white',
-    },
+        reminderRow: {
+            marginTop: 16,
+            padding: 20,
+            borderRadius: radii.lg,
+            backgroundColor: c.glass,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            flexDirection: 'row',
+            alignItems: 'center',
+        },
+        reminderTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
+        reminderSub: { color: c.text60, fontSize: 12, fontFamily: 'Inter_400Regular' },
+        toggleTrack: {
+            width: 52,
+            height: 30,
+            borderRadius: 15,
+            backgroundColor: c.glassStrong,
+            padding: 3,
+            overflow: 'hidden',
+        },
+        toggleTrackOn: {},
+        toggleKnob: {
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: 'white',
+        },
 
-    bottomButtons: { flexDirection: 'row', gap: 12, marginTop: 16 },
-    infoBox: {
-        marginTop: 16,
-        padding: 16,
-        borderRadius: radii.lg,
-        backgroundColor: 'rgba(108,62,244,0.10)',
-        borderWidth: 1,
-        borderColor: 'rgba(108,62,244,0.20)',
-    },
-    infoText: { color: colors.text60, fontSize: 13, textAlign: 'center', fontFamily: 'Inter_400Regular' },
-});
+        bottomButtons: { flexDirection: 'row', gap: 12, marginTop: 16 },
+        infoBox: {
+            marginTop: 16,
+            padding: 16,
+            borderRadius: radii.lg,
+            backgroundColor: 'rgba(108,62,244,0.10)',
+            borderWidth: 1,
+            borderColor: 'rgba(108,62,244,0.20)',
+        },
+        infoText: { color: c.text60, fontSize: 13, textAlign: 'center', fontFamily: 'Inter_400Regular' },
+    });
+}

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, Linking, Dimensions, Alert } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, Dimensions, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,10 +19,12 @@ import GradientButton from '../components/GradientButton';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
-import { colors, typography, spacing, radii } from '../theme';
+import { radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
-const CONFETTI_COUNT = 30; // Lower than Figma's 50 for mobile perf
+const CONFETTI_COUNT = 30;
 
 const DEMO_VENUE = {
     id: 'demo-match',
@@ -33,10 +35,10 @@ const DEMO_VENUE = {
     photo_url: null as string | null,
 };
 
-// Single confetti particle
 function ConfettiParticle({ index }: { index: number }) {
+    const { colors: themeColors } = useTheme();
     const startX = Math.random() * width;
-    const color = colors.confetti[index % colors.confetti.length];
+    const color = themeColors.confetti[index % themeColors.confetti.length];
     const delay = Math.random() * 500;
     const duration = 2000 + Math.random() * 1500;
 
@@ -72,7 +74,6 @@ function ConfettiParticle({ index }: { index: number }) {
     );
 }
 
-// Pulsing glow orb
 function GlowOrb({
     color,
     top,
@@ -139,6 +140,9 @@ export default function MatchScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
+
     const [venue, setVenue] = useState<any>(null);
     const [venueLoaded, setVenueLoaded] = useState(false);
     const [showConfetti, setShowConfetti] = useState(true);
@@ -147,7 +151,6 @@ export default function MatchScreen() {
     const [myId, setMyId] = useState<string | null>(null);
     const [keepLoading, setKeepLoading] = useState(false);
 
-    // Sparkle icon rotation
     const sparkleRotate = useSharedValue(0);
 
     useEffect(() => {
@@ -162,7 +165,6 @@ export default function MatchScreen() {
 
         const t = setTimeout(() => setShowConfetti(false), 3500);
 
-        // Try to fetch real match data - fall back to demo if no partyId or API fails
         api.getMatch(partyId).then((data) => {
             if (data?.location) {
                 setVenue(data.location);
@@ -175,7 +177,6 @@ export default function MatchScreen() {
             setVenueLoaded(true);
         });
 
-        // Fetch real crew members
         Promise.all([api.getMembers(partyId).catch(() => []), api.me().catch(() => null)]).then(
             ([members, me]) => {
                 if (me?.id) setMyId(me.id);
@@ -226,11 +227,9 @@ export default function MatchScreen() {
 
     return (
         <View style={styles.root}>
-            {/* Glow orbs behind everything */}
             <GlowOrb color="rgba(108,62,244,0.4)" top={height * 0.15} left={width * 0.15} size={280} />
             <GlowOrb color="rgba(0,194,255,0.4)" top={height * 0.40} left={width * 0.35} size={240} delay={800} />
 
-            {/* Confetti overlay */}
             {showConfetti && (
                 <View style={StyleSheet.absoluteFill} pointerEvents="none">
                     {Array.from({ length: CONFETTI_COUNT }).map((_, i) => (
@@ -241,7 +240,6 @@ export default function MatchScreen() {
 
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 32 }} showsVerticalScrollIndicator={false}>
-                    {/* Header */}
                     <Animated.View entering={FadeInDown.duration(500)} style={{ alignItems: 'center', marginBottom: 24 }}>
                         <Animated.View style={[styles.sparkleBadge, sparkleStyle]}>
                             <LinearGradient
@@ -257,7 +255,6 @@ export default function MatchScreen() {
                         <Text style={styles.subtitle}>Your whole crew wants to go!</Text>
                     </Animated.View>
 
-                    {/* Venue card */}
                     <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.venueCard}>
                         <View style={styles.venueImageWrap}>
                             {venue.photo_url ? (
@@ -284,7 +281,7 @@ export default function MatchScreen() {
                                 )}
                                 {venue.distances?.[0]?.miles && (
                                     <View style={styles.venueMetaItem}>
-                                        <MapPin size={16} color="white" />
+                                        <MapPin size={16} color={colors.textPrimary} />
                                         <Text style={styles.venueMetaText}>
                                             {venue.distances[0].miles.toFixed(1)} miles
                                         </Text>
@@ -317,7 +314,6 @@ export default function MatchScreen() {
                         </View>
                     </Animated.View>
 
-                    {/* Actions */}
                     <Animated.View entering={FadeInDown.delay(400).duration(500)} style={{ marginTop: 'auto' }}>
                         <GradientButton
                             title="Set the Date"
@@ -345,42 +341,44 @@ export default function MatchScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: c.bg },
 
-    sparkleBadge: { marginBottom: 16 },
-    sparkleBadgeBg: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
-    title: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 42, marginBottom: 6, textAlign: 'center' },
-    subtitle: { color: 'rgba(255,255,255,0.80)', fontSize: 18, fontFamily: 'Inter_500Medium' },
+        sparkleBadge: { marginBottom: 16 },
+        sparkleBadgeBg: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+        title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 42, marginBottom: 6, textAlign: 'center' },
+        subtitle: { color: c.text80, fontSize: 18, fontFamily: 'Inter_500Medium' },
 
-    venueCard: {
-        backgroundColor: colors.glass,
-        borderRadius: radii.xl,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-        overflow: 'hidden',
-        marginBottom: 24,
-    },
-    venueImageWrap: { height: 192, position: 'relative' },
-    venueImage: { width: '100%', height: '100%' },
-    venueCategoryPill: {
-        position: 'absolute',
-        top: 16,
-        left: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: radii.pill,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-    },
-    venueCategoryText: { color: 'white', fontSize: 13, fontFamily: 'Inter_700Bold' },
+        venueCard: {
+            backgroundColor: c.glass,
+            borderRadius: radii.xl,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            overflow: 'hidden',
+            marginBottom: 24,
+        },
+        venueImageWrap: { height: 192, position: 'relative' },
+        venueImage: { width: '100%', height: '100%' },
+        venueCategoryPill: {
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: radii.pill,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+        },
+        venueCategoryText: { color: 'white', fontSize: 13, fontFamily: 'Inter_700Bold' },
 
-    venueName: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 24, marginBottom: 8 },
-    venueMetaRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },
-    venueMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    venueMetaText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontFamily: 'Inter_700Bold' },
-    venueAddress: { color: colors.text60, fontSize: 13, marginBottom: 16, fontFamily: 'Inter_400Regular' },
+        venueName: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 24, marginBottom: 8 },
+        venueMetaRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },
+        venueMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+        venueMetaText: { color: c.text80, fontSize: 14, fontFamily: 'Inter_700Bold' },
+        venueAddress: { color: c.text60, fontSize: 13, marginBottom: 16, fontFamily: 'Inter_400Regular' },
 
-    crewSection: { borderTopWidth: 1, borderTopColor: colors.glassBorder, paddingTop: 12 },
-    crewSectionLabel: { color: colors.text60, fontSize: 12, marginBottom: 8, fontFamily: 'Inter_400Regular' },
-    crewAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.bg },
-});
+        crewSection: { borderTopWidth: 1, borderTopColor: c.glassBorder, paddingTop: 12 },
+        crewSectionLabel: { color: c.text60, fontSize: 12, marginBottom: 8, fontFamily: 'Inter_400Regular' },
+        crewAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: c.bg },
+    });
+}

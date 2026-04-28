@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { colors, radii } from '../theme';
+import { radii } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import type { AppColors } from '../theme';
 
 interface HelpItem {
     title: string;
@@ -13,6 +15,8 @@ interface Props {
 
 export default function HelpButton({ items }: Props) {
     const [visible, setVisible] = useState(false);
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
 
     return (
         <>
@@ -60,59 +64,61 @@ export default function HelpButton({ items }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
-    btn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    mark: { color: colors.text80, fontFamily: 'Inter_700Bold', fontSize: 15, lineHeight: 18 },
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    sheet: {
-        backgroundColor: '#12121A',
-        borderTopLeftRadius: radii.xl,
-        borderTopRightRadius: radii.xl,
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        paddingBottom: 36,
-        borderTopWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    handle: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.text40,
-        alignSelf: 'center',
-        marginBottom: 20,
-    },
-    sheetTitle: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 18,
-        marginBottom: 16,
-    },
-    item: { paddingVertical: 12 },
-    itemBorder: {
-        borderTopWidth: 1,
-        borderTopColor: colors.glassBorder,
-    },
-    itemTitle: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14, marginBottom: 3 },
-    itemDesc: { color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },
-    doneBtn: {
-        marginTop: 16,
-        backgroundColor: colors.primary,
-        borderRadius: radii.md,
-        paddingVertical: 12,
-        alignItems: 'center',
-    },
-    doneBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
-});
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        btn: {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: c.glass,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        mark: { color: c.text80, fontFamily: 'Inter_700Bold', fontSize: 15, lineHeight: 18 },
+        overlay: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+        },
+        sheet: {
+            backgroundColor: c.surface,
+            borderTopLeftRadius: radii.xl,
+            borderTopRightRadius: radii.xl,
+            paddingHorizontal: 24,
+            paddingTop: 16,
+            paddingBottom: 36,
+            borderTopWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        handle: {
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: c.text40,
+            alignSelf: 'center',
+            marginBottom: 20,
+        },
+        sheetTitle: {
+            color: c.textPrimary,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 18,
+            marginBottom: 16,
+        },
+        item: { paddingVertical: 12 },
+        itemBorder: {
+            borderTopWidth: 1,
+            borderTopColor: c.glassBorder,
+        },
+        itemTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 14, marginBottom: 3 },
+        itemDesc: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },
+        doneBtn: {
+            marginTop: 16,
+            backgroundColor: c.primary,
+            borderRadius: radii.md,
+            paddingVertical: 12,
+            alignItems: 'center',
+        },
+        doneBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
+    });
+}

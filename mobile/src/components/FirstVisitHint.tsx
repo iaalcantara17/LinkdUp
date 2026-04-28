@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useHints } from '../context/HintsContext';
-import { colors, radii } from '../theme';
+import { radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
     screenKey: string;
@@ -14,6 +16,8 @@ interface Props {
 export default function FirstVisitHint({ screenKey, title, body, position = 'center' }: Props) {
     const { ready, hasSeen, markSeen } = useHints();
     const [visible, setVisible] = useState(false);
+    const { colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
 
     useEffect(() => {
         if (!ready) return;
@@ -65,40 +69,42 @@ export default function FirstVisitHint({ screenKey, title, body, position = 'cen
     );
 }
 
-const styles = StyleSheet.create({
-    backdrop: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.55)',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-    },
-    card: {
-        width: '100%',
-        backgroundColor: colors.surfaceElevated,
-        borderRadius: radii.xl,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(108,62,244,0.30)',
-    },
-    title: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 16,
-        marginBottom: 8,
-    },
-    body: {
-        color: colors.text80,
-        fontFamily: 'Inter_400Regular',
-        fontSize: 14,
-        lineHeight: 20,
-        marginBottom: 16,
-    },
-    btn: {
-        alignSelf: 'flex-end',
-        backgroundColor: colors.primary,
-        paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: radii.pill,
-    },
-    btnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
-});
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        backdrop: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            alignItems: 'center',
+            paddingHorizontal: 24,
+        },
+        card: {
+            width: '100%',
+            backgroundColor: c.surfaceElevated,
+            borderRadius: radii.xl,
+            padding: 20,
+            borderWidth: 1,
+            borderColor: 'rgba(108,62,244,0.30)',
+        },
+        title: {
+            color: c.textPrimary,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 16,
+            marginBottom: 8,
+        },
+        body: {
+            color: c.text80,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 14,
+            lineHeight: 20,
+            marginBottom: 16,
+        },
+        btn: {
+            alignSelf: 'flex-end',
+            backgroundColor: c.primary,
+            paddingHorizontal: 20,
+            paddingVertical: 8,
+            borderRadius: radii.pill,
+        },
+        btnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
+    });
+}

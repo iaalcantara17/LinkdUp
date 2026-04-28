@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -6,26 +6,39 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { ArrowLeft, Copy, Check, ArrowRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
+import AppSwitch from '../components/AppSwitch';
+import GlassCard from '../components/GlassCard';
 import { api } from '../services/api';
-import { colors, typography, radii } from '../theme';
+import { typography, radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const SUGGESTIONS = ['Weekend Warriors', 'Alumni Hangout', 'Study Group Reunion', 'Friday Night Crew'];
 
 export default function CreatePartyScreen() {
     const nav = useNavigation<any>();
+    const { colors, isDark } = useTheme();
+    const styles = useMemo(() => makeStyles(colors), [colors]);
+
     const [step, setStep] = useState<'name' | 'invite'>('name');
     const [partyName, setPartyName] = useState('');
     const [partyCode, setPartyCode] = useState<string | null>(null);
     const [partyId, setPartyId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [isPublic, setIsPublic] = useState<boolean>(() => {
+        if (typeof localStorage !== 'undefined') {
+            return localStorage.getItem('linkdup_default_party_public') === 'true';
+        }
+        return false;
+    });
 
     const handleNext = async () => {
         if (step === 'name') {
             if (!partyName) return;
             setLoading(true);
             try {
-                const r = await api.createParty(partyName);
+                const r = await api.createParty(partyName, isPublic);
                 setPartyCode(r.code);
                 setPartyId(r.party_id);
                 setStep('invite');
@@ -53,7 +66,7 @@ export default function CreatePartyScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
-                        <ArrowLeft size={24} color="white" />
+                        <ArrowLeft size={24} color={colors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Create a Party</Text>
                     <View style={{ width: 40 }} />
@@ -105,6 +118,29 @@ export default function CreatePartyScreen() {
                                     </TouchableOpacity>
                                 ))}
                             </View>
+
+                            <GlassCard style={{ marginTop: 20 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <View style={{ flex: 1, marginRight: 12 }}>
+                                        <Text style={styles.visibilityTitle}>Make party public</Text>
+                                        <Text style={styles.visibilitySub}>Appear in the Discover tab for anyone nearby</Text>
+                                    </View>
+                                    <AppSwitch
+                                        value={isPublic}
+                                        onValueChange={setIsPublic}
+                                        trackOnColor={colors.primary}
+                                        trackOffColor={colors.glassStrong}
+                                        thumbColor={isDark ? '#FFFFFF' : '#E8E8E8'}
+                                    />
+                                </View>
+                                {isPublic && (
+                                    <View style={styles.disclaimerBanner}>
+                                        <Text style={styles.disclaimerText}>
+                                            Anyone nearby can find and join your party from the Discover tab. Share your invite code only with people you trust.
+                                        </Text>
+                                    </View>
+                                )}
+                            </GlassCard>
                         </Animated.View>
                     ) : (
                         <Animated.View entering={FadeInRight.duration(300)}>
@@ -162,88 +198,102 @@ export default function CreatePartyScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
-    headerTitle: { ...typography.h3, color: 'white' },
+function makeStyles(c: AppColors) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: c.bg },
+        header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
+        headerTitle: { ...typography.h3, color: c.textPrimary },
 
-    progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, marginTop: 12, marginBottom: 8 },
-    progressBar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.glassStrong, overflow: 'hidden' },
+        progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, marginTop: 12, marginBottom: 8 },
+        progressBar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.glassStrong, overflow: 'hidden' },
 
-    stepTitle: { ...typography.h1, color: 'white', marginBottom: 6, fontSize: 28 },
-    stepSub: { ...typography.body, color: colors.text60, marginBottom: 24 },
+        stepTitle: { ...typography.h1, color: c.textPrimary, marginBottom: 6, fontSize: 28 },
+        stepSub: { ...typography.body, color: c.text60, marginBottom: 24 },
 
-    nameInput: {
-        backgroundColor: colors.glassStrong,
-        borderWidth: 1,
-        borderColor: colors.glassBorderStrong,
-        borderRadius: radii.lg,
-        paddingHorizontal: 20,
-        paddingVertical: 20,
-        color: 'white',
-        fontSize: 18,
-        marginBottom: 24,
-        fontFamily: 'Inter_400Regular',
-    },
+        nameInput: {
+            backgroundColor: c.glassStrong,
+            borderWidth: 1,
+            borderColor: c.glassBorderStrong,
+            borderRadius: radii.lg,
+            paddingHorizontal: 20,
+            paddingVertical: 20,
+            color: c.textPrimary,
+            fontSize: 18,
+            marginBottom: 24,
+            fontFamily: 'Inter_400Regular',
+        },
 
-    suggestLabel: { color: colors.text40, fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 10 },
-    suggestWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    suggestPill: {
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: radii.pill,
-        backgroundColor: colors.glass,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    suggestText: { color: 'white', fontSize: 13, fontFamily: 'Inter_500Medium' },
+        suggestLabel: { color: c.text40, fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 10 },
+        suggestWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+        suggestPill: {
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: radii.pill,
+            backgroundColor: c.glass,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        suggestText: { color: c.textPrimary, fontSize: 13, fontFamily: 'Inter_500Medium' },
 
-    shareCard: {
-        backgroundColor: colors.glass,
-        borderRadius: radii.lg,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-        marginBottom: 16,
-    },
-    shareCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-    shareLabel: { color: 'white', fontFamily: 'Inter_500Medium', fontSize: 14 },
-    copyBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: radii.pill,
-    },
-    copyText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 13 },
-    codeBox: {
-        backgroundColor: colors.glassStrong,
-        borderRadius: radii.md,
-        paddingVertical: 18,
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    codeText: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 32, letterSpacing: 8 },
-    hint: { color: colors.text60, fontSize: 12, textAlign: 'center', fontFamily: 'Inter_400Regular' },
+        shareCard: {
+            backgroundColor: c.glass,
+            borderRadius: radii.lg,
+            padding: 20,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            marginBottom: 16,
+        },
+        shareCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+        shareLabel: { color: c.textPrimary, fontFamily: 'Inter_500Medium', fontSize: 14 },
+        copyBtn: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: radii.pill,
+        },
+        copyText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 13 },
+        codeBox: {
+            backgroundColor: c.glassStrong,
+            borderRadius: radii.md,
+            paddingVertical: 18,
+            alignItems: 'center',
+            marginBottom: 12,
+        },
+        codeText: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 32, letterSpacing: 8 },
+        hint: { color: c.text60, fontSize: 12, textAlign: 'center', fontFamily: 'Inter_400Regular' },
 
-    nextStep: {
-        padding: 16,
-        borderRadius: radii.lg,
-        backgroundColor: 'rgba(108,62,244,0.10)',
-        borderWidth: 1,
-        borderColor: 'rgba(108,62,244,0.20)',
-    },
-    nextStepTitle: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14, marginBottom: 4 },
-    nextStepBody: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+        visibilityTitle: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+        visibilitySub: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 2 },
+        disclaimerBanner: {
+            marginTop: 12,
+            padding: 10,
+            borderRadius: 10,
+            backgroundColor: 'rgba(245,158,11,0.10)',
+            borderWidth: 1,
+            borderColor: 'rgba(245,158,11,0.25)',
+        },
+        disclaimerText: { color: c.text80, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18 },
 
-    bottomFade: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        paddingHorizontal: 24,
-        paddingTop: 40,
-        paddingBottom: 32,
-    },
-});
+        nextStep: {
+            padding: 16,
+            borderRadius: radii.lg,
+            backgroundColor: 'rgba(108,62,244,0.10)',
+            borderWidth: 1,
+            borderColor: 'rgba(108,62,244,0.20)',
+        },
+        nextStepTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 14, marginBottom: 4 },
+        nextStepBody: { color: c.text60, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+
+        bottomFade: {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 24,
+            paddingTop: 40,
+            paddingBottom: 32,
+        },
+    });
+}

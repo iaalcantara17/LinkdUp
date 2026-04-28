@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { colors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
     name: string;
@@ -13,7 +13,10 @@ interface Props {
     pulse?: boolean;
 }
 
-export default function AvatarBubble({ name, color = colors.primary, size = 40, status, avatarUrl, onPress, pulse }: Props) {
+export default function AvatarBubble({ name, color, size = 40, status, avatarUrl, onPress, pulse }: Props) {
+    const { colors } = useTheme();
+    const bubbleColor = color ?? colors.primary;
+
     const initials = name
         .split(' ')
         .map((s) => s[0])
@@ -41,7 +44,7 @@ export default function AvatarBubble({ name, color = colors.primary, size = 40, 
             <View
                 style={[
                     styles.bubble,
-                    { width: size, height: size, borderRadius: size / 2, backgroundColor: color, borderColor: ring },
+                    { width: size, height: size, borderRadius: size / 2, backgroundColor: bubbleColor, borderColor: ring },
                 ]}
             >
                 {avatarUrl ? (

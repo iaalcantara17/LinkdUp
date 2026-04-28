@@ -12,6 +12,7 @@ import {
     ChevronLeft, ChevronRight,
 } from 'lucide-react-native';
 import BottomNav from '../components/BottomNav';
+import FeedView from '../components/FeedView';
 import GradientButton from '../components/GradientButton';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
@@ -383,7 +384,7 @@ export default function DiscoverScreen() {
     const nav = useNavigation<any>();
 
     // Tab
-    const [activeTab, setActiveTab] = useState<'explore' | 'likes'>('explore');
+    const [activeTab, setActiveTab] = useState<'explore' | 'feed' | 'likes'>('explore');
 
     // Explore data
     const [venues, setVenues] = useState<DiscoverVenue[]>([]);
@@ -509,7 +510,7 @@ export default function DiscoverScreen() {
         setRefreshing(true);
         if (activeTab === 'likes') {
             await fetchLikes();
-        } else {
+        } else if (activeTab === 'explore') {
             await load(true);
         }
         setRefreshing(false);
@@ -612,7 +613,7 @@ export default function DiscoverScreen() {
 
     // ── Tab change (re-fetch likes on switch) ─────────────────────────────────
 
-    const handleTabChange = (tab: 'explore' | 'likes') => {
+    const handleTabChange = (tab: 'explore' | 'feed' | 'likes') => {
         setActiveTab(tab);
         if (tab === 'likes') fetchLikes(likedVenues.length === 0);
     };
@@ -632,6 +633,9 @@ export default function DiscoverScreen() {
 
     return (
         <View style={styles.root}>
+            {activeTab === 'feed' ? (
+                <FeedView onBack={() => handleTabChange('explore')} />
+            ) : (
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 {/* ── Tab bar ───────────────────────────────────────────── */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 16 }}>
@@ -643,6 +647,15 @@ export default function DiscoverScreen() {
                         >
                             <Text style={[styles.tabText, activeTab === 'explore' && styles.tabTextActive]}>
                                 Explore
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tabPill, activeTab === 'feed' && styles.tabPillActive]}
+                            onPress={() => handleTabChange('feed')}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'feed' && styles.tabTextActive]}>
+                                Feed
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -946,6 +959,7 @@ export default function DiscoverScreen() {
                     )}
                 </ScrollView>
             </SafeAreaView>
+            )}
 
             {activeTab === 'explore' && (
                 <AnchoredHint

@@ -1,18 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Home as HomeIcon, Compass, Users, Calendar, User } from 'lucide-react-native';
-import { colors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
-/**
- * Fixed bottom navigation component matching the Figma Home screen nav bar.
- * Rendered inline inside screens (not via React Navigation's tab navigator)
- * so it matches the Figma source 1:1.
- */
 export default function BottomNav() {
     const nav = useNavigation<any>();
     const route = useRoute();
+    const { isDark, colors } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
     const items = [
         { key: 'Home', label: 'Home', Icon: HomeIcon, onPress: () => nav.navigate('Home') },
@@ -24,7 +21,7 @@ export default function BottomNav() {
 
     return (
         <View style={styles.wrap} pointerEvents="box-none">
-            <BlurView intensity={40} tint="dark" style={styles.blur}>
+            <BlurView intensity={40} tint={isDark ? 'dark' : 'light'} style={styles.blur}>
                 <View style={styles.inner}>
                     {items.map((item) => {
                         const active = route.name === item.key;
@@ -42,31 +39,33 @@ export default function BottomNav() {
     );
 }
 
-const styles = StyleSheet.create({
-    wrap: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-    },
-    blur: {
-        borderTopWidth: 1,
-        borderTopColor: colors.glassBorder,
-        backgroundColor: 'rgba(10,10,15,0.80)',
-    },
-    inner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-around',
-        paddingTop: 10,
-        paddingBottom: 20,
-    },
-    item: {
-        alignItems: 'center',
-        gap: 4,
-    },
-    label: {
-        fontSize: 11,
-        fontFamily: 'Inter_500Medium',
-    },
-});
+function makeStyles(c: ReturnType<typeof useTheme>['colors'], dark: boolean) {
+    return StyleSheet.create({
+        wrap: {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+        },
+        blur: {
+            borderTopWidth: 1,
+            borderTopColor: c.glassBorder,
+            backgroundColor: dark ? 'rgba(10,10,15,0.80)' : 'rgba(250,250,251,0.85)',
+        } as any,
+        inner: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-around',
+            paddingTop: 10,
+            paddingBottom: 20,
+        },
+        item: {
+            alignItems: 'center',
+            gap: 4,
+        },
+        label: {
+            fontSize: 11,
+            fontFamily: 'Inter_500Medium',
+        },
+    });
+}

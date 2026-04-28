@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Modal, ActivityIndicator, Platform, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -29,7 +29,9 @@ const SWIPE_HELP: { title: string; description: string }[] = [
 ];
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
-import { colors, typography, spacing, radii } from '../theme';
+import { typography, radii } from '../theme';
+import type { AppColors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
@@ -54,7 +56,6 @@ interface CrewMember {
     avatar_url?: string;
 }
 
-// Fallback demo data - used when API fails so the demo always works
 const DEMO_VENUES: Venue[] = [
     {
         id: 'demo-1',
@@ -90,6 +91,8 @@ export default function SwipeScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
+    const { colors, isDark } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
     const [venues, setVenues] = useState<Venue[]>([]);
     const [crew, setCrew] = useState<CrewMember[]>([]);
@@ -105,32 +108,24 @@ export default function SwipeScreen() {
     const whyThisRef = useRef<View>(null);
     const donePillRef = useRef<View>(null);
 
-    // Realtime
     const myUserIdRef = useRef<string | null>(null);
     const venuesRef   = useRef<Venue[]>([]);
     const crewRef     = useRef<CrewMember[]>([]);
     const [toast, setToast] = useState<string | null>(null);
 
-    // Load-more guard: prevents concurrent calls
     const loadingMoreRef = useRef(false);
 
-    // "Keep swiping?" prompt — fires every BATCH_SIZE votes so users aren't stuck
-    // scrolling endlessly. Capping stops further auto-loads but keeps remaining
-    // venues in the deck swipeable, so match can still fire.
     const BATCH_SIZE = 15;
     const [batchVoteCount, setBatchVoteCount] = useState(0);
     const [votingCapped, setVotingCapped] = useState(false);
     const [keepSwipingModal, setKeepSwipingModal] = useState(false);
     const totalVotesRef = useRef(0);
 
-    // Tappable crew profiles
     const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
-    // Party info modal (Info button)
     const [infoModal, setInfoModal] = useState(false);
     const [partyInfo, setPartyInfo] = useState<any>(null);
 
-    // AI pitch modal
     const [pitchModal, setPitchModal] = useState<{
         venueId: string;
         venueName: string;
@@ -144,19 +139,25 @@ export default function SwipeScreen() {
 
     const load = useCallback(async () => {
         try {
-            const [locs, members, me] = await Promise.all([
+            const isDemo = partyId === 'demo';
+            const [locs, members, me, myVotes] = await Promise.all([
                 api.getLocations(partyId).catch(() => []),
                 api.getMembers(partyId).catch(() => []),
                 api.me().catch(() => null),
+                isDemo ? Promise.resolve([]) : api.getMyVotes(partyId).catch(() => []),
             ]);
 
             myUserIdRef.current = me?.id ?? null;
 
             const nextVenues = Array.isArray(locs) && locs.length > 0
                 ? locs
-                : partyId === 'demo' ? DEMO_VENUES : [];
+                : isDemo ? DEMO_VENUES : [];
             setVenues(nextVenues);
             venuesRef.current = nextVenues;
+
+            const votedIds = new Set((myVotes as Array<{ location_id: string }>).map((v) => v.location_id));
+            const resumeAt = nextVenues.findIndex((v: Venue) => !votedIds.has(v.id));
+            setIndex(resumeAt >= 0 ? resumeAt : 0);
 
             if (Array.isArray(members) && members.length > 0) {
                 const realCrew: CrewMember[] = members.map((m: any) => ({
@@ -184,21 +185,17 @@ export default function SwipeScreen() {
 
     useEffect(() => { load(); }, [load]);
 
-    // Keep refs in sync when state updates via realtime
     useEffect(() => { venuesRef.current = venues; }, [venues]);
     useEffect(() => { crewRef.current = crew; }, [crew]);
 
-    // ── Toast helper ──────────────────────────────────────────────────────────
     const showToast = useCallback((msg: string) => {
         setToast(msg);
         setTimeout(() => setToast(null), 2500);
     }, []);
 
-    // ── Realtime subscriptions ────────────────────────────────────────────────
     useEffect(() => {
         if (partyId === 'demo') return;
 
-        // Channel 1: votes — reflect partner swipes live
         const votesChannel = supabase
             .channel(`votes:${partyId}`)
             .on('postgres_changes', {
@@ -208,7 +205,6 @@ export default function SwipeScreen() {
                 const v = payload.new;
                 if (!v || v.user_id === myUserIdRef.current) return;
 
-                // Update crew HUD status
                 setCrew((prev) => {
                     const updated = prev.map((m) =>
                         m.user_id === v.user_id
@@ -219,17 +215,14 @@ export default function SwipeScreen() {
                     return updated;
                 });
 
-                // Pulse that member's avatar
                 if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
                 setPulsingUserId(v.user_id);
                 pulseTimeoutRef.current = setTimeout(() => setPulsingUserId(null), 400);
 
-                // Track yes-vote count per venue for the card pill
                 if (v.vote) {
                     setVoteCounts(prev => ({ ...prev, [v.location_id]: (prev[v.location_id] ?? 0) + 1 }));
                 }
 
-                // Toast
                 const voter = crewRef.current.find((m) => m.user_id === v.user_id);
                 const name = voter?.display_name ?? 'Someone';
                 if (v.vote) {
@@ -237,14 +230,12 @@ export default function SwipeScreen() {
                     showToast(venue ? `${name} liked ${venue.name}` : `${name} swiped right`);
                 }
 
-                // Silent match check — navigate instantly if the partner tipped the scale
                 api.getMatch(partyId).then((m: any) => {
                     if (m?.matched) nav.replace('Match', { partyId });
                 }).catch(() => {});
             })
             .subscribe();
 
-        // Channel 2: party_members — show new joins live
         const membersChannel = supabase
             .channel(`party_members:${partyId}`)
             .on('postgres_changes', {
@@ -281,7 +272,6 @@ export default function SwipeScreen() {
         };
     }, [partyId, showToast, nav]);
 
-    // ── AI pitch ──────────────────────────────────────────────────────────────
     const handleWhyThis = useCallback(async () => {
         const cur = venuesRef.current[index];
         if (!cur || cur.id.startsWith('demo-')) return;
@@ -358,7 +348,6 @@ export default function SwipeScreen() {
         if (votingCapped) {
             const remainingAfter = venues.length - (index + 1);
             if (remainingAfter === 0) {
-                // last card was just voted on — banner message
                 showToast("That's everyone — checking for a match...");
             }
         }
@@ -369,13 +358,11 @@ export default function SwipeScreen() {
             setVoteCounts(prev => ({ ...prev, [current.id]: (prev[current.id] ?? 0) + 1 }));
         }
 
-        // Silently pre-fetch more venues when 3 cards remain — skipped if user capped
         const remaining = venues.length - (index + 1);
         if (remaining <= 3 && !loadingMoreRef.current && !votingCapped) {
             triggerLoadMore();
         }
 
-        // Every BATCH_SIZE votes, prompt the user to keep going or call it
         totalVotesRef.current += 1;
         const nextBatchCount = batchVoteCount + 1;
         if (!votingCapped && nextBatchCount >= BATCH_SIZE) {
@@ -385,14 +372,10 @@ export default function SwipeScreen() {
             setBatchVoteCount(nextBatchCount);
         }
 
-        // Await the vote so we can react to the match synchronously instead of
-        // letting it race the next swipe. Only adds ~150-300ms per swipe which
-        // feels like natural card-exit animation time.
         if (isRealVenue) {
             try {
                 const r = await api.vote(partyId, current.id, liked);
                 if (r?.match?.matched) {
-                    // Match fired - go straight to Match screen, don't advance the index
                     nav.replace('Match', { partyId });
                     return;
                 }
@@ -402,14 +385,12 @@ export default function SwipeScreen() {
         }
 
         if (isLastCard) {
-            // End of deck - check match one more time in case the last vote triggered it
             try {
                 const m = await api.getMatch(partyId);
                 if (m?.matched) {
                     nav.replace('Match', { partyId });
                     return;
                 }
-                // No match after all cards - show in-screen no-match card
                 setNoMatch(true);
             } catch {
                 if (!isRealVenue) nav.replace('Match', { partyId });
@@ -470,7 +451,7 @@ export default function SwipeScreen() {
     if (loading) {
         return (
             <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
-                <Text style={{ color: 'white' }}>Loading venues...</Text>
+                <Text style={{ color: colors.textPrimary }}>Loading venues...</Text>
             </View>
         );
     }
@@ -479,7 +460,7 @@ export default function SwipeScreen() {
         return (
             <View style={[styles.root, { alignItems: 'center', justifyContent: 'center', padding: 32 }]}>
                 <MapPin size={64} color={colors.primary} style={{ marginBottom: 20 }} />
-                <Text style={[typography.h1, { color: 'white', textAlign: 'center', marginBottom: 12 }]}>
+                <Text style={[typography.h1, { color: colors.textPrimary, textAlign: 'center', marginBottom: 12 }]}>
                     No spots in this area yet
                 </Text>
                 <Text style={[typography.body, { color: colors.text60, textAlign: 'center', marginBottom: 32, lineHeight: 22 }]}>
@@ -509,7 +490,7 @@ export default function SwipeScreen() {
             return (
                 <View style={[styles.root, { alignItems: 'center', justifyContent: 'center', padding: 32 }]}>
                     <Text style={{ fontSize: 52, marginBottom: 20 }}>🤷</Text>
-                    <Text style={[typography.h1, { color: 'white', textAlign: 'center', marginBottom: 12 }]}>
+                    <Text style={[typography.h1, { color: colors.textPrimary, textAlign: 'center', marginBottom: 12 }]}>
                         No match yet
                     </Text>
                     <Text style={[typography.body, { color: colors.text60, textAlign: 'center', marginBottom: 32, lineHeight: 22 }]}>
@@ -552,7 +533,7 @@ export default function SwipeScreen() {
 
         return (
             <View style={[styles.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]}>
-                <Text style={[typography.h1, { color: 'white', textAlign: 'center' }]}>No more venues!</Text>
+                <Text style={[typography.h1, { color: colors.textPrimary, textAlign: 'center' }]}>No more venues!</Text>
                 <Text style={[typography.body, { color: colors.text60, textAlign: 'center', marginVertical: 12 }]}>
                     Check back later or go home
                 </Text>
@@ -571,14 +552,12 @@ export default function SwipeScreen() {
 
     return (
         <View style={styles.root}>
-            {/* Toast overlay */}
             {toast && (
                 <View style={styles.toast} pointerEvents="none">
                     <Text style={styles.toastText}>{toast}</Text>
                 </View>
             )}
 
-            {/* AI Pitch modal */}
             <Modal
                 visible={!!pitchModal}
                 transparent
@@ -609,7 +588,6 @@ export default function SwipeScreen() {
             </Modal>
 
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                {/* Top bar */}
                 <View style={styles.topBar}>
                     <TouchableOpacity onPress={() => nav.goBack()} style={styles.topIconBtn}>
                         <ArrowLeft size={22} color="white" />
@@ -650,7 +628,6 @@ export default function SwipeScreen() {
                     </View>
                 </View>
 
-                {/* Progress bar */}
                 <View style={styles.progressWrap}>
                     <View style={styles.progressTrack}>
                         <LinearGradient
@@ -662,23 +639,19 @@ export default function SwipeScreen() {
                     </View>
                 </View>
 
-                {/* Card stack */}
                 <View style={styles.cardStackWrap}>
-                    {/* Next card (behind) */}
                     {next && (
                         <View style={[styles.card, { transform: [{ scale: 0.95 }], opacity: 0.5 }]}>
                             {next.photo_url && <Image source={{ uri: next.photo_url }} style={StyleSheet.absoluteFillObject} />}
                         </View>
                     )}
 
-                    {/* Top card */}
                     <GestureDetector gesture={pan}>
                         <Animated.View style={[styles.card, topCardStyle]}>
                             {current.photo_url && (
                                 <Image source={{ uri: current.photo_url }} style={StyleSheet.absoluteFillObject} />
                             )}
 
-                            {/* Vote counter pill — multi-person only, appears when someone likes */}
                             {crew.length > 1 && (voteCounts[current.id] ?? 0) > 0 && (
                                 <View style={styles.voteCountPill}>
                                     <Text style={styles.voteCountText}>
@@ -687,17 +660,14 @@ export default function SwipeScreen() {
                                 </View>
                             )}
 
-                            {/* LIKE stamp */}
                             <Animated.View style={[styles.stamp, styles.stampLike, likeOpacityStyle]}>
                                 <Text style={styles.stampLikeText}>LIKE</Text>
                             </Animated.View>
 
-                            {/* NOPE stamp */}
                             <Animated.View style={[styles.stamp, styles.stampNope, nopeOpacityStyle]}>
                                 <Text style={styles.stampNopeText}>NOPE</Text>
                             </Animated.View>
 
-                            {/* Info overlay */}
                             <LinearGradient
                                 colors={['transparent', 'rgba(0,0,0,0.95)']}
                                 style={styles.cardOverlay}
@@ -736,8 +706,7 @@ export default function SwipeScreen() {
                     </GestureDetector>
                 </View>
 
-                {/* Crew HUD */}
-                <BlurView intensity={40} tint="dark" style={styles.crewHud}>
+                <BlurView intensity={40} tint={isDark ? 'dark' : 'light'} style={styles.crewHud}>
                     <View style={styles.crewHeader}>
                         <Text style={styles.crewLabel}>Crew</Text>
                         <Text style={styles.crewCount}>
@@ -773,7 +742,6 @@ export default function SwipeScreen() {
                     </View>
                 </BlurView>
 
-                {/* Action buttons — native: large asymmetric pair; web: equal 56px circles */}
                 {Platform.OS !== 'web' ? (
                     <View style={styles.actions}>
                         <TouchableOpacity onPress={() => swipeOff('left')} activeOpacity={0.85}>
@@ -834,7 +802,6 @@ export default function SwipeScreen() {
                 onClose={() => setProfileUserId(null)}
             />
 
-            {/* Party info modal */}
             <Modal
                 visible={infoModal}
                 transparent
@@ -888,14 +855,14 @@ export default function SwipeScreen() {
 
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <Text style={styles.pitchBody}>Members</Text>
-                                <Text style={{ color: 'white', fontFamily: 'Inter_600SemiBold', fontSize: 15 }}>
+                                <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 }}>
                                     {partyInfo?.members?.length ?? 0}
                                 </Text>
                             </View>
 
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <Text style={styles.pitchBody}>Venues in deck / voted</Text>
-                                <Text style={{ color: 'white', fontFamily: 'Inter_600SemiBold', fontSize: 15 }}>
+                                <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 }}>
                                     {venues.length} / {crew.filter((c) => c.status === 'liked' || c.status === 'passed').length}
                                 </Text>
                             </View>
@@ -935,7 +902,6 @@ export default function SwipeScreen() {
                 </View>
             </Modal>
 
-            {/* Force-match confirmation — solo parties only */}
             <Modal
                 visible={forceMatchModal}
                 transparent
@@ -979,7 +945,6 @@ export default function SwipeScreen() {
                 </View>
             </Modal>
 
-            {/* Keep-swiping prompt — appears every BATCH_SIZE votes */}
             <Modal
                 visible={keepSwipingModal}
                 transparent
@@ -1031,268 +996,271 @@ export default function SwipeScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
-    topIconBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    midpointPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: radii.pill,
-        overflow: 'hidden',
-    },
-    midpointText: { color: 'white', fontSize: 13, fontFamily: 'Inter_500Medium' },
+function makeStyles(c: AppColors, dark: boolean) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: c.bg },
+        topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
+        topIconBtn: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        midpointPill: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderRadius: radii.pill,
+            overflow: 'hidden',
+        },
+        midpointText: { color: 'white', fontSize: 13, fontFamily: 'Inter_500Medium' },
 
-    progressWrap: { paddingHorizontal: 24, marginTop: 12 },
-    progressTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden' },
-    progressFill: { height: '100%' },
+        progressWrap: { paddingHorizontal: 24, marginTop: 12 },
+        progressTrack: {
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)',
+            overflow: 'hidden',
+        },
+        progressFill: { height: '100%' },
 
-    cardStackWrap: { flex: 1, paddingHorizontal: 16, paddingVertical: 16 },
-    card: {
-        ...StyleSheet.absoluteFillObject,
-        margin: 16,
-        marginTop: 16,
-        borderRadius: radii.xl,
-        overflow: 'hidden',
-        backgroundColor: colors.surface,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 16 },
-        shadowOpacity: 0.4,
-        shadowRadius: 24,
-        elevation: 16,
-    },
-    cardOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24, paddingTop: 80 },
-    categoryPill: {
-        alignSelf: 'flex-start',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: radii.pill,
-        overflow: 'hidden',
-        marginBottom: 12,
-    },
-    categoryText: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
-    venueName: { color: 'white', fontSize: 28, fontFamily: 'Inter_900Black', marginBottom: 6 },
-    venueMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    metaText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontFamily: 'Inter_500Medium' },
-    metaDot: { color: 'rgba(255,255,255,0.5)' },
+        cardStackWrap: { flex: 1, paddingHorizontal: 16, paddingVertical: 16 },
+        card: {
+            ...StyleSheet.absoluteFillObject,
+            margin: 16,
+            marginTop: 16,
+            borderRadius: radii.xl,
+            overflow: 'hidden',
+            backgroundColor: c.surface,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 16 },
+            shadowOpacity: 0.4,
+            shadowRadius: 24,
+            elevation: 16,
+        },
+        cardOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24, paddingTop: 80 },
+        categoryPill: {
+            alignSelf: 'flex-start',
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: radii.pill,
+            overflow: 'hidden',
+            marginBottom: 12,
+        },
+        categoryText: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
+        venueName: { color: 'white', fontSize: 28, fontFamily: 'Inter_900Black', marginBottom: 6 },
+        venueMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+        metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+        metaText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontFamily: 'Inter_500Medium' },
+        metaDot: { color: 'rgba(255,255,255,0.5)' },
 
-    stamp: {
-        position: 'absolute',
-        top: '30%',
-        borderWidth: 4,
-        borderRadius: radii.lg,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-    },
-    stampLike: { left: 24, borderColor: colors.success, transform: [{ rotate: '-20deg' }] },
-    stampLikeText: { color: colors.success, fontSize: 36, fontFamily: 'Inter_900Black' },
-    stampNope: { right: 24, borderColor: colors.danger, transform: [{ rotate: '20deg' }] },
-    stampNopeText: { color: colors.danger, fontSize: 36, fontFamily: 'Inter_900Black' },
+        stamp: {
+            position: 'absolute',
+            top: '30%',
+            borderWidth: 4,
+            borderRadius: radii.lg,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+        },
+        stampLike: { left: 24, borderColor: c.success, transform: [{ rotate: '-20deg' }] },
+        stampLikeText: { color: c.success, fontSize: 36, fontFamily: 'Inter_900Black' },
+        stampNope: { right: 24, borderColor: c.danger, transform: [{ rotate: '20deg' }] },
+        stampNopeText: { color: c.danger, fontSize: 36, fontFamily: 'Inter_900Black' },
 
-    crewHud: {
-        marginHorizontal: 16,
-        marginTop: 8,
-        padding: 14,
-        borderRadius: radii.lg,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-        overflow: 'hidden',
-    },
-    crewHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-    crewLabel: { color: colors.text60, fontSize: 12, fontFamily: 'Inter_500Medium' },
-    crewCount: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
-    crewRow: { flexDirection: 'row', justifyContent: 'space-around' },
-    crewAvatar: { width: 44, height: 44, borderRadius: 22 },
-    crewBadgeLiked: {
-        position: 'absolute',
-        bottom: -2,
-        right: -2,
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: colors.success,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: colors.bg,
-    },
-    crewBadgeActive: {
-        position: 'absolute',
-        bottom: -2,
-        right: -2,
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: colors.primary,
-        borderWidth: 2,
-        borderColor: colors.bg,
-    },
-    crewName: { color: colors.text60, fontSize: 10, marginTop: 4, fontFamily: 'Inter_400Regular' },
+        crewHud: {
+            marginHorizontal: 16,
+            marginTop: 8,
+            padding: 14,
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+            overflow: 'hidden',
+        },
+        crewHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+        crewLabel: { color: c.text60, fontSize: 12, fontFamily: 'Inter_500Medium' },
+        crewCount: { color: c.textPrimary, fontSize: 12, fontFamily: 'Inter_700Bold' },
+        crewRow: { flexDirection: 'row', justifyContent: 'space-around' },
+        crewAvatar: { width: 44, height: 44, borderRadius: 22 },
+        crewBadgeLiked: {
+            position: 'absolute',
+            bottom: -2,
+            right: -2,
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            backgroundColor: c.success,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: c.bg,
+        },
+        crewBadgeActive: {
+            position: 'absolute',
+            bottom: -2,
+            right: -2,
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            backgroundColor: c.primary,
+            borderWidth: 2,
+            borderColor: c.bg,
+        },
+        crewName: { color: c.text60, fontSize: 10, marginTop: 4, fontFamily: 'Inter_400Regular' },
 
-    actions: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 32,
-        paddingVertical: 16,
-    },
-    passBtn: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 2,
-        borderColor: colors.danger,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    likeBtn: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.5,
-        shadowRadius: 16,
-        elevation: 12,
-    },
+        actions: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 32,
+            paddingVertical: 16,
+        },
+        passBtn: {
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            borderWidth: 2,
+            borderColor: c.danger,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        likeBtn: {
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: c.primary,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.5,
+            shadowRadius: 16,
+            elevation: 12,
+        },
 
-    donePickPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: radii.pill,
-    },
-    donePickText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 12 },
+        donePickPill: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: radii.pill,
+        },
+        donePickText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 12 },
 
-    voteCountPill: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        backgroundColor: 'rgba(34,197,94,0.85)',
-        borderRadius: radii.pill,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-    },
-    voteCountText: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
+        voteCountPill: {
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            backgroundColor: 'rgba(34,197,94,0.85)',
+            borderRadius: radii.pill,
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+        },
+        voteCountText: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
 
-    // ── Venue row (name + why chip) ───────────────────────────────────────────
-    venueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
-    whyChip: {
-        flexShrink: 0,
-        backgroundColor: 'rgba(108,62,244,0.75)',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: radii.pill,
-        marginBottom: 2,
-    },
-    whyChipText: { color: 'white', fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+        venueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
+        whyChip: {
+            flexShrink: 0,
+            backgroundColor: 'rgba(108,62,244,0.75)',
+            paddingHorizontal: 10,
+            paddingVertical: 5,
+            borderRadius: radii.pill,
+            marginBottom: 2,
+        },
+        whyChipText: { color: 'white', fontSize: 11, fontFamily: 'Inter_600SemiBold' },
 
-    // ── Web-only action buttons (56 px circles, shown instead of native pair) ─
-    webActions: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 16,
-        paddingVertical: 16,
-        marginTop: 24,
-    },
-    webPassBtn: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderColor: colors.danger,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    webLikeBtn: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+        webActions: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 16,
+            paddingVertical: 16,
+            marginTop: 24,
+        },
+        webPassBtn: {
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderColor: c.danger,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        webLikeBtn: {
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
 
-    // ── Floating toast ────────────────────────────────────────────────────────
-    toast: {
-        position: 'absolute',
-        top: 60,
-        alignSelf: 'center',
-        zIndex: 999,
-        backgroundColor: 'rgba(20,20,30,0.88)',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: radii.pill,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    toastText: { color: 'white', fontSize: 13, fontFamily: 'Inter_500Medium' },
+        toast: {
+            position: 'absolute',
+            top: 60,
+            alignSelf: 'center',
+            zIndex: 999,
+            backgroundColor: 'rgba(20,20,30,0.88)',
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: radii.pill,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        toastText: { color: 'white', fontSize: 13, fontFamily: 'Inter_500Medium' },
 
-    // ── AI pitch modal ────────────────────────────────────────────────────────
-    pitchOverlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0,0,0,0.6)',
-    },
-    pitchSheet: {
-        backgroundColor: '#12121A',
-        borderTopLeftRadius: radii.xl,
-        borderTopRightRadius: radii.xl,
-        padding: 24,
-        paddingBottom: 40,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    pitchDragBar: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.text40,
-        alignSelf: 'center',
-        marginBottom: 20,
-    },
-    pitchPhoto: {
-        width: '100%',
-        height: 160,
-        borderRadius: radii.md,
-        marginBottom: 12,
-        resizeMode: 'cover',
-    },
-    pitchVenueName: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 18,
-        marginBottom: 14,
-    },
-    pitchBody: {
-        color: colors.text80,
-        fontSize: 15,
-        fontFamily: 'Inter_400Regular',
-        lineHeight: 22,
-        marginBottom: 24,
-    },
-    pitchDismiss: {
-        backgroundColor: colors.primary,
-        borderRadius: radii.md,
-        paddingVertical: 12,
-        alignItems: 'center',
-    },
-    pitchDismissText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
-});
+        pitchOverlay: {
+            flex: 1,
+            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+        },
+        pitchSheet: {
+            backgroundColor: c.bg,
+            borderTopLeftRadius: radii.xl,
+            borderTopRightRadius: radii.xl,
+            padding: 24,
+            paddingBottom: 40,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        pitchDragBar: {
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: c.text40,
+            alignSelf: 'center',
+            marginBottom: 20,
+        },
+        pitchPhoto: {
+            width: '100%',
+            height: 160,
+            borderRadius: radii.md,
+            marginBottom: 12,
+            resizeMode: 'cover',
+        },
+        pitchVenueName: {
+            color: c.textPrimary,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 18,
+            marginBottom: 14,
+        },
+        pitchBody: {
+            color: c.text80,
+            fontSize: 15,
+            fontFamily: 'Inter_400Regular',
+            lineHeight: 22,
+            marginBottom: 24,
+        },
+        pitchDismiss: {
+            backgroundColor: c.primary,
+            borderRadius: radii.md,
+            paddingVertical: 12,
+            alignItems: 'center',
+        },
+        pitchDismissText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
+    });
+}

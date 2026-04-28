@@ -15,6 +15,7 @@ import matchRoutes from './routes/match';
 import datesRoutes from './routes/dates';
 import calendarRoutes from './routes/calendar';
 import discoverRoutes from './routes/discover';
+import feedRoutes from './routes/feed';
 import friendsRoutes from './routes/friends';
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/party', matchRoutes);
 app.use('/api/party', datesRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/discover', discoverRoutes);
+app.use('/api/discover', feedRoutes);
 app.use('/api/friends', friendsRoutes);
 
 app.use((req, res) => {
@@ -46,9 +48,12 @@ app.use((req, res) => {
 
 app.use(errorHandler);
 
-// Ensure the avatars bucket exists. Fire-and-forget: safe to re-run on restart.
+// Ensure storage buckets exist. Fire-and-forget: safe to re-run on restart.
 supabaseAdmin.storage
     .createBucket('avatars', { public: true, fileSizeLimit: 5 * 1024 * 1024 })
+    .catch(() => { /* bucket already exists — ignore */ });
+supabaseAdmin.storage
+    .createBucket('feed-photos', { public: true, fileSizeLimit: 10 * 1024 * 1024 })
     .catch(() => { /* bucket already exists — ignore */ });
 
 app.listen(config.port, () => {

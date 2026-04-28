@@ -17,6 +17,7 @@ export interface CrewMapProps {
     height?: number;
     showMidpoint?: boolean;
     onMemberPress?: (userId: string) => void;
+    scrollWheelZoom?: boolean;
 }
 
 export default function CrewMap({
