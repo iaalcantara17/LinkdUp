@@ -65,7 +65,6 @@ export default function LoginScreen() {
     const [mode, setMode] = useState<'signup' | 'login'>(route.params?.mode ?? 'signup');
     const [loading, setLoading] = useState(false);
 
-    // Refs for keyboard-tab-through
     const emailRef    = useRef<TextInput>(null);
     const passwordRef = useRef<TextInput>(null);
     const schoolRef   = useRef<TextInput>(null);

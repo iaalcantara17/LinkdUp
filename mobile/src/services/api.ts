@@ -30,7 +30,6 @@ async function request<T>(method: string, path: string, body?: any): Promise<T> 
 export const api = {
     health: () => request<{ ok: boolean }>('GET', '/api/health'),
 
-    // Auth
     signup: (b: { email: string; password: string; display_name: string; school_id?: string; graduation_year?: number }) =>
         request<any>('POST', '/api/auth/signup', b),
     login: (b: { email: string; password: string }) => request<any>('POST', '/api/auth/login', b),
@@ -56,7 +55,6 @@ export const api = {
     myParties: () => request<any[]>('GET', '/api/user/me/parties'),
     myHangouts: () => request<any[]>('GET', '/api/user/me/hangouts'),
 
-    // Schools
     schools: (q = '') => request<Array<{ id: string; name: string; city: string; state: string }>>(
         'GET', `/api/schools?q=${encodeURIComponent(q)}`
     ),
@@ -67,7 +65,6 @@ export const api = {
         'POST', '/api/schools/lookup', { name }
     ),
 
-    // User
     updateAvatar: (image_base64: string) =>
         request<{ ok: boolean; avatar_url: string }>('PUT', '/api/user/me/avatar', { image_base64 }),
     updateLocation: (lat: number, lng: number) =>
@@ -75,7 +72,6 @@ export const api = {
     updateLocationManual: (city: string, country?: string) =>
         request<any>('PUT', '/api/user/location/manual', { city, country }),
 
-    // Party
     createParty: (name?: string, isPublic?: boolean) =>
         request<{ party_id: string; code: string }>('POST', '/api/party', { name, is_public: isPublic ?? false }),
     joinParty: (code: string) => request<{ party_id: string }>('POST', '/api/party/join', { code }),
@@ -91,13 +87,11 @@ export const api = {
     getVenuePitch: (partyId: string, venueId: string) =>
         request<{ pitch: string }>('GET', `/api/party/${partyId}/pitch?venue_id=${venueId}`),
 
-    // Vote
     vote: (partyId: string, locationId: string, vote: boolean) =>
         request<any>('POST', `/api/party/${partyId}/vote`, { location_id: locationId, vote }),
     getVotes: (partyId: string) => request<any[]>('GET', `/api/party/${partyId}/votes`),
     getMyVotes: (partyId: string) => request<Array<{ location_id: string }>>('GET', `/api/party/${partyId}/my-votes`),
 
-    // Match
     getMatch: (partyId: string) => request<any>('GET', `/api/party/${partyId}/match`),
     forceMatch: (partyId: string) => request<any>('POST', `/api/party/${partyId}/force-match`),
     markWalkthroughSeen: () => request<any>('POST', '/api/user/me/walkthrough-seen'),
@@ -107,7 +101,6 @@ export const api = {
     getSeenHints: () => request<string[]>('GET', '/api/user/me/hints'),
     markHintSeen: (screenKey: string) => request<any>('POST', '/api/user/me/hints', { screen_key: screenKey }),
 
-    // Dates
     generateDates: (partyId: string) => request<any>('POST', `/api/party/${partyId}/dates`),
     getDates: (partyId: string) => request<any[]>('GET', `/api/party/${partyId}/dates`),
     voteDates: (partyId: string, ids: string[]) =>
@@ -119,15 +112,12 @@ export const api = {
             'POST', `/api/party/${partyId}/dates/custom`, { datetime }
         ),
 
-    // Calendar
     calendarOAuthStart: () => request<{ url: string }>('GET', '/api/calendar/oauth/start'),
     calendarExport: (partyId: string) => request<any>('POST', `/api/calendar/party/${partyId}/export`),
 
-    // Party — load more venues
     loadMoreVenues: (partyId: string) =>
         request<{ new_venue_count: number; exhausted?: boolean }>('GET', `/api/party/${partyId}/more-venues`),
 
-    // Discover — venues + parties
     discoverVenues: (lat: number, lng: number) =>
         request<any[]>('GET', `/api/discover/venues?lat=${lat}&lng=${lng}`),
     discoverParties: (lat: number, lng: number) =>
@@ -157,7 +147,6 @@ export const api = {
         return request<{ pitch: string }>('GET', `/api/discover/pitch?${params.toString()}`);
     },
 
-    // Discover — personal likes (independent of party/voting)
     likeDiscoverVenue: (venue: {
         google_place_id: string;
         name: string;
@@ -173,7 +162,6 @@ export const api = {
         request<{ ok: boolean }>('DELETE', `/api/discover/likes/${encodeURIComponent(placeId)}`),
     getDiscoverLikes: () => request<any[]>('GET', '/api/discover/likes'),
 
-    // Discover — feed
     getFeed: (opts?: { limit?: number; after?: string; lat?: number; lng?: number }) => {
         const params = new URLSearchParams();
         if (opts?.limit) params.set('limit', String(opts.limit));
@@ -186,7 +174,6 @@ export const api = {
         );
     },
 
-    // Feed — post creation
     getUploadUrl: (ext = 'jpg') =>
         request<{ upload_url: string; public_url: string; file_path: string }>(
             'POST', '/api/discover/feed/upload-url', { ext }
@@ -220,13 +207,11 @@ export const api = {
         venue_google_place_id: b.venue_google_place_id ?? null,
     }),
 
-    // Feed — likes
     likeFeedPost: (postId: string) =>
         request<{ ok: boolean }>('POST', `/api/discover/feed/posts/${postId}/like`),
     unlikeFeedPost: (postId: string) =>
         request<{ ok: boolean }>('DELETE', `/api/discover/feed/posts/${postId}/like`),
 
-    // Feed — bookmarks
     bookmarkFeedPost: (postId: string, collectionId?: string | null) =>
         request<{ ok: boolean }>('POST', `/api/discover/feed/posts/${postId}/bookmark`, {
             collection_id: collectionId ?? null,
@@ -234,7 +219,6 @@ export const api = {
     unbookmarkFeedPost: (postId: string) =>
         request<{ ok: boolean }>('DELETE', `/api/discover/feed/posts/${postId}/bookmark`),
 
-    // Feed — comments
     getFeedComments: (postId: string) =>
         request<any[]>('GET', `/api/discover/feed/posts/${postId}/comments`),
     addFeedComment: (postId: string, body: string) =>
@@ -242,25 +226,20 @@ export const api = {
     deleteFeedComment: (commentId: string) =>
         request<{ ok: boolean }>('DELETE', `/api/discover/feed/comments/${commentId}`),
 
-    // Feed — follow
     followUser: (userId: string) =>
         request<{ ok: boolean }>('POST', `/api/user/${userId}/follow`),
     unfollowUser: (userId: string) =>
         request<{ ok: boolean }>('DELETE', `/api/user/${userId}/follow`),
 
-    // Feed — edit own post caption
     editFeedPost: (postId: string, caption: string | null) =>
         request<{ ok: boolean }>('PATCH', `/api/discover/feed/posts/${postId}`, { caption }),
 
-    // Feed — delete own post
     deleteFeedPost: (postId: string) =>
         request<{ ok: boolean }>('DELETE', `/api/discover/feed/posts/${postId}`),
 
-    // Feed — my posts
     getMyPosts: () =>
         request<{ posts: any[] }>('GET', '/api/discover/feed/my-posts'),
 
-    // Feed — bookmark collections
     getCollections: () =>
         request<Array<{ id: string; name: string; created_at: string }>>('GET', '/api/discover/feed/collections'),
     createCollection: (name: string) =>
@@ -274,13 +253,11 @@ export const api = {
         return request<{ posts: any[] }>('GET', `/api/discover/feed/saved${qs}`);
     },
 
-    // Feed — add venue to party swipes
     addPostVenueToParty: (postId: string, partyId: string) =>
         request<{ added: boolean; location_id: string }>(
             'POST', `/api/discover/feed/posts/${postId}/add-to-party`, { party_id: partyId }
         ),
 
-    // Places — text search for venue picker
     searchPlaces: (q: string, lat?: number, lng?: number) => {
         const params = new URLSearchParams({ q });
         if (lat != null) params.set('lat', String(lat));
@@ -290,10 +267,8 @@ export const api = {
         );
     },
 
-    // Account
     deleteAccount: () => request<{ ok: boolean }>('DELETE', '/api/user/me'),
 
-    // Friends
     getFriends: () => request<any[]>('GET', '/api/friends'),
     getPendingRequests: () => request<any[]>('GET', '/api/friends/pending'),
     getOutgoingRequests: () => request<any[]>('GET', '/api/friends/outgoing'),

@@ -262,7 +262,7 @@ export default function FeedView({ onBack }: Props) {
                         onFollow={handleFollow}
                         onAddToParty={handleAddToParty}
                         onDelete={handleDelete}
-                        onCreatorPress={(p) => console.log('[feed] creatorPress', p.id)}
+                        onCreatorPress={() => {}}
                     />
                 )}
                 pagingEnabled

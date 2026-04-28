@@ -90,7 +90,7 @@ export async function deleteCalendarEventForUser(userId: string, eventId: string
         .eq('id', userId)
         .single();
 
-    if (!user?.google_calendar_token) return; // user not connected — nothing to delete
+    if (!user?.google_calendar_token) return;
 
     const oauth2Client = makeOAuthClient();
     oauth2Client.setCredentials({
@@ -102,7 +102,6 @@ export async function deleteCalendarEventForUser(userId: string, eventId: string
     await calendar.events.delete({ calendarId: 'primary', eventId });
 }
 
-// ICS fallback for users not connected to Google
 export function buildICS(ev: CalendarEventInput): string {
     const fmt = (iso: string) => iso.replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const uid = `linkdup-${Date.now()}@linkdup.app`;

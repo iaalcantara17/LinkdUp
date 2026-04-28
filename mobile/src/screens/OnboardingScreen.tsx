@@ -16,8 +16,6 @@ import { ChevronRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { colors, typography, radii } from '../theme';
 
-// width is now read from useWindowDimensions() inside the component
-
 const slides = [
     {
         title: 'Reconnect with your alumni',

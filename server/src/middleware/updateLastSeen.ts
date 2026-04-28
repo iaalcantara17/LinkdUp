@@ -12,12 +12,11 @@ export async function updateLastSeen(req: AuthedRequest, _res: Response, next: N
         const last = lastWriteMap.get(userId) ?? 0;
         if (now - last > THROTTLE_MS) {
             lastWriteMap.set(userId, now);
-            supabaseAdmin
+            void supabaseAdmin
                 .from('users')
                 .update({ last_seen_at: new Date().toISOString() })
                 .eq('id', userId)
-                .then(() => {})
-                .catch(() => {});
+                .then(() => {}, () => {});
         }
     }
     next();

@@ -27,8 +27,6 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
 import { api } from '../services/api';
 import { colors, radii } from '../theme';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 interface DiscoverVenue {
     google_place_id: string;
     name: string;
@@ -81,8 +79,6 @@ function isCacheStale(lat: number, lng: number): boolean {
     return Math.abs(lat - _cacheLat) > 0.1 || Math.abs(lng - _cacheLng) > 0.1;
 }
 
-// ── Helper components ─────────────────────────────────────────────────────────
-
 function PriceLevel({ level }: { level: number | null }) {
     if (level === null || level === 0) return null;
     const filled = level;
@@ -99,13 +95,10 @@ function PriceLevel({ level }: { level: number | null }) {
     );
 }
 
-// ── Venue detail modal ────────────────────────────────────────────────────────
-
 function VenueDetailModal({ venue, onClose }: { venue: DiscoverVenue | null; onClose: () => void }) {
     const [pitch, setPitch] = useState<string | null>(null);
     const [pitchLoading, setPitchLoading] = useState(false);
 
-    // Reset pitch state whenever venue changes
     useEffect(() => {
         setPitch(null);
         setPitchLoading(false);
@@ -212,7 +205,7 @@ function VenueDetailModal({ venue, onClose }: { venue: DiscoverVenue | null; onC
     );
 }
 
-// ── Venue card (horizontal strip) ─────────────────────────────────────────────
+
 
 function VenueCard({
     venue, onPress, liked, onLike,
@@ -269,7 +262,7 @@ function VenueCard({
     );
 }
 
-// ── Liked venue card (Your Likes tab) ─────────────────────────────────────────
+
 
 function LikedVenueCard({ venue, onUnlike }: { venue: DiscoverLike; onUnlike: () => void }) {
     return (
@@ -320,7 +313,7 @@ function LikedVenueCard({ venue, onUnlike }: { venue: DiscoverLike; onUnlike: ()
     );
 }
 
-// ── Party card (vertical list) ────────────────────────────────────────────────
+
 
 function PartyCard({ party, onJoin, joining }: { party: DiscoverParty; onJoin: () => void; joining: boolean }) {
     const label = party.name ?? `${party.host_display_name}'s party`;
@@ -378,15 +371,11 @@ function PartyCard({ party, onJoin, joining }: { party: DiscoverParty; onJoin: (
     );
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
-
 export default function DiscoverScreen() {
     const nav = useNavigation<any>();
 
-    // Tab
     const [activeTab, setActiveTab] = useState<'explore' | 'feed' | 'likes'>('explore');
 
-    // Explore data
     const [venues, setVenues] = useState<DiscoverVenue[]>([]);
     const [parties, setParties] = useState<DiscoverParty[]>([]);
     const [userLat, setUserLat] = useState<number | null>(null);
@@ -401,18 +390,14 @@ export default function DiscoverScreen() {
     const [hasMoreVenues, setHasMoreVenues] = useState(true);
     const [featuredIndex, setFeaturedIndex] = useState(0);
 
-    // Trending scroll (FIX 2)
     const trendingScrollRef = useRef<ScrollView>(null);
     const featuredHeartRef  = useRef<View>(null);
     const [trendingScrollX, setTrendingScrollX] = useState(0);
 
-    // Personal likes (FIX 3 + 4)
     const [likedVenues, setLikedVenues] = useState<DiscoverLike[]>([]);
     const [likedPlaceIds, setLikedPlaceIds] = useState<Set<string>>(new Set());
     const [loadingLikes, setLoadingLikes] = useState(false);
     const likesLoadedRef = useRef(false);
-
-    // ── Fetch likes ───────────────────────────────────────────────────────────
 
     const fetchLikes = useCallback(async (showSpinner = false) => {
         if (showSpinner) setLoadingLikes(true);
@@ -429,8 +414,6 @@ export default function DiscoverScreen() {
             setLoadingLikes(false);
         }
     }, []);
-
-    // ── Load explore data ─────────────────────────────────────────────────────
 
     const load = useCallback(async (force = false) => {
         try {
@@ -516,8 +499,6 @@ export default function DiscoverScreen() {
         setRefreshing(false);
     }, [load, fetchLikes, activeTab]);
 
-    // ── Like / unlike handlers ────────────────────────────────────────────────
-
     const handleLikeVenue = useCallback(async (venue: DiscoverVenue) => {
         const placeId = venue.google_place_id;
         setLikedPlaceIds((prev) => { const n = new Set(prev); n.add(placeId); return n; });
@@ -573,8 +554,6 @@ export default function DiscoverScreen() {
         }
     }, [likedVenues]);
 
-    // ── Load more venues ──────────────────────────────────────────────────────
-
     const handleLoadMoreVenues = useCallback(async () => {
         if (loadingMoreVenues || userLat === null || userLng === null) return;
         setLoadingMoreVenues(true);
@@ -584,7 +563,6 @@ export default function DiscoverScreen() {
                 ...Array.from(likedPlaceIds),
             ];
             const result = await api.discoverMoreVenues(userLat, userLng, excludeIds);
-            console.log('[discover load-more] api response:', result);
             const newVenues = result?.venues ?? [];
             if (newVenues.length > 0) {
                 const existingIds = new Set(venues.map((v) => v.google_place_id));
@@ -611,14 +589,10 @@ export default function DiscoverScreen() {
         }
     };
 
-    // ── Tab change (re-fetch likes on switch) ─────────────────────────────────
-
     const handleTabChange = (tab: 'explore' | 'feed' | 'likes') => {
         setActiveTab(tab);
         if (tab === 'likes') fetchLikes(likedVenues.length === 0);
     };
-
-    // ── Trending scroll helpers (FIX 2 — web only) ───────────────────────────
 
     const scrollLeft = () => {
         const next = Math.max(0, trendingScrollX - 320);
@@ -628,8 +602,6 @@ export default function DiscoverScreen() {
     const scrollRight = () => {
         trendingScrollRef.current?.scrollTo({ x: trendingScrollX + 320, animated: true });
     };
-
-    // ── Render ────────────────────────────────────────────────────────────────
 
     return (
         <View style={styles.root}>
@@ -987,8 +959,6 @@ export default function DiscoverScreen() {
         </View>
     );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },

@@ -22,7 +22,6 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: config.corsOrigin }));
-// Raised to 5 MB to accommodate base64-encoded avatar images
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 
@@ -48,13 +47,12 @@ app.use((req, res) => {
 
 app.use(errorHandler);
 
-// Ensure storage buckets exist. Fire-and-forget: safe to re-run on restart.
 supabaseAdmin.storage
     .createBucket('avatars', { public: true, fileSizeLimit: 5 * 1024 * 1024 })
-    .catch(() => { /* bucket already exists — ignore */ });
+    .catch(() => {});
 supabaseAdmin.storage
     .createBucket('feed-photos', { public: true, fileSizeLimit: 10 * 1024 * 1024 })
-    .catch(() => { /* bucket already exists — ignore */ });
+    .catch(() => {});
 
 app.listen(config.port, () => {
     console.log(`LinkdUp API listening on http://localhost:${config.port}`);

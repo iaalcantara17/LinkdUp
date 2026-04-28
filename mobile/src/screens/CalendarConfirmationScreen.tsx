@@ -212,7 +212,6 @@ export default function CalendarConfirmationScreen() {
     };
 
     const handleAddToGoogle = async () => {
-        console.log('[gcal] click, connected=', googleConnected, 'party=', partyId);
         setLoading(true);
         try {
             if (!googleConnected) {

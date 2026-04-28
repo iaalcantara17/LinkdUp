@@ -31,7 +31,6 @@ export const config = {
     },
 
     anthropic: {
-        // Optional — if absent, AI pitches fall back to a static message.
         apiKey: optional('ANTHROPIC_API_KEY'),
     },
 };

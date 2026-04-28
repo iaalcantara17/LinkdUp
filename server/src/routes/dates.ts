@@ -12,7 +12,6 @@ async function assertHost(partyId: string, userId: string) {
     if (data.host_user_id !== userId) throw new HttpError(403, 'not_host');
 }
 
-// Generate 30-day x 4-slot grid (morning/lunch/evening/night)
 const SLOTS_PER_DAY = [
     { hour: 11, minute: 0, label: 'morning' },
     { hour: 13, minute: 30, label: 'lunch' },
@@ -25,7 +24,6 @@ router.post('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => 
         const partyId = req.params.id;
         await assertHost(partyId, req.user!.id);
 
-        // Idempotent: if dates already exist for this party, return them.
         const { data: existing } = await supabaseAdmin
             .from('party_dates')
             .select('id, starts_at, ends_at')
@@ -33,7 +31,6 @@ router.post('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => 
             .order('starts_at');
         if (existing && existing.length > 0) return res.json(existing);
 
-        // Generate 30 days starting tomorrow
         const rows: Array<{ party_id: string; starts_at: string; ends_at: string }> = [];
         const now = new Date();
         for (let day = 1; day <= 30; day++) {
@@ -112,7 +109,6 @@ router.post('/:id/dates/vote', requireAuth, async (req: AuthedRequest, res, next
         const partyId = req.params.id;
         const body = dateVoteSchema.parse(req.body);
 
-        // Wipe this user's previous votes for this party first
         const { data: existingDates } = await supabaseAdmin
             .from('party_dates')
             .select('id')
@@ -141,19 +137,14 @@ router.post('/:id/dates/vote', requireAuth, async (req: AuthedRequest, res, next
     } catch (e) { next(e); }
 });
 
-// ── POST /:id/dates/custom ────────────────────────────────────────────────────
-// Insert a single custom party_date chosen by the user (any datetime, not only
-// the auto-generated 30-day grid). Idempotent: returns the existing row if the
-// same starts_at already exists for this party.
 const customDateSchema = z.object({
-    datetime: z.string().min(1), // ISO datetime string
+    datetime: z.string().min(1),
 });
 
 router.post('/:id/dates/custom', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
 
-        // Assert caller is a party member (not just the host)
         const { data: membership } = await supabaseAdmin
             .from('party_members')
             .select('user_id')
@@ -167,7 +158,6 @@ router.post('/:id/dates/custom', requireAuth, async (req: AuthedRequest, res, ne
         if (isNaN(start.getTime())) throw new HttpError(400, 'invalid_datetime');
         const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
 
-        // Return existing row if this exact slot already exists
         const { data: existing } = await supabaseAdmin
             .from('party_dates')
             .select('id, starts_at, ends_at')

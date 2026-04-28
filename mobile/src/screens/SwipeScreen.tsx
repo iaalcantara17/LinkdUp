@@ -311,12 +311,9 @@ export default function SwipeScreen() {
     const triggerLoadMore = useCallback(() => {
         if (loadingMoreRef.current || partyId === 'demo') return;
         loadingMoreRef.current = true;
-        const deckBefore = venuesRef.current.length;
-        console.log('[swipe load-more] deck size before:', deckBefore);
         (async () => {
             try {
                 const result = await api.loadMoreVenues(partyId);
-                console.log('[swipe load-more] api response:', result);
                 const locs = await api.getLocations(partyId);
                 const existingIds = new Set(venuesRef.current.map((v) => v.id));
                 const newVenues = (locs ?? []).filter((l: any) => !existingIds.has(l.id));
@@ -325,7 +322,6 @@ export default function SwipeScreen() {
                     setVenues(updated);
                     venuesRef.current = updated;
                 }
-                console.log('[swipe load-more] deck size after:', venuesRef.current.length);
                 const count = result?.new_venue_count ?? 0;
                 const exhausted = result?.exhausted ?? false;
                 if (count > 0) {

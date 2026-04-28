@@ -24,13 +24,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const hash = window.location.hash;
         if (!hash.includes('access_token')) return;
 
-        console.log('[auth] OAuth hash detected, hydrating session');
-
         supabase.auth.getSession().then(({ data, error }) => {
             if (error) { console.error('[auth] getSession failed', error); return; }
             if (!data?.session) { console.warn('[auth] no session after hash detection'); return; }
-
-            console.log('[auth] session hydrated for', data.session.user.id);
 
             // Remove the hash so the tokens don't stay in the address bar or browser history.
             window.history.replaceState({}, document.title, window.location.pathname);
@@ -43,19 +39,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 'User';
 
             api.ensureProfile({ email: user.email!, display_name: displayName })
-                .then(() => console.log('[auth] profile ensured'))
                 .catch((e: any) => console.error('[auth] ensureProfile failed', e));
         });
     }, []);
 
     useEffect(() => {
-        // Initialise from persisted session (Supabase handles AsyncStorage / localStorage)
         supabase.auth.getSession().then(({ data }) => {
             setSession(data.session);
             setLoading(false);
         });
 
-        // Keep in sync with all auth events (login, token refresh, OAuth callback, signOut)
         const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
             setSession(s);
             if (!s) setLoading(false); // ensure loading clears on explicit sign-out

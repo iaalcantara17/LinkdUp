@@ -28,7 +28,6 @@ router.get('/oauth/callback', async (req, res, next) => {
 
         await storeUserTokens(state, tokens.access_token, tokens.refresh_token ?? null);
 
-        // Render a tiny HTML page that the mobile app can detect & close
         res.send(`
             <html><body style="font-family:system-ui;background:#0B0B14;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
                 <div style="text-align:center;padding:32px;">
@@ -79,7 +78,6 @@ router.post('/party/:id/export', requireAuth, async (req: AuthedRequest, res, ne
 
         const result = await createCalendarEventForUser(req.user!.id, ev);
 
-        // Persist the GCal event ID so we can delete it later on party delete/leave
         if (result.id) {
             await supabaseAdmin
                 .from('parties')

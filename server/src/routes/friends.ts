@@ -6,7 +6,6 @@ import { HttpError } from '../middleware/error';
 
 const router = Router();
 
-// Helper: return a user's public profile fields
 async function publicUserFields(userId: string) {
     const { data } = await supabaseAdmin
         .from('users')
@@ -16,8 +15,6 @@ async function publicUserFields(userId: string) {
     return data;
 }
 
-// ── GET /api/friends ──────────────────────────────────────────────────────────
-// Returns accepted friends of the current user.
 router.get('/', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -46,8 +43,6 @@ router.get('/', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-// ── GET /api/friends/pending ──────────────────────────────────────────────────
-// Incoming requests: rows where I am the addressee and status = 'pending'.
 router.get('/pending', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -75,8 +70,6 @@ router.get('/pending', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-// ── GET /api/friends/outgoing ─────────────────────────────────────────────────
-// Outgoing pending requests: rows where I am the requester and status = 'pending'.
 router.get('/outgoing', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -104,7 +97,6 @@ router.get('/outgoing', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-// ── POST /api/friends/request ─────────────────────────────────────────────────
 const requestSchema = z.object({ user_id: z.string().uuid() });
 router.post('/request', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
@@ -112,7 +104,6 @@ router.post('/request', requireAuth, async (req: AuthedRequest, res, next) => {
         const me = req.user!.id;
         if (user_id === me) throw new HttpError(400, 'cannot_friend_self');
 
-        // Check for an existing row in either direction
         const { data: existing } = await supabaseAdmin
             .from('friendships')
             .select('id, status')
@@ -134,7 +125,6 @@ router.post('/request', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-// ── POST /api/friends/:id/accept ──────────────────────────────────────────────
 router.post('/:id/accept', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const friendshipId = req.params.id;
@@ -158,7 +148,6 @@ router.post('/:id/accept', requireAuth, async (req: AuthedRequest, res, next) =>
     } catch (e) { next(e); }
 });
 
-// ── POST /api/friends/:id/decline ─────────────────────────────────────────────
 router.post('/:id/decline', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const friendshipId = req.params.id;
@@ -177,8 +166,6 @@ router.post('/:id/decline', requireAuth, async (req: AuthedRequest, res, next) =
     } catch (e) { next(e); }
 });
 
-// ── DELETE /api/friends/:user_id ──────────────────────────────────────────────
-// Removes an accepted friendship (caller can be either side).
 router.delete('/:user_id', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const other = req.params.user_id;
@@ -195,9 +182,6 @@ router.delete('/:user_id', requireAuth, async (req: AuthedRequest, res, next) =>
     } catch (e) { next(e); }
 });
 
-// ── GET /api/friends/search?q=... ─────────────────────────────────────────────
-// Searches users by display_name (case-insensitive substring). Returns up to 20
-// results with the caller's current friendship status with each user.
 router.get('/search', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const q = ((req.query.q as string) ?? '').trim();
@@ -224,7 +208,6 @@ router.get('/search', requireAuth, async (req: AuthedRequest, res, next) => {
 
         const userIds = users.map((u: any) => u.id);
 
-        // Get all friendships between me and these users
         const { data: friendships } = await supabaseAdmin
             .from('friendships')
             .select('id, requester_id, addressee_id, status')
@@ -251,8 +234,6 @@ router.get('/search', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-// ── GET /api/friends/status/:user_id ─────────────────────────────────────────
-// Lightweight single-user friendship status check. Used by UserProfileSheet.
 router.get('/status/:user_id', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;

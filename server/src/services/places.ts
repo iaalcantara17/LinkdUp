@@ -22,8 +22,6 @@ export interface PlaceCandidate {
 
 const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
-// Initial broad category list — food + culture + entertainment, no grocery/retail/pharmacy.
-// These types are suitable for alumni/friend group meetups.
 const INCLUDED_TYPES = [
     'restaurant', 'cafe', 'bar', 'bakery',
     'park', 'tourist_attraction', 'museum', 'art_gallery',
@@ -31,8 +29,6 @@ const INCLUDED_TYPES = [
     'gym', 'yoga_studio',
     'shopping_mall', 'book_store',
     'night_club',
-    // Intentionally excluded: supermarket, grocery_store, convenience_store,
-    // gas_station, hardware_store, pharmacy, department_store
 ];
 
 export async function searchNearbyVenues(center: LatLng, radiusMeters = 5000, maxResults = 15): Promise<PlaceCandidate[]> {
@@ -119,9 +115,6 @@ function priceLevelToInt(level: any): number | null {
     return null;
 }
 
-// ── Blocked venue types ───────────────────────────────────────────────────────
-// Applied as a post-filter to both Places API paths. Alumni/friend group meetups
-// don't happen at grocery stores, gas stations, pharmacies, etc.
 const BLOCKED_PRIMARY_TYPES = new Set([
     'supermarket', 'grocery_store', 'convenience_store', 'gas_station',
     'department_store', 'hardware_store', 'pharmacy', 'drugstore',
@@ -129,17 +122,11 @@ const BLOCKED_PRIMARY_TYPES = new Set([
     'moving_company', 'bank', 'atm', 'post_office', 'laundry',
 ]);
 
-// Known-bad name fragments (catch BJ's Wholesale, Costco, Sam's Club, etc.)
 const BLOCKED_NAME_FRAGMENTS = [
     'wholesale', 'costco', 'bj\'s', 'sam\'s club', 'shoprite', 'whole foods',
     'trader joe', 'walmart', 'target', 'cvs pharmacy', 'walgreens', 'rite aid',
 ];
 
-/**
- * Post-filter for mapped venues: rejects retail / automotive / storage, etc.
- * Use after Places returns — multi-type venues (e.g. restaurant + grocery_store) are excluded
- * if ANY type matches the blocklist.
- */
 export function isAcceptableVenueType(venue: {
     name: string;
     primaryType?: string | null;
@@ -153,46 +140,33 @@ export function isAcceptableVenueType(venue: {
     });
 }
 
-/** Returns true when a raw Google Places API result should be excluded. */
 export function isBlockedVenue(p: any): boolean {
-    // New Places API: primaryType field
     const primary: string = (p.primaryType ?? p.primary_type ?? '').toLowerCase();
     if (BLOCKED_PRIMARY_TYPES.has(primary)) return true;
 
-    // Legacy API: types array
     const types: string[] = (p.types ?? []).map((t: string) => t.toLowerCase());
     if (types.some((t) => BLOCKED_PRIMARY_TYPES.has(t))) return true;
 
-    // Name-based heuristic (catches wholesale clubs, big-box stores by name)
     const name: string = (p.name ?? p.displayName?.text ?? '').toLowerCase();
     if (BLOCKED_NAME_FRAGMENTS.some((frag) => name.includes(frag))) return true;
 
     return false;
 }
 
-// ── Legacy Nearby Search (v1) — supports next_page_token pagination ───────────
-// Used by "load more venues". The new Places API does not support pagination.
+// The new Places API has no pagination; the legacy API is used only to seed
+// next_page_token on party start and discover initial load.
 const NEARBY_SEARCH_LEGACY_URL = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
 
-// Rotation buckets for load-more calls — uses the NEW Places API with proper
-// includedTypes enum strings (snake_case). The legacy keyword-based search has
-// been disabled on most new API keys and returns zero results.
+// Rotation buckets for load-more calls. Food is last to avoid front-loading it.
 export const ROTATION_TYPES: string[][] = [
-    // bucket 0 — culture (low overlap with initial food-heavy search)
     ['museum', 'art_gallery', 'library', 'tourist_attraction'],
-    // bucket 1 — outdoor
     ['park', 'national_park'],
-    // bucket 2 — entertainment
     ['bowling_alley', 'movie_theater', 'amusement_park', 'night_club', 'aquarium', 'zoo'],
-    // bucket 3 — fitness & retail
     ['gym', 'fitness_center', 'shopping_mall', 'book_store'],
-    // bucket 4 — food (last; overlaps with initial search)
     ['restaurant', 'cafe', 'bar', 'bakery'],
 ];
 export const ROTATION_COUNT = ROTATION_TYPES.length;
 
-// Default keywords for an initial legacy API call (all categories; used to seed
-// the first nextPageToken on party start / discover initial load).
 const DEFAULT_LEGACY_KEYWORDS = [
     'restaurant', 'cafe', 'bar', 'park',
     'tourist_attraction', 'bowling_alley', 'movie_theater',
@@ -205,7 +179,7 @@ export async function searchNearbyVenuesPaged(
     pageToken?: string,
     keywords?: string[],
 ): Promise<PagedVenueResult> {
-    // When a pageToken is supplied, only key + pagetoken may be sent (Google requirement).
+    // Google requires that only key + pagetoken are sent when a pageToken is supplied.
     const params: Record<string, any> = { key: config.google.mapsApiKey };
     if (pageToken) {
         params.pagetoken = pageToken;
@@ -250,19 +224,11 @@ export async function searchNearbyVenuesPaged(
     return { venues, nextPageToken: next };
 }
 
-// ── Shared venue rotation helper (FIX 7) ─────────────────────────────────────
-// Used by both party/more-venues and discover/venues/more so pagination, rotation
-// buckets, radius expansion, dedup, and blocked-type filtering are identical.
-
 export interface VenueRotationParams {
     center: LatLng;
-    /** Base radius in meters; expands by 3 km per rotation (capped at 25 km). */
     baseRadiusMeters?: number;
-    /** Existing page token (use page 2+). Undefined = start fresh rotation. */
     pageToken?: string;
-    /** Current rotation bucket index (0-based). */
     rotationSeed?: number;
-    /** google_place_ids already in the caller's collection — deduped out. */
     excludeIds?: Set<string>;
 }
 
@@ -287,9 +253,6 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
 
     const radiusMeters = Math.min(baseRadiusMeters + rotationSeed * 3000, 25_000);
     const rotationTypes = ROTATION_TYPES[rotationSeed];
-
-    console.log('[venues-rotation] seed:', rotationSeed, 'radius:', radiusMeters);
-    console.log('[venues-rotation] includedTypes:', rotationTypes);
 
     const body = {
         includedTypes: rotationTypes,

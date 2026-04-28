@@ -7,7 +7,6 @@ import { config } from '../config';
 
 const router = Router();
 
-// ── GET /api/discover/feed ────────────────────────────────────────────────────
 router.get('/feed', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -102,7 +101,6 @@ router.get('/feed', requireAuth, async (req: AuthedRequest, res, next) => {
     }
 });
 
-// ── POST /api/discover/feed/posts ─────────────────────────────────────────────
 router.post('/feed/posts', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -150,7 +148,6 @@ router.post('/feed/posts', requireAuth, async (req: AuthedRequest, res, next) =>
     }
 });
 
-// ── POST /api/discover/feed/upload-url ────────────────────────────────────────
 router.post('/feed/upload-url', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -170,7 +167,6 @@ router.post('/feed/upload-url', requireAuth, async (req: AuthedRequest, res, nex
     }
 });
 
-// ── POST /api/discover/feed/posts/:id/like ────────────────────────────────────
 router.post('/feed/posts/:id/like', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -187,7 +183,6 @@ router.post('/feed/posts/:id/like', requireAuth, async (req: AuthedRequest, res,
     }
 });
 
-// ── DELETE /api/discover/feed/posts/:id/like ──────────────────────────────────
 router.delete('/feed/posts/:id/like', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { error } = await supabaseAdmin
@@ -202,7 +197,6 @@ router.delete('/feed/posts/:id/like', requireAuth, async (req: AuthedRequest, re
     }
 });
 
-// ── POST /api/discover/feed/posts/:id/bookmark ────────────────────────────────
 router.post('/feed/posts/:id/bookmark', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -233,7 +227,6 @@ router.post('/feed/posts/:id/bookmark', requireAuth, async (req: AuthedRequest, 
     }
 });
 
-// ── DELETE /api/discover/feed/posts/:id/bookmark ──────────────────────────────
 router.delete('/feed/posts/:id/bookmark', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { error } = await supabaseAdmin
@@ -248,7 +241,6 @@ router.delete('/feed/posts/:id/bookmark', requireAuth, async (req: AuthedRequest
     }
 });
 
-// ── GET /api/discover/feed/posts/:id/comments ─────────────────────────────────
 router.get('/feed/posts/:id/comments', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data: comments, error } = await supabaseAdmin
@@ -286,7 +278,6 @@ router.get('/feed/posts/:id/comments', requireAuth, async (req: AuthedRequest, r
     }
 });
 
-// ── POST /api/discover/feed/posts/:id/comments ────────────────────────────────
 router.post('/feed/posts/:id/comments', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -318,7 +309,6 @@ router.post('/feed/posts/:id/comments', requireAuth, async (req: AuthedRequest, 
     }
 });
 
-// ── DELETE /api/discover/feed/comments/:id ────────────────────────────────────
 router.delete('/feed/comments/:id', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -343,7 +333,6 @@ router.delete('/feed/comments/:id', requireAuth, async (req: AuthedRequest, res,
     }
 });
 
-// ── PATCH /api/discover/feed/posts/:id ───────────────────────────────────────
 router.patch('/feed/posts/:id', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -376,7 +365,6 @@ router.patch('/feed/posts/:id', requireAuth, async (req: AuthedRequest, res, nex
     }
 });
 
-// ── DELETE /api/discover/feed/posts/:id ───────────────────────────────────────
 router.delete('/feed/posts/:id', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -401,7 +389,6 @@ router.delete('/feed/posts/:id', requireAuth, async (req: AuthedRequest, res, ne
     }
 });
 
-// ── GET /api/discover/feed/my-posts ───────────────────────────────────────────
 router.get('/feed/my-posts', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -444,7 +431,6 @@ router.get('/feed/my-posts', requireAuth, async (req: AuthedRequest, res, next) 
     }
 });
 
-// ── GET /api/discover/feed/collections ────────────────────────────────────────
 router.get('/feed/collections', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -462,7 +448,6 @@ router.get('/feed/collections', requireAuth, async (req: AuthedRequest, res, nex
     }
 });
 
-// ── POST /api/discover/feed/collections ───────────────────────────────────────
 router.post('/feed/collections', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -483,7 +468,6 @@ router.post('/feed/collections', requireAuth, async (req: AuthedRequest, res, ne
     }
 });
 
-// ── DELETE /api/discover/feed/collections/:id ─────────────────────────────────
 router.delete('/feed/collections/:id', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -508,7 +492,6 @@ router.delete('/feed/collections/:id', requireAuth, async (req: AuthedRequest, r
     }
 });
 
-// ── GET /api/discover/feed/saved ──────────────────────────────────────────────
 router.get('/feed/saved', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -594,7 +577,6 @@ router.get('/feed/saved', requireAuth, async (req: AuthedRequest, res, next) => 
     }
 });
 
-// ── POST /api/discover/feed/posts/:id/add-to-party ────────────────────────────
 router.post('/feed/posts/:id/add-to-party', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;

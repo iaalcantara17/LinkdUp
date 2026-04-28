@@ -6,15 +6,12 @@ import { HttpError } from '../middleware/error';
 
 const router = Router();
 
-// No auth — called before the user account exists during signup.
-// Case-insensitive match: finds an existing school or creates a new one.
 const lookupSchema = z.object({ name: z.string().min(1).max(200) });
 
 router.post('/lookup', async (req, res, next) => {
     try {
         const { name } = lookupSchema.parse(req.body);
 
-        // Try exact case-insensitive match first
         const { data: existing } = await supabaseAdmin
             .from('schools')
             .select('id, name, city, state')
@@ -24,7 +21,6 @@ router.post('/lookup', async (req, res, next) => {
 
         if (existing) return res.json(existing);
 
-        // Insert new school row
         const { data: created, error } = await supabaseAdmin
             .from('schools')
             .insert({ name: name.trim() })

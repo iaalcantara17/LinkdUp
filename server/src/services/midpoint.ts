@@ -1,7 +1,3 @@
-// Geographic midpoint calculation.
-// For multiple points on a sphere, we convert to Cartesian, average, and convert back.
-// Reference: http://www.geomidpoint.com/calculation.html
-
 export interface LatLng {
     latitude: number;
     longitude: number;
@@ -40,7 +36,6 @@ export function midpoint(points: LatLng[]): LatLng {
     return { latitude: lat / DEG, longitude: lng / DEG };
 }
 
-// Haversine distance in kilometers
 export function distanceKm(a: LatLng, b: LatLng): number {
     const dLat = (b.latitude - a.latitude) * DEG;
     const dLng = (b.longitude - a.longitude) * DEG;
@@ -50,7 +45,6 @@ export function distanceKm(a: LatLng, b: LatLng): number {
     return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
 
-// Returns the maximum pairwise distance in km, used for the spread warning
 export function maxSpreadKm(points: LatLng[]): number {
     let max = 0;
     for (let i = 0; i < points.length; i++) {

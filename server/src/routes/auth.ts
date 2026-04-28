@@ -18,7 +18,6 @@ router.post('/signup', async (req, res, next) => {
     try {
         const body = signupSchema.parse(req.body);
 
-        // Step 1: create (or recover) the auth user
         let userId: string;
         const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
             email: body.email,
@@ -34,18 +33,15 @@ router.post('/signup', async (req, res, next) => {
                 msg.toLowerCase().includes('user already exists');
 
             if (!alreadyExists) {
-                // Hard auth error — surface it
                 throw new HttpError(400, 'signup_failed', msg || 'unknown');
             }
 
-            // Auth user exists but profile row may be missing (orphaned auth user).
-            // Sign in with the provided credentials to prove ownership, then recover.
+            // Prove ownership of the existing auth user before recovering the profile row.
             const { data: signInData, error: signInErr } = await supabaseAdmin.auth.signInWithPassword({
                 email: body.email,
                 password: body.password,
             });
             if (signInErr || !signInData?.user) {
-                // Wrong password or some other issue — treat as "email taken"
                 throw new HttpError(409, 'email_taken', 'Email is already registered. Use a different email or log in.');
             }
             userId = signInData.user.id;
@@ -55,7 +51,6 @@ router.post('/signup', async (req, res, next) => {
             userId = authData.user.id;
         }
 
-        // Step 2: upsert the profile row (idempotent — safe to call on retry)
         const { error: upsertErr } = await supabaseAdmin
             .from('users')
             .upsert(
@@ -69,14 +64,12 @@ router.post('/signup', async (req, res, next) => {
                 { onConflict: 'id' }
             );
         if (upsertErr) {
-            // Only delete the auth user if WE just created it (not on a recovery path)
             if (authData?.user) {
                 await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => {});
             }
             throw new HttpError(500, 'profile_create_failed', upsertErr.message);
         }
 
-        // Step 3: sign in and return the session
         const { data: sessionData, error: sessionErr } = await supabaseAdmin.auth.signInWithPassword({
             email: body.email,
             password: body.password,
@@ -137,9 +130,6 @@ router.post('/logout', requireAuth, async (req: AuthedRequest, res, next) => {
     }
 });
 
-// POST /api/auth/ensure-profile — idempotent upsert for OAuth users.
-// Called by AuthCallbackScreen after a successful Google sign-in to guarantee
-// a public.users row exists.  Safe to call multiple times.
 const ensureProfileSchema = z.object({
     email:        z.string().email(),
     display_name: z.string().min(1).max(100),
@@ -176,7 +166,6 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
         const token = (data as any)?.google_calendar_refresh;
         const google_calendar_connected = token !== null && token !== undefined && String(token).trim() !== '';
         const { google_calendar_refresh: _omit, ...rest } = data as any;
-        // Compute age from birthday so it's always fresh
         const age = (() => {
             if (!rest.birthday) return null;
             const d = new Date(rest.birthday);

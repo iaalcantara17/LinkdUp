@@ -24,18 +24,6 @@ function cacheKey(venue: VenuePitchInput, partyCtx: PartyPitchContext): string {
     return `${venue.name}|${venue.address ?? ''}|${partyCtx.member_count}|${partyCtx.party_name ?? ''}`;
 }
 
-/**
- * Generate a short venue pitch using Google Gemini.
- *
- * Setup:
- *   1. Go to https://aistudio.google.com/app/apikey
- *   2. Create API key (free, Google account only, no billing)
- *   3. Add to server/.env:  GEMINI_API_KEY=your-key-here
- *   4. Restart server
- *
- * Model: gemini-2.5-flash-lite — most generous free-tier allocation
- * (15 req/min, 1,000 req/day as of April 2026).
- */
 export async function generateVenuePitch(
     venue: VenuePitchInput,
     partyCtx: PartyPitchContext,
@@ -49,9 +37,6 @@ export async function generateVenuePitch(
         process.env.GEMINI_API_KEY ||
         process.env.GOOGLE_GEMINI_API_KEY ||
         '';
-
-    console.log('[aiPitch] GEMINI_API_KEY present:', !!apiKey);
-    console.log('[aiPitch] generating for venue:', venue.name);
 
     if (!apiKey) return { pitch: FALLBACK };
 

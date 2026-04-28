@@ -17,7 +17,6 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
         const partyId = req.params.id;
         const body = voteSchema.parse(req.body);
 
-        // Verify member
         const { data: member } = await supabaseAdmin
             .from('party_members')
             .select('user_id')
@@ -26,7 +25,6 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
             .maybeSingle();
         if (!member) throw new HttpError(403, 'not_a_member');
 
-        // Verify the location belongs to this party
         const { data: loc } = await supabaseAdmin
             .from('locations')
             .select('id, party_id')
@@ -34,7 +32,6 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
             .single();
         if (!loc || loc.party_id !== partyId) throw new HttpError(404, 'location_not_found');
 
-        // Upsert the vote (one per user per location per party)
         const { error: voteErr } = await supabaseAdmin.from('votes').upsert(
             {
                 party_id: partyId,
@@ -47,8 +44,6 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
         );
         if (voteErr) throw new HttpError(500, 'vote_failed', voteErr.message);
 
-        // Always evaluate match after any vote so a solo user who swipes
-        // left on the final card still reaches the match or end state.
         const match = await evaluateMatch(partyId);
 
         res.json({ ok: true, match });

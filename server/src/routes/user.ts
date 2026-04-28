@@ -78,17 +78,14 @@ const patchSchema = z.object({
 
 router.patch('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
-        console.log('[PATCH /me] body received:', req.body);
         const body = patchSchema.parse(req.body);
         const updateObj = { ...body, updated_at: new Date().toISOString() };
-        console.log('[PATCH /me] update object:', updateObj);
         const { data, error } = await supabaseAdmin
             .from('users')
             .update(updateObj)
             .eq('id', req.user!.id)
             .select()
             .single();
-        console.log('[PATCH /me] result:', { data: data ? { id: data.id, pronouns: data.pronouns, bio: data.bio, birthday: data.birthday } : null, error });
         if (error) {
             if (error.code === '23505') throw new HttpError(409, 'username_taken');
             throw new HttpError(500, 'update_failed', error.message);
@@ -177,8 +174,6 @@ router.put('/me/avatar', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-// GET /api/user/:id/public — public-safe profile for viewing another user's profile.
-// Returns only non-sensitive fields; omits email, location, and auth tokens.
 router.get('/:id/public', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data, error } = await supabaseAdmin
@@ -213,9 +208,6 @@ router.get('/:id/public', requireAuth, async (req: AuthedRequest, res, next) => 
     } catch (e) { next(e); }
 });
 
-// GET /api/user/me/parties - parties the current user is a member of, newest first
-// Uses two sequential queries instead of a PostgREST embedded join to avoid
-// schema-cache issues and ambiguous FK resolution on fresh Supabase projects.
 router.get('/me/parties', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data: memberships, error: memberErr } = await supabaseAdmin
@@ -278,11 +270,8 @@ router.get('/me/parties', requireAuth, async (req: AuthedRequest, res, next) => 
     } catch (e) { next(e); }
 });
 
-// GET /api/user/me/hangouts - upcoming hangouts (matched/scheduled/locked parties)
-// enriched with venue, locked date, and member count; sorted soonest-first.
 router.get('/me/hangouts', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
-        // 1. Party IDs where this user is a member
         const { data: memberships, error: memberErr } = await supabaseAdmin
             .from('party_members')
             .select('party_id')
@@ -292,7 +281,6 @@ router.get('/me/hangouts', requireAuth, async (req: AuthedRequest, res, next) =>
         const partyIds = (memberships ?? []).map((m: any) => m.party_id).filter(Boolean);
         if (partyIds.length === 0) return res.json([]);
 
-        // 2. Parties with upcoming statuses
         const { data: parties, error: partyErr } = await supabaseAdmin
             .from('parties')
             .select('id, name, code, status, host_user_id, matched_location_id, locked_date_id')
@@ -301,12 +289,10 @@ router.get('/me/hangouts', requireAuth, async (req: AuthedRequest, res, next) =>
         if (partyErr) throw new HttpError(500, 'parties_query_failed', partyErr.message);
         if (!parties || parties.length === 0) return res.json([]);
 
-        // 3. Collect referenced IDs
         const locationIds = [...new Set(parties.map((p: any) => p.matched_location_id).filter(Boolean))];
         const dateIds     = [...new Set(parties.map((p: any) => p.locked_date_id).filter(Boolean))];
         const allPartyIds = parties.map((p: any) => p.id);
 
-        // 4. Venues, locked dates, and member rows — three parallel fetches
         const [venueRes, dateRes, memberRes] = await Promise.all([
             locationIds.length > 0
                 ? supabaseAdmin.from('locations').select('id, name, address, latitude, longitude').in('id', locationIds)
@@ -317,7 +303,6 @@ router.get('/me/hangouts', requireAuth, async (req: AuthedRequest, res, next) =>
             supabaseAdmin.from('party_members').select('party_id').in('party_id', allPartyIds),
         ]);
 
-        // 5. Build lookup maps
         const locationMap: Record<string, any> = Object.fromEntries((venueRes.data ?? []).map((l: any) => [l.id, l]));
         const dateMap: Record<string, any>     = Object.fromEntries((dateRes.data ?? []).map((d: any) => [d.id, d]));
         const countMap: Record<string, number> = {};
@@ -325,7 +310,6 @@ router.get('/me/hangouts', requireAuth, async (req: AuthedRequest, res, next) =>
             countMap[row.party_id] = (countMap[row.party_id] ?? 0) + 1;
         }
 
-        // 6. Assemble
         const hangouts = parties.map((p: any) => ({
             id:            p.id,
             name:          p.name,
@@ -337,7 +321,6 @@ router.get('/me/hangouts', requireAuth, async (req: AuthedRequest, res, next) =>
             member_count:  countMap[p.id] ?? 0,
         }));
 
-        // 7. Sort: dated hangouts ascending, undated ones at the end
         hangouts.sort((a: any, b: any) => {
             if (a.locked_date && b.locked_date) {
                 return new Date(a.locked_date.starts_at).getTime() - new Date(b.locked_date.starts_at).getTime();
@@ -351,17 +334,13 @@ router.get('/me/hangouts', requireAuth, async (req: AuthedRequest, res, next) =>
     } catch (e) { next(e); }
 });
 
-// DELETE /api/user/me — permanently remove the authenticated user's account.
-// Order: GCal cleanup → party data → storage files → users row → auth record.
-// Partial failures are logged but do not abort the remaining steps.
 router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     const userId = req.user!.id;
     const errors: string[] = [];
 
     try {
-        // 0. Google Calendar cleanup — must happen before users row is deleted
-        //    because deleteCalendarEventForUser reads OAuth tokens from users table.
-        //    Fetch gcal_event_id for every party the user is a member of.
+        // GCal cleanup must happen before the users row is deleted because
+        // deleteCalendarEventForUser reads OAuth tokens from the users table.
         try {
             const { data: memberRows } = await supabaseAdmin
                 .from('party_members')
@@ -391,7 +370,6 @@ router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
             }
         } catch (e: any) { errors.push(`gcal_lookup: ${e.message}`); }
 
-        // 1. Find all parties this user hosts
         const { data: hostedParties } = await supabaseAdmin
             .from('parties')
             .select('id')
@@ -400,7 +378,6 @@ router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
         const hostedIds = (hostedParties ?? []).map((p: any) => p.id);
 
         if (hostedIds.length > 0) {
-            // 1a. Delete date_votes for all dates of hosted parties
             try {
                 const { data: pDates } = await supabaseAdmin
                     .from('party_dates').select('id').in('party_id', hostedIds);
@@ -410,43 +387,35 @@ router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
                 }
             } catch (e: any) { errors.push(`date_votes: ${e.message}`); }
 
-            // 1b. party_dates
             try {
                 await supabaseAdmin.from('party_dates').delete().in('party_id', hostedIds);
             } catch (e: any) { errors.push(`party_dates: ${e.message}`); }
 
-            // 1c. votes
             try {
                 await supabaseAdmin.from('votes').delete().in('party_id', hostedIds);
             } catch (e: any) { errors.push(`votes: ${e.message}`); }
 
-            // 1d. locations
             try {
                 await supabaseAdmin.from('locations').delete().in('party_id', hostedIds);
             } catch (e: any) { errors.push(`locations: ${e.message}`); }
 
-            // 1e. party_members (all members of hosted parties)
             try {
                 await supabaseAdmin.from('party_members').delete().in('party_id', hostedIds);
             } catch (e: any) { errors.push(`party_members_hosted: ${e.message}`); }
 
-            // 1f. the parties themselves
             try {
                 await supabaseAdmin.from('parties').delete().in('id', hostedIds);
             } catch (e: any) { errors.push(`parties: ${e.message}`); }
         }
 
-        // 2. Remove user from any remaining parties they joined (but didn't host)
         try {
             await supabaseAdmin.from('party_members').delete().eq('user_id', userId);
         } catch (e: any) { errors.push(`party_members_member: ${e.message}`); }
 
-        // 2a. Delete avatar from Storage
         try {
             await supabaseAdmin.storage.from('avatars').remove([`${userId}.jpg`]);
         } catch (e: any) { errors.push(`storage_avatar: ${e.message}`); }
 
-        // 2b. Delete all feed photos from Storage (stored under userId/ prefix)
         try {
             const { data: photoFiles } = await supabaseAdmin.storage
                 .from('feed-photos')
@@ -457,13 +426,11 @@ router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
             }
         } catch (e: any) { errors.push(`storage_feed_photos: ${e.message}`); }
 
-        // 3. Delete user profile row (triggers ON DELETE CASCADE for feed posts,
-        //    likes, bookmarks, comments, follows, discover_likes, screen_hints, friendships)
         try {
             await supabaseAdmin.from('users').delete().eq('id', userId);
         } catch (e: any) { errors.push(`users: ${e.message}`); }
 
-        // 4. Delete the Supabase auth record (must be last — loses the token)
+        // Must be last — deleting the auth record invalidates the token.
         try {
             const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
             if (authErr) errors.push(`auth: ${authErr.message}`);
@@ -558,7 +525,6 @@ router.post('/me/walkthrough-seen', requireAuth, async (req: AuthedRequest, res,
     } catch (e) { next(e); }
 });
 
-// ── POST /api/user/:id/follow ─────────────────────────────────────────────────
 router.post('/:id/follow', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -574,7 +540,6 @@ router.post('/:id/follow', requireAuth, async (req: AuthedRequest, res, next) =>
     } catch (e) { next(e); }
 });
 
-// ── DELETE /api/user/:id/follow ───────────────────────────────────────────────
 router.delete('/:id/follow', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { error } = await supabaseAdmin
