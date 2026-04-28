@@ -30,7 +30,4 @@ export const config = {
         oauthRedirectUri: required('GOOGLE_OAUTH_REDIRECT_URI'),
     },
 
-    anthropic: {
-        apiKey: optional('ANTHROPIC_API_KEY'),
-    },
 };

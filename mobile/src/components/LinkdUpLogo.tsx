@@ -4,8 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { darkColors as colors } from '../theme';
 
-// Note: MaskedView requires @react-native-masked-view/masked-view as a dep.
-// If you skip that dep, the fallback below renders a solid white wordmark.
 export default function LinkdUpLogo({ size = 48 }: { size?: number }) {
     try {
         return (

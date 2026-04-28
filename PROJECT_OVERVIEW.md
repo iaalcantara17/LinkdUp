@@ -33,7 +33,7 @@ LinkdUp is an alumni meetup coordination app that lets friend groups discover ha
 linkdup/                          root (project lives here — not at Capstone/)
 ├── mobile/                       Expo/React Native app
 │   ├── src/
-│   │   ├── screens/              one file per screen (27 screens total)
+│   │   ├── screens/              one file per screen (26 screens total)
 │   │   ├── components/           reusable UI components
 │   │   │   └── walkthrough/      animated slide visuals for onboarding
 │   │   ├── context/              React contexts (Auth, Theme, Hints)
@@ -622,11 +622,6 @@ Full-screen map of party member locations (fuzzed). Uses `CrewMap.web.tsx` on we
 
 ---
 
-### `CrewMapRevealScreen`
-Not in `MainStack.tsx`; legacy/unused.
-
----
-
 ## Mobile Components (Reusable)
 
 ### `BottomNav`
@@ -782,7 +777,6 @@ All vars read by `server/src/config.ts`. Required vars throw on startup if missi
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Yes | OAuth 2.0 client secret |
 | `GOOGLE_OAUTH_REDIRECT_URI` | Yes | Must match redirect URI in Google Cloud Console (e.g. `http://localhost:3000/api/calendar/oauth/callback`) |
 | `GEMINI_API_KEY` | No | Gemini API key. Falls back to static pitch text if absent. Must be from AI Studio, not a billing-enabled project. |
-| `ANTHROPIC_API_KEY` | No | Legacy field; not actively used. |
 
 Mobile env var (in `mobile/.env` or `app.config.js`):
 

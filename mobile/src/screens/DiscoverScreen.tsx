@@ -178,7 +178,6 @@ function VenueDetailModal({ venue, onClose }: { venue: DiscoverVenue | null; onC
                             <Text style={modalStyles.addressText}>{venue.address}</Text>
                         </View>
 
-                        {/* ✨ Why this? AI pitch */}
                         {!pitch && !pitchLoading && (
                             <TouchableOpacity
                                 style={modalStyles.pitchBtn}
@@ -609,7 +608,6 @@ export default function DiscoverScreen() {
                 <FeedView onBack={() => handleTabChange('explore')} />
             ) : (
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-                {/* ── Tab bar ───────────────────────────────────────────── */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 16 }}>
                     <View style={[styles.tabBar, { flex: 1 }]}>
                         <TouchableOpacity
@@ -622,11 +620,11 @@ export default function DiscoverScreen() {
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.tabPill, activeTab === 'feed' && styles.tabPillActive]}
+                            style={styles.tabPill}
                             onPress={() => handleTabChange('feed')}
                             activeOpacity={0.8}
                         >
-                            <Text style={[styles.tabText, activeTab === 'feed' && styles.tabTextActive]}>
+                            <Text style={styles.tabText}>
                                 Feed
                             </Text>
                         </TouchableOpacity>
@@ -660,7 +658,6 @@ export default function DiscoverScreen() {
                         />
                     }
                 >
-                    {/* ── EXPLORE TAB ─────────────────────────────────── */}
                     {activeTab === 'explore' && (
                         <>
                             <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
@@ -668,7 +665,6 @@ export default function DiscoverScreen() {
                                 <Text style={styles.subtitle}>Trending spots and parties near you</Text>
                             </Animated.View>
 
-                            {/* No-location state */}
                             {noLocation && (
                                 <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.emptyCard}>
                                     <Text style={styles.emptyIcon}>📍</Text>
@@ -685,7 +681,6 @@ export default function DiscoverScreen() {
                                 </Animated.View>
                             )}
 
-                            {/* ── Section A: Trending venues ─────────────── */}
                             {!noLocation && (
                                 <Animated.View entering={FadeInDown.delay(60).duration(400)}>
                                     <Text style={styles.sectionTitle}>Trending near you</Text>
@@ -747,7 +742,6 @@ export default function DiscoverScreen() {
                                                             </View>
                                                         </LinearGradient>
                                                     </TouchableOpacity>
-                                                    {/* Skip / Like buttons */}
                                                     <View style={webCardStyles.buttons}>
                                                         <TouchableOpacity
                                                             style={webCardStyles.passBtn}
@@ -786,7 +780,6 @@ export default function DiscoverScreen() {
                                                 </View>
                                             )}
 
-                                            {/* Horizontal scroll row with chevron buttons (web) */}
                                             <View style={styles.trendingScrollWrap}>
                                                 {Platform.OS === 'web' && trendingScrollX > 10 && (
                                                     <TouchableOpacity
@@ -807,7 +800,6 @@ export default function DiscoverScreen() {
                                                     }
                                                     scrollEventThrottle={16}
                                                 >
-                                                    {/* FIX 9B: filter already-liked venues from trending row */}
                                                     {venues.filter((v) => !likedPlaceIds.has(v.google_place_id)).map((v) => (
                                                         <VenueCard
                                                             key={v.google_place_id}
@@ -850,7 +842,6 @@ export default function DiscoverScreen() {
                                 </Animated.View>
                             )}
 
-                            {/* ── Section B: Active parties nearby ─────────────── */}
                             {!noLocation && (
                                 <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginTop: 32 }}>
                                     <Text style={styles.sectionTitle}>Active parties nearby</Text>
@@ -889,7 +880,6 @@ export default function DiscoverScreen() {
                         </>
                     )}
 
-                    {/* ── YOUR LIKES TAB ──────────────────────────────── */}
                     {activeTab === 'likes' && (
                         <Animated.View entering={FadeInDown.duration(350)} style={{ paddingTop: 8 }}>
                             <Text style={styles.title}>Your Likes</Text>
@@ -951,7 +941,6 @@ export default function DiscoverScreen() {
             )}
             <BottomNav />
 
-            {/* Venue detail modal */}
             <VenueDetailModal
                 venue={selectedVenue}
                 onClose={() => setSelectedVenue(null)}

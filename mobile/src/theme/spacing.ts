@@ -7,11 +7,6 @@ export const spacing = {
     xxl: 48,
 };
 
-// Tailwind radius mapping from the Figma source:
-// rounded-xl    = 12
-// rounded-2xl   = 16  (buttons)
-// rounded-3xl   = 24  (cards, hero elements)
-// rounded-full  = 999
 export const radii = {
     sm: 8,
     md: 12,

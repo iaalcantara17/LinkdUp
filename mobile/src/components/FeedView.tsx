@@ -177,7 +177,6 @@ export default function FeedView({ onBack }: Props) {
         try {
             await Share.share({ message: `Check out ${post.venue_name} on LinkdUp! ${link}` });
         } catch {
-            // user dismissed
         }
     }, [showToast]);
 

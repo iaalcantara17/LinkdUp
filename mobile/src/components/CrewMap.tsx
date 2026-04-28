@@ -44,7 +44,6 @@ export default function CrewMap({
             });
         }, 350);
         return () => clearTimeout(timer);
-    // coords change when members or midpoint visibility changes
     }, [members.length, showMidpoint]);
 
     if (members.length === 0) {

@@ -1,8 +1,5 @@
 import { TextStyle } from 'react-native';
 
-// Inter only (verified from figma_export/src/styles/fonts.css)
-// Loaded via @expo-google-fonts/inter in App.tsx
-
 export const typography = {
     display: { fontFamily: 'Inter_900Black', fontSize: 48, letterSpacing: -1 } as TextStyle,
     wordmarkLarge: { fontFamily: 'Inter_900Black', fontSize: 72, letterSpacing: -2 } as TextStyle,
