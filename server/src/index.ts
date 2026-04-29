@@ -21,7 +21,17 @@ import friendsRoutes from './routes/friends';
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: config.corsOrigin }));
+app.use(cors({
+    origin: (origin, cb) => {
+        const allowed = config.corsOrigins;
+        if (allowed.includes('*') || !origin || allowed.includes(origin)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`CORS: origin ${origin} not allowed`));
+        }
+    },
+    credentials: true,
+}));
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 

@@ -15,7 +15,10 @@ function optional(name: string, fallback = ''): string {
 export const config = {
     port: parseInt(process.env.PORT ?? '3000', 10),
     nodeEnv: optional('NODE_ENV', 'development'),
-    corsOrigin: optional('CORS_ORIGIN', '*'),
+    corsOrigins: optional('CORS_ORIGIN', '*')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean),
 
     supabase: {
         url: required('SUPABASE_URL'),
