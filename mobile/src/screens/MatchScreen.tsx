@@ -26,15 +26,6 @@ import { useTheme } from '../context/ThemeContext';
 const { width, height } = Dimensions.get('window');
 const CONFETTI_COUNT = 30;
 
-const DEMO_VENUE = {
-    id: 'demo-match',
-    name: 'Maple Pool Lounge',
-    category: '🎱 Lounge',
-    address: '789 Game Street, Midtown',
-    rating: 4.9,
-    photo_url: null as string | null,
-};
-
 function ConfettiParticle({ index }: { index: number }) {
     const { colors: themeColors } = useTheme();
     const startX = Math.random() * width;
@@ -168,12 +159,9 @@ export default function MatchScreen() {
         api.getMatch(partyId).then((data) => {
             if (data?.location) {
                 setVenue(data.location);
-            } else {
-                setVenue(DEMO_VENUE);
             }
             setVenueLoaded(true);
         }).catch(() => {
-            setVenue(DEMO_VENUE);
             setVenueLoaded(true);
         });
 
@@ -217,11 +205,22 @@ export default function MatchScreen() {
         }
     };
 
-    if (!venueLoaded || !venue) {
+    if (!venueLoaded) {
         return (
             <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
                 <Text style={{ color: colors.text60, fontFamily: 'Inter_500Medium' }}>Loading your match...</Text>
             </View>
+        );
+    }
+
+    if (!venue) {
+        return (
+            <SafeAreaView style={[styles.root, { alignItems: 'center', justifyContent: 'center', padding: 24 }]} edges={['top', 'bottom']}>
+                <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, textAlign: 'center', marginBottom: 24 }}>
+                    Could not load match details.
+                </Text>
+                <GradientButton title="Go Back" variant="ghost" onPress={() => nav.goBack()} />
+            </SafeAreaView>
         );
     }
 
@@ -260,7 +259,7 @@ export default function MatchScreen() {
                             {venue.photo_url ? (
                                 <Image source={{ uri: venue.photo_url }} style={styles.venueImage} accessibilityLabel={venue.name} accessibilityRole="image" />
                             ) : (
-                                <Image source={require('../../assets/maple_pool.jpg')} style={styles.venueImage} accessibilityLabel={venue.name} accessibilityRole="image" />
+                                <View style={styles.venueImage} />
                             )}
                             {venue.category && (
                                 <View style={styles.venueCategoryPill}>
