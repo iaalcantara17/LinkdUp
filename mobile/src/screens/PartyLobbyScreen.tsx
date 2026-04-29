@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, Maximize2 } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
+import AppSwitch from '../components/AppSwitch';
 import GlassCard from '../components/GlassCard';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
@@ -126,9 +127,9 @@ export default function PartyLobbyScreen() {
         await Share.share({ message: `Join my LinkdUp party! Code: ${party.code}` });
     };
 
-    const handleToggleVisibility = async () => {
+    const handleToggleVisibility = async (makePublic: boolean) => {
         if (!party) return;
-        if (!party.is_public) {
+        if (makePublic) {
             Alert.alert(
                 'Make party public?',
                 'Anyone nearby will be able to find and join your party from the Discover tab.',
@@ -295,11 +296,9 @@ export default function PartyLobbyScreen() {
                                                 : 'Only people with the invite code can join'}
                                         </Text>
                                     </View>
-                                    <Switch
-                                        value={!(party?.is_public ?? false)}
+                                    <AppSwitch
+                                        value={party?.is_public ?? false}
                                         onValueChange={handleToggleVisibility}
-                                        trackColor={{ false: colors.glass, true: colors.primary }}
-                                        thumbColor="white"
                                     />
                                 </View>
                             </GlassCard>
