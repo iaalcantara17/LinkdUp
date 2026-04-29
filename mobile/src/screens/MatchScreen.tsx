@@ -258,9 +258,9 @@ export default function MatchScreen() {
                     <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.venueCard}>
                         <View style={styles.venueImageWrap}>
                             {venue.photo_url ? (
-                                <Image source={{ uri: venue.photo_url }} style={styles.venueImage} />
+                                <Image source={{ uri: venue.photo_url }} style={styles.venueImage} accessibilityLabel={venue.name} accessibilityRole="image" />
                             ) : (
-                                <Image source={require('../../assets/maple_pool.jpg')} style={styles.venueImage} />
+                                <Image source={require('../../assets/maple_pool.jpg')} style={styles.venueImage} accessibilityLabel={venue.name} accessibilityRole="image" />
                             )}
                             {venue.category && (
                                 <View style={styles.venueCategoryPill}>

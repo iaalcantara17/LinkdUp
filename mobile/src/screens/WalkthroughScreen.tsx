@@ -66,7 +66,7 @@ export default function WalkthroughScreen() {
     };
 
     const finish = async () => {
-        api.markWalkthroughSeen().catch(() => {});
+        await api.markWalkthroughSeen().catch(() => {});
         if (fromSignup) {
             nav.replace('Home');
         } else {

@@ -2,19 +2,15 @@ import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { colors } from '../theme';
 import type { CrewMapProps } from './CrewMap';
 
 export type { CrewMapProps };
 
-function injectLeafletAssets() {
+function injectLeafletOverrides() {
     if (typeof document === 'undefined') return;
-    if (document.getElementById('leaflet-css')) return;
-    const link = document.createElement('link');
-    link.id = 'leaflet-css';
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(link);
+    if (document.getElementById('leaflet-overrides')) return;
     const style = document.createElement('style');
     style.id = 'leaflet-overrides';
     style.textContent = `
@@ -76,7 +72,7 @@ export default function CrewMap({
     onMemberPress,
     scrollWheelZoom = false,
 }: CrewMapProps) {
-    useEffect(() => { injectLeafletAssets(); }, []);
+    useEffect(() => { injectLeafletOverrides(); }, []);
 
     const allCoords: [number, number][] = [
         ...members.map(m => [m.display_lat, m.display_lng] as [number, number]),

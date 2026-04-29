@@ -20,17 +20,17 @@ const slides = [
     {
         title: 'Reconnect with your alumni',
         description: 'Find old friends and make new connections from your school',
-        image: 'https://images.unsplash.com/photo-1758270705902-f50dde4add9f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        image: 'https://images.unsplash.com/photo-1758270705902-f50dde4add9f?crop=entropy&cs=tinysrgb&fit=max&fm=webp&q=80&w=1080',
     },
     {
         title: 'Swipe on spots together',
         description: 'Everyone votes on where to hang out. No more endless debates.',
-        image: 'https://images.unsplash.com/photo-1605108222700-0d605d9ebafe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        image: 'https://images.unsplash.com/photo-1605108222700-0d605d9ebafe?crop=entropy&cs=tinysrgb&fit=max&fm=webp&q=80&w=1080',
     },
     {
         title: 'Lock in the date. No group chat chaos.',
         description: 'Coordinate schedules and confirm your hangout instantly',
-        image: 'https://images.unsplash.com/photo-1765805913524-15f085ebb5b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        image: 'https://images.unsplash.com/photo-1765805913524-15f085ebb5b8?crop=entropy&cs=tinysrgb&fit=max&fm=webp&q=80&w=1080',
     },
 ];
 
@@ -69,7 +69,7 @@ function SlideContent({ slide, isActive }: { slide: typeof slides[0]; isActive: 
     return (
         <>
             <Animated.View style={[styles.imageWrap, imgStyle]}>
-                <Image source={{ uri: slide.image }} style={styles.image} resizeMode="cover" />
+                <Image source={{ uri: slide.image }} style={styles.image} resizeMode="cover" accessibilityLabel={slide.title} accessibilityRole="image" />
             </Animated.View>
             <Animated.Text style={[styles.title, titStyle]}>{slide.title}</Animated.Text>
             <Animated.Text style={[styles.desc, desStyle]}>{slide.description}</Animated.Text>

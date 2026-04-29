@@ -79,6 +79,8 @@ export default function FeedCard({
                 source={{ uri: post.image_url }}
                 style={StyleSheet.absoluteFill}
                 resizeMode="cover"
+                accessibilityLabel={post.caption ?? `Photo at ${post.venue_name}`}
+                accessibilityRole="image"
             />
 
             <LinearGradient
@@ -98,6 +100,8 @@ export default function FeedCard({
                         <Image
                             source={{ uri: post.creator_avatar_url }}
                             style={cardStyles.avatar}
+                            accessibilityLabel={`${post.creator_display_name}'s avatar`}
+                            accessibilityRole="image"
                         />
                     ) : (
                         <LinearGradient

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Modal,
-    useWindowDimensions,
+    useWindowDimensions, ScrollView, Platform,
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -10,6 +10,7 @@ import Animated, {
     withSpring,
     Easing,
 } from 'react-native-reanimated';
+import { useIsFocused } from '@react-navigation/native';
 import { useHints } from '../context/HintsContext';
 import { darkColors, radii } from '../theme';
 
@@ -20,6 +21,7 @@ interface AnchoredHintProps {
     targetRef: React.RefObject<any>;
     placement?: 'top' | 'bottom';
     offset?: number;
+    scrollViewRef?: React.RefObject<ScrollView>;
 }
 
 const CARD_MAX_WIDTH = 260;
@@ -34,11 +36,14 @@ export default function AnchoredHint({
     targetRef,
     placement = 'bottom',
     offset = 12,
+    scrollViewRef,
 }: AnchoredHintProps) {
     const { ready, hasSeen, markSeen } = useHints();
+    const isFocused = useIsFocused();
     const { width: screenWidth, height: screenHeight } = useWindowDimensions();
     const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
     const [visible, setVisible] = useState(false);
+    const [backdropActive, setBackdropActive] = useState(false);
 
     const cardOpacity = useSharedValue(0);
     const cardScale   = useSharedValue(0.92);
@@ -49,7 +54,7 @@ export default function AnchoredHint({
     }));
 
     useEffect(() => {
-        if (!ready || hasSeen(screenKey)) return;
+        if (!ready || hasSeen(screenKey) || !isFocused) return;
         let cancelled = false;
         let tries = 0;
 
@@ -68,13 +73,40 @@ export default function AnchoredHint({
 
         requestAnimationFrame(attempt);
         return () => { cancelled = true; };
-    }, [ready]);
+    }, [ready, isFocused]);
 
     useEffect(() => {
-        if (!rect) return;
-        const t = setTimeout(() => setVisible(true), 600);
-        return () => clearTimeout(t);
-    }, [rect]);
+        if (!isFocused) {
+            setRect(null);
+            setVisible(false);
+            setBackdropActive(false);
+        }
+    }, [isFocused]);
+
+    useEffect(() => {
+        if (!rect || !isFocused) return;
+
+        const elementCenterY = rect.y + rect.h / 2;
+        const needsScroll = elementCenterY > screenHeight * 0.75 || rect.y < 0;
+
+        const show = () => {
+            setVisible(true);
+            setBackdropActive(true);
+        };
+
+        if (needsScroll) {
+            if (Platform.OS === 'web') {
+                (targetRef.current as any)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+            } else {
+                scrollViewRef?.current?.scrollTo?.({ y: rect.y - 120, animated: true });
+            }
+            const t = setTimeout(show, 400);
+            return () => clearTimeout(t);
+        } else {
+            const t = setTimeout(show, 600);
+            return () => clearTimeout(t);
+        }
+    }, [rect, isFocused]);
 
     useEffect(() => {
         if (!visible) return;
@@ -85,6 +117,7 @@ export default function AnchoredHint({
     const dismiss = () => {
         markSeen(screenKey);
         setVisible(false);
+        setBackdropActive(false);
     };
 
     if (!visible || !rect) return null;
@@ -107,7 +140,12 @@ export default function AnchoredHint({
     return (
         <Modal visible transparent animationType="none" onRequestClose={dismiss}>
             <View style={{ flex: 1 }}>
-                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
+                <TouchableOpacity
+                    style={StyleSheet.absoluteFill}
+                    activeOpacity={1}
+                    onPress={dismiss}
+                    pointerEvents={backdropActive ? 'box-only' : 'none'}
+                />
                 <Animated.View style={[positionStyle, animStyle]}>
                     <View style={styles.card} onStartShouldSetResponder={() => true}>
                         {placement === 'bottom' && <View style={tailUpStyle} />}

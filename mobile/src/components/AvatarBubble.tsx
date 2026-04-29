@@ -52,6 +52,8 @@ export default function AvatarBubble({ name, color, size = 40, status, avatarUrl
                         source={{ uri: avatarUrl }}
                         style={{ width: size, height: size, borderRadius: size / 2 }}
                         resizeMode="cover"
+                        accessibilityLabel={`${name ?? 'User'}'s avatar`}
+                        accessibilityRole="image"
                     />
                 ) : (
                     <Text style={[styles.text, { fontSize: size * 0.36 }]}>{initials}</Text>

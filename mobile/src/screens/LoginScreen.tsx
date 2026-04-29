@@ -13,7 +13,7 @@ import { supabase } from '../services/supabase';
 import GradientButton from '../components/GradientButton';
 import { colors, typography, spacing, radii } from '../theme';
 
-const CAMPUS_BG = 'https://images.unsplash.com/photo-1631599143424-5bc234fbebf1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080';
+const CAMPUS_BG = 'https://images.unsplash.com/photo-1631599143424-5bc234fbebf1?crop=entropy&cs=tinysrgb&fit=max&fm=webp&q=80&w=1080';
 
 function GradientWordmark() {
     try {
@@ -130,7 +130,7 @@ export default function LoginScreen() {
 
     return (
         <View style={styles.root}>
-            <Image source={{ uri: CAMPUS_BG }} style={styles.campusBg} />
+            <Image source={{ uri: CAMPUS_BG }} style={styles.campusBg} accessibilityLabel="University campus" accessibilityRole="image" />
             <View style={styles.campusOverlay} />
 
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>

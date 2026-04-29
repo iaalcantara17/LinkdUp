@@ -1,17 +1,15 @@
 import 'react-native-url-polyfill/auto';
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, LinkingOptions } from '@react-navigation/native';
+import { useFonts, FontDisplay } from 'expo-font';
 import {
-    useFonts,
     Inter_400Regular,
     Inter_500Medium,
-    Inter_600SemiBold,
     Inter_700Bold,
-    Inter_800ExtraBold,
     Inter_900Black,
 } from '@expo-google-fonts/inter';
 import { AuthProvider } from './src/context/AuthContext';
@@ -56,15 +54,15 @@ function AppInner() {
 
 export default function App() {
     const [fontsLoaded] = useFonts({
-        Inter_400Regular,
-        Inter_500Medium,
-        Inter_600SemiBold,
-        Inter_700Bold,
-        Inter_800ExtraBold,
-        Inter_900Black,
+        Inter_400Regular: { uri: Inter_400Regular as any, display: FontDisplay.SWAP },
+        Inter_500Medium:  { uri: Inter_500Medium  as any, display: FontDisplay.SWAP },
+        Inter_700Bold:    { uri: Inter_700Bold    as any, display: FontDisplay.SWAP },
+        Inter_900Black:   { uri: Inter_900Black   as any, display: FontDisplay.SWAP },
     });
 
-    if (!fontsLoaded) {
+    // On native, block render until fonts are ready to prevent FOUT.
+    // On web, render immediately so Lighthouse sees a real FCP instead of a spinner.
+    if (!fontsLoaded && Platform.OS !== 'web') {
         return (
             <View style={{ flex: 1, backgroundColor: darkColors.bg, alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator color={darkColors.primary} />

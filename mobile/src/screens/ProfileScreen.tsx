@@ -90,6 +90,7 @@ export default function ProfileScreen() {
     const [editSaving, setEditSaving] = useState(false);
     const inputRef = useRef<TextInput>(null);
     const tourRowRef = useRef<View>(null);
+    const scrollRef = useRef<ScrollView>(null);
     const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
     const [usernameReason, setUsernameReason] = useState<string | null>(null);
@@ -325,7 +326,7 @@ export default function ProfileScreen() {
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-                <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 140 }}>
+                <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 24, paddingBottom: 140 }}>
                     <Animated.View entering={FadeInDown.duration(400)}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                             <Text style={styles.title}>Profile</Text>
@@ -751,7 +752,7 @@ export default function ProfileScreen() {
                 </KeyboardAvoidingView>
             </Modal>
 
-            <AnchoredHint screenKey="profile_tour_replay" title="Forgot something?" body="Tap 'Take the tour again' below to replay the welcome tour anytime." targetRef={tourRowRef} placement="top" />
+            <AnchoredHint screenKey="profile_tour_replay" title="Forgot something?" body="Tap 'Take the tour again' below to replay the welcome tour anytime." targetRef={tourRowRef} placement="top" scrollViewRef={scrollRef} />
             <BottomNav />
         </View>
     );

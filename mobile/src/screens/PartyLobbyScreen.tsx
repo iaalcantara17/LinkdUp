@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, Maximize2 } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
-import AppSwitch from '../components/AppSwitch';
 import GlassCard from '../components/GlassCard';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
@@ -125,37 +124,6 @@ export default function PartyLobbyScreen() {
     const handleShare = async () => {
         if (!party?.code) return;
         await Share.share({ message: `Join my LinkdUp party! Code: ${party.code}` });
-    };
-
-    const handleToggleVisibility = async (makePublic: boolean) => {
-        if (!party) return;
-        if (makePublic) {
-            Alert.alert(
-                'Make party public?',
-                'Anyone nearby will be able to find and join your party from the Discover tab.',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Make Public',
-                        onPress: async () => {
-                            try {
-                                await api.updatePartyVisibility(partyId, true);
-                                refresh();
-                            } catch (e: any) {
-                                Alert.alert('Could not update', e?.message ?? 'Unknown error');
-                            }
-                        },
-                    },
-                ]
-            );
-        } else {
-            try {
-                await api.updatePartyVisibility(partyId, false);
-                refresh();
-            } catch (e: any) {
-                Alert.alert('Could not update', e?.message ?? 'Unknown error');
-            }
-        }
     };
 
     return (
@@ -283,27 +251,6 @@ export default function PartyLobbyScreen() {
                             );
                         })()}
 
-                        {isHost && (
-                            <GlassCard style={{ marginBottom: 16 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <View style={{ flex: 1, marginRight: 12 }}>
-                                        <Text style={styles.visibilityTitle}>
-                                            {party?.is_public ? 'Public - visible in Discover' : 'Private'}
-                                        </Text>
-                                        <Text style={styles.visibilitySub}>
-                                            {party?.is_public
-                                                ? 'Anyone nearby can join from Discover'
-                                                : 'Only people with the invite code can join'}
-                                        </Text>
-                                    </View>
-                                    <AppSwitch
-                                        value={party?.is_public ?? false}
-                                        onValueChange={handleToggleVisibility}
-                                    />
-                                </View>
-                            </GlassCard>
-                        )}
-
                         {isMatched ? (
                             <>
                                 <GradientButton title="See the match" onPress={handleSeeMatch} />
@@ -382,8 +329,6 @@ function makeStyles(c: AppColors) {
         },
         friendName: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
         friendMeta: { color: c.text40, fontSize: 12, marginTop: 2, fontFamily: 'Inter_400Regular' },
-        visibilityTitle: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
-        visibilitySub: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 2 },
         mapPrivacyNote: { color: c.text40, fontSize: 11, fontFamily: 'Inter_400Regular', marginBottom: 12 },
         mapExpandBtn: {
             position: 'absolute',

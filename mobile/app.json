@@ -26,8 +26,14 @@
       "favicon": "./assets/favicon.png",
       "name": "LinkdUp",
       "shortName": "LinkdUp",
+      "description": "Find the perfect hangout spot for your crew. Swipe together, meet in the middle.",
+      "lang": "en",
       "themeColor": "#6C3EF4",
-      "backgroundColor": "#0A0A0F"
+      "backgroundColor": "#0A0A0F",
+      "display": "standalone",
+      "startUrl": "/",
+      "orientation": "portrait",
+      "scope": "/"
     },
     "plugins": [
       [

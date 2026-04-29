@@ -564,7 +564,7 @@ export default function SwipeScreen() {
                     <View style={styles.pitchSheet}>
                         <View style={styles.pitchDragBar} />
                         {pitchModal?.photo_url ? (
-                            <Image source={{ uri: pitchModal.photo_url }} style={styles.pitchPhoto} />
+                            <Image source={{ uri: pitchModal.photo_url }} style={styles.pitchPhoto} accessibilityLabel={pitchModal.venueName} accessibilityRole="image" />
                         ) : null}
                         <Text style={styles.pitchVenueName}>{pitchModal?.venueName}</Text>
                         {pitchModal?.loading ? (
@@ -638,14 +638,14 @@ export default function SwipeScreen() {
                 <View style={styles.cardStackWrap}>
                     {next && (
                         <View style={[styles.card, { transform: [{ scale: 0.95 }], opacity: 0.5 }]}>
-                            {next.photo_url && <Image source={{ uri: next.photo_url }} style={StyleSheet.absoluteFillObject} />}
+                            {next.photo_url && <Image source={{ uri: next.photo_url }} style={StyleSheet.absoluteFillObject} accessibilityLabel={next.name} accessibilityRole="image" />}
                         </View>
                     )}
 
                     <GestureDetector gesture={pan}>
                         <Animated.View style={[styles.card, topCardStyle]}>
                             {current.photo_url && (
-                                <Image source={{ uri: current.photo_url }} style={StyleSheet.absoluteFillObject} />
+                                <Image source={{ uri: current.photo_url }} style={StyleSheet.absoluteFillObject} accessibilityLabel={current.name} accessibilityRole="image" />
                             )}
 
                             {crew.length > 1 && (voteCounts[current.id] ?? 0) > 0 && (
