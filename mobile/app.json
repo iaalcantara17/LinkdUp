@@ -21,6 +21,14 @@
       "package": "com.linkdup.app",
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "name": "LinkdUp",
+      "shortName": "LinkdUp",
+      "themeColor": "#6C3EF4",
+      "backgroundColor": "#0A0A0F"
+    },
     "plugins": [
       [
         "expo-location",
