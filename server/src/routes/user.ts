@@ -28,6 +28,15 @@ function computeAge(birthday: string | null | undefined): number | null {
     return age >= 0 ? age : null;
 }
 
+async function isEitherBlocked(a: string, b: string): Promise<boolean> {
+    const { data } = await supabaseAdmin
+        .from('user_blocks')
+        .select('blocker_id')
+        .or(`and(blocker_id.eq.${a},blocked_id.eq.${b}),and(blocker_id.eq.${b},blocked_id.eq.${a})`)
+        .limit(1);
+    return (data ?? []).length > 0;
+}
+
 router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data, error } = await supabaseAdmin
@@ -171,40 +180,6 @@ router.put('/me/avatar', requireAuth, async (req: AuthedRequest, res, next) => {
         if (updateErr) throw new HttpError(500, 'avatar_update_failed', updateErr.message);
 
         res.json({ ok: true, avatar_url });
-    } catch (e) { next(e); }
-});
-
-router.get('/:id/public', requireAuth, async (req: AuthedRequest, res, next) => {
-    try {
-        const { data, error } = await supabaseAdmin
-            .from('users')
-            .select('id, display_name, username, avatar_url, avatar_color, school_id, graduation_year, pronouns, birthday, bio')
-            .eq('id', req.params.id)
-            .single();
-        if (error || !data) throw new HttpError(404, 'user_not_found');
-
-        let school: string | null = null;
-        if (data.school_id) {
-            const { data: s } = await supabaseAdmin
-                .from('schools')
-                .select('name')
-                .eq('id', data.school_id)
-                .single();
-            school = s?.name ?? null;
-        }
-
-        res.json({
-            id: data.id,
-            display_name: data.display_name,
-            username: data.username ?? null,
-            avatar_url: data.avatar_url,
-            avatar_color: data.avatar_color,
-            school,
-            graduation_year: data.graduation_year,
-            pronouns: data.pronouns ?? null,
-            age: computeAge(data.birthday),
-            bio: data.bio ?? null,
-        });
     } catch (e) { next(e); }
 });
 
@@ -525,11 +500,240 @@ router.post('/me/walkthrough-seen', requireAuth, async (req: AuthedRequest, res,
     } catch (e) { next(e); }
 });
 
+router.get('/me/blocked', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const me = req.user!.id;
+        const { data: blocks, error } = await supabaseAdmin
+            .from('user_blocks')
+            .select('blocked_id, blocked_at')
+            .eq('blocker_id', me)
+            .order('blocked_at', { ascending: false });
+        if (error) throw new HttpError(500, 'fetch_blocked_failed', error.message);
+
+        const blockedIds = (blocks ?? []).map((b: any) => b.blocked_id);
+        if (blockedIds.length === 0) return res.json([]);
+
+        const { data: users } = await supabaseAdmin
+            .from('users')
+            .select('id, display_name, username, avatar_url, avatar_color')
+            .in('id', blockedIds);
+
+        const userMap = Object.fromEntries((users ?? []).map((u: any) => [u.id, u]));
+
+        res.json((blocks ?? []).map((b: any) => ({
+            ...(userMap[b.blocked_id] ?? { id: b.blocked_id }),
+            blocked_at: b.blocked_at,
+        })));
+    } catch (e) { next(e); }
+});
+
+router.delete('/me/followers/:userId', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const me = req.user!.id;
+        const followerToRemove = req.params.userId;
+
+        const { error } = await supabaseAdmin
+            .from('user_follows')
+            .delete()
+            .eq('follower_id', followerToRemove)
+            .eq('followed_id', me);
+        if (error) throw new HttpError(500, 'remove_follower_failed', error.message);
+
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
+router.get('/:id/public', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const me = req.user!.id;
+        const targetId = req.params.id;
+
+        // Check if target has blocked caller
+        const { data: blockedByTarget } = await supabaseAdmin
+            .from('user_blocks')
+            .select('blocker_id')
+            .eq('blocker_id', targetId)
+            .eq('blocked_id', me)
+            .maybeSingle();
+        if (blockedByTarget) throw new HttpError(403, 'blocked');
+
+        const { data, error } = await supabaseAdmin
+            .from('users')
+            .select('id, display_name, username, avatar_url, avatar_color, school_id, graduation_year, pronouns, birthday, bio')
+            .eq('id', targetId)
+            .single();
+        if (error || !data) throw new HttpError(404, 'user_not_found');
+
+        let school: string | null = null;
+        if (data.school_id) {
+            const { data: s } = await supabaseAdmin
+                .from('schools')
+                .select('name')
+                .eq('id', data.school_id)
+                .single();
+            school = s?.name ?? null;
+        }
+
+        const [followerRes, followingRes, blockedByMeRes] = await Promise.all([
+            supabaseAdmin.from('user_follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', targetId),
+            supabaseAdmin.from('user_follows').select('followed_id', { count: 'exact', head: true }).eq('follower_id', targetId),
+            supabaseAdmin.from('user_blocks').select('blocker_id').eq('blocker_id', me).eq('blocked_id', targetId).maybeSingle(),
+        ]);
+
+        res.json({
+            id: data.id,
+            display_name: data.display_name,
+            username: data.username ?? null,
+            avatar_url: data.avatar_url,
+            avatar_color: data.avatar_color,
+            school,
+            graduation_year: data.graduation_year,
+            pronouns: data.pronouns ?? null,
+            age: computeAge(data.birthday),
+            bio: data.bio ?? null,
+            follower_count: followerRes.count ?? 0,
+            following_count: followingRes.count ?? 0,
+            is_blocked_by_me: blockedByMeRes.data != null,
+        });
+    } catch (e) { next(e); }
+});
+
+router.get('/:id/follow-counts', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const targetId = req.params.id;
+        const [followerRes, followingRes] = await Promise.all([
+            supabaseAdmin.from('user_follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', targetId),
+            supabaseAdmin.from('user_follows').select('followed_id', { count: 'exact', head: true }).eq('follower_id', targetId),
+        ]);
+        res.json({ followers: followerRes.count ?? 0, following: followingRes.count ?? 0 });
+    } catch (e) { next(e); }
+});
+
+router.get('/:id/followers', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const me = req.user!.id;
+        const targetId = req.params.id;
+        const limit = Math.min(parseInt((req.query.limit as string) ?? '50', 10), 100);
+        const before = req.query.before as string | undefined;
+
+        let query = supabaseAdmin
+            .from('user_follows')
+            .select('follower_id, followed_at')
+            .eq('followed_id', targetId)
+            .order('followed_at', { ascending: false })
+            .limit(limit);
+        if (before) query = query.lt('followed_at', before);
+
+        const { data: follows, error } = await query;
+        if (error) throw new HttpError(500, 'fetch_followers_failed', error.message);
+
+        const followerIds = (follows ?? []).map((f: any) => f.follower_id);
+        if (followerIds.length === 0) return res.json([]);
+
+        const [usersRes, followsBackRes, blocksRes] = await Promise.all([
+            supabaseAdmin.from('users').select('id, display_name, username, avatar_url, avatar_color').in('id', followerIds),
+            supabaseAdmin.from('user_follows').select('followed_id').eq('follower_id', me).in('followed_id', followerIds),
+            supabaseAdmin.from('user_blocks').select('blocked_id').eq('blocker_id', me).in('blocked_id', followerIds),
+        ]);
+
+        const userMap = Object.fromEntries((usersRes.data ?? []).map((u: any) => [u.id, u]));
+        const followsBackSet = new Set((followsBackRes.data ?? []).map((r: any) => r.followed_id));
+        const blockedSet = new Set((blocksRes.data ?? []).map((r: any) => r.blocked_id));
+        const followedAtMap = Object.fromEntries((follows ?? []).map((f: any) => [f.follower_id, f.followed_at]));
+
+        res.json(followerIds.map((id: string) => ({
+            ...(userMap[id] ?? { id }),
+            followed_at: followedAtMap[id],
+            follows_back: followsBackSet.has(id),
+            is_blocked: blockedSet.has(id),
+        })));
+    } catch (e) { next(e); }
+});
+
+router.get('/:id/following', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const me = req.user!.id;
+        const targetId = req.params.id;
+        const limit = Math.min(parseInt((req.query.limit as string) ?? '50', 10), 100);
+        const before = req.query.before as string | undefined;
+
+        let query = supabaseAdmin
+            .from('user_follows')
+            .select('followed_id, followed_at')
+            .eq('follower_id', targetId)
+            .order('followed_at', { ascending: false })
+            .limit(limit);
+        if (before) query = query.lt('followed_at', before);
+
+        const { data: follows, error } = await query;
+        if (error) throw new HttpError(500, 'fetch_following_failed', error.message);
+
+        const followedIds = (follows ?? []).map((f: any) => f.followed_id);
+        if (followedIds.length === 0) return res.json([]);
+
+        const [usersRes, followsBackRes, blocksRes] = await Promise.all([
+            supabaseAdmin.from('users').select('id, display_name, username, avatar_url, avatar_color').in('id', followedIds),
+            supabaseAdmin.from('user_follows').select('followed_id').eq('follower_id', me).in('followed_id', followedIds),
+            supabaseAdmin.from('user_blocks').select('blocked_id').eq('blocker_id', me).in('blocked_id', followedIds),
+        ]);
+
+        const userMap = Object.fromEntries((usersRes.data ?? []).map((u: any) => [u.id, u]));
+        const followsBackSet = new Set((followsBackRes.data ?? []).map((r: any) => r.followed_id));
+        const blockedSet = new Set((blocksRes.data ?? []).map((r: any) => r.blocked_id));
+        const followedAtMap = Object.fromEntries((follows ?? []).map((f: any) => [f.followed_id, f.followed_at]));
+
+        res.json(followedIds.map((id: string) => ({
+            ...(userMap[id] ?? { id }),
+            followed_at: followedAtMap[id],
+            follows_back: followsBackSet.has(id),
+            is_blocked: blockedSet.has(id),
+        })));
+    } catch (e) { next(e); }
+});
+
+router.post('/:id/block', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const me = req.user!.id;
+        const target = req.params.id;
+        if (me === target) throw new HttpError(400, 'cannot_block_self');
+
+        const { error: blockErr } = await supabaseAdmin
+            .from('user_blocks')
+            .upsert({ blocker_id: me, blocked_id: target }, { onConflict: 'blocker_id,blocked_id' });
+        if (blockErr) throw new HttpError(500, 'block_failed', blockErr.message);
+
+        await Promise.all([
+            supabaseAdmin.from('user_follows').delete()
+                .or(`and(follower_id.eq.${me},followed_id.eq.${target}),and(follower_id.eq.${target},followed_id.eq.${me})`),
+            supabaseAdmin.from('friendships').delete()
+                .or(`and(requester_id.eq.${me},addressee_id.eq.${target}),and(requester_id.eq.${target},addressee_id.eq.${me})`),
+        ]);
+
+        res.json({ blocked: true });
+    } catch (e) { next(e); }
+});
+
+router.delete('/:id/block', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const me = req.user!.id;
+        const { error } = await supabaseAdmin
+            .from('user_blocks')
+            .delete()
+            .eq('blocker_id', me)
+            .eq('blocked_id', req.params.id);
+        if (error) throw new HttpError(500, 'unblock_failed', error.message);
+        res.json({ ok: true });
+    } catch (e) { next(e); }
+});
+
 router.post('/:id/follow', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
         const target = req.params.id;
         if (me === target) throw new HttpError(400, 'cannot_follow_self');
+
+        const blocked = await isEitherBlocked(me, target);
+        if (blocked) throw new HttpError(403, 'blocked');
 
         const { error } = await supabaseAdmin
             .from('user_follows')

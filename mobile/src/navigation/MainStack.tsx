@@ -20,6 +20,8 @@ import WalkthroughScreen from '../screens/WalkthroughScreen';
 import CreatePostScreen from '../screens/CreatePostScreen';
 import MyPostsScreen from '../screens/MyPostsScreen';
 import SavedScreen from '../screens/SavedScreen';
+import FollowListScreen from '../screens/FollowListScreen';
+import BlockedUsersScreen from '../screens/BlockedUsersScreen';
 import { colors } from '../theme';
 
 export type MainStackParamList = {
@@ -43,6 +45,8 @@ export type MainStackParamList = {
     CreatePost: undefined;
     MyPosts: undefined;
     Saved: undefined;
+    FollowList: { userId: string; initialTab: 'followers' | 'following'; username?: string };
+    BlockedUsers: undefined;
 };
 
 const Stack = createNativeStackNavigator<MainStackParamList>();
@@ -77,6 +81,8 @@ export default function MainStack() {
             <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="MyPosts" component={MyPostsScreen} options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="Saved" component={SavedScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="FollowList" component={FollowListScreen} options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ animation: 'slide_from_right' }} />
         </Stack.Navigator>
     );
 }

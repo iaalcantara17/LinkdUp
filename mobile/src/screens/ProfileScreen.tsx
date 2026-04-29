@@ -83,6 +83,7 @@ export default function ProfileScreen() {
     const [me, setMe] = useState<any>(null);
     const [schoolName, setSchoolName] = useState<string | null>(null);
     const [avatarUploading, setAvatarUploading] = useState(false);
+    const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null);
 
     const [editModal, setEditModal] = useState<EditField | null>(null);
     const [editValue, setEditValue] = useState('');
@@ -126,6 +127,11 @@ export default function ProfileScreen() {
                 }
             } else {
                 setSchoolName(null);
+            }
+            if (profile?.id) {
+                api.getFollowCounts(profile.id)
+                    .then((c) => setFollowCounts(c))
+                    .catch(() => {});
             }
         } catch {}
     };
@@ -349,6 +355,26 @@ export default function ProfileScreen() {
                             </View>
                             {me?.username && <Text style={styles.username}>@{me.username}</Text>}
                             <Text style={styles.email}>{me?.email ?? ''}</Text>
+                            {me && (
+                                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                                    <TouchableOpacity
+                                        onPress={() => nav.navigate('FollowList', { userId: me.id, initialTab: 'followers', username: me.username })}
+                                        style={{ alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
+                                        activeOpacity={0.75}
+                                    >
+                                        <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>{followCounts?.followers ?? '–'}</Text>
+                                        <Text style={{ color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 12 }}>Followers</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => nav.navigate('FollowList', { userId: me.id, initialTab: 'following', username: me.username })}
+                                        style={{ alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
+                                        activeOpacity={0.75}
+                                    >
+                                        <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>{followCounts?.following ?? '–'}</Text>
+                                        <Text style={{ color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 12 }}>Following</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
 
                         <GlassCard style={{ marginBottom: 16 }}>
@@ -529,6 +555,14 @@ export default function ProfileScreen() {
                                 activeOpacity={0.75}
                             >
                                 <Text style={styles.settingsRowTitle}>Take the tour again</Text>
+                                <ChevronRight size={18} color={colors.text60} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.settingsRow}
+                                onPress={() => nav.navigate('BlockedUsers')}
+                                activeOpacity={0.75}
+                            >
+                                <Text style={styles.settingsRowTitle}>Blocked Users</Text>
                                 <ChevronRight size={18} color={colors.text60} />
                             </TouchableOpacity>
                             <TouchableOpacity

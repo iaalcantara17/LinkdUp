@@ -4,7 +4,8 @@ import {
     ActivityIndicator, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, GraduationCap, UserPlus, UserCheck, Clock } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import { X, GraduationCap, UserPlus, UserCheck, Clock, MoreHorizontal } from 'lucide-react-native';
 import AvatarBubble from './AvatarBubble';
 import { api } from '../services/api';
 import { radii } from '../theme';
@@ -22,6 +23,9 @@ interface PublicUser {
     pronouns: string | null;
     age: number | null;
     bio: string | null;
+    follower_count?: number;
+    following_count?: number;
+    is_blocked_by_me?: boolean;
 }
 
 interface Props {
@@ -35,29 +39,45 @@ type FriendUi = 'loading' | 'self' | 'none' | 'pending_out' | 'pending_in' | 'ac
 export default function UserProfileSheet({ userId, visible, onClose }: Props) {
     const { colors } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
+    const nav = useNavigation<any>();
 
     const [profile, setProfile] = useState<PublicUser | null>(null);
     const [loading, setLoading] = useState(false);
+    const [blockedByThem, setBlockedByThem] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [friendUi, setFriendUi] = useState<FriendUi>('loading');
     const [friendshipId, setFriendshipId] = useState<string | null>(null);
     const [friendBusy, setFriendBusy] = useState(false);
+    const [myId, setMyId] = useState<string | null>(null);
+    const [blockBusy, setBlockBusy] = useState(false);
 
     useEffect(() => {
         if (!visible || !userId) return;
         let cancelled = false;
         setProfile(null);
         setError(null);
+        setBlockedByThem(false);
         setLoading(true);
         setFriendUi('loading');
         setFriendshipId(null);
+        setMyId(null);
+
         api.getPublicUser(userId)
             .then((data) => { if (!cancelled) setProfile(data); })
-            .catch(() => { if (!cancelled) setError('Could not load profile'); })
+            .catch((e: any) => {
+                if (cancelled) return;
+                if (e?.message === 'blocked') {
+                    setBlockedByThem(true);
+                } else {
+                    setError('Could not load profile');
+                }
+            })
             .finally(() => { if (!cancelled) setLoading(false); });
+
         api.me()
             .then((me) => {
                 if (cancelled || !userId) return;
+                setMyId(me?.id ?? null);
                 if (me?.id === userId) {
                     setFriendUi('self');
                     return;
@@ -77,8 +97,66 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                 });
             })
             .catch(() => { if (!cancelled) setFriendUi('none'); });
+
         return () => { cancelled = true; };
     }, [userId, visible]);
+
+    const isSelf = friendUi === 'self';
+
+    const handleBlock = () => {
+        if (!userId || !profile) return;
+        Alert.alert(
+            'Block user?',
+            `Block @${profile.username ?? profile.display_name}? They won't be able to follow you or see your profile.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Block',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setBlockBusy(true);
+                        try {
+                            await api.blockUser(userId);
+                            onClose();
+                        } catch (e: any) {
+                            Alert.alert('Error', e?.message ?? 'Try again');
+                        } finally {
+                            setBlockBusy(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleKebab = () => {
+        if (!profile) return;
+        const options: any[] = [
+            {
+                text: 'Block user',
+                style: 'destructive',
+                onPress: handleBlock,
+            },
+            {
+                text: 'Report user',
+                onPress: () => Alert.alert('Thanks', "We'll review this report."),
+            },
+            { text: 'Cancel', style: 'cancel' },
+        ];
+        Alert.alert(profile.display_name ?? 'User', undefined, options);
+    };
+
+    const navigateToFollowList = (tab: 'followers' | 'following') => {
+        if (!userId || !profile) return;
+        onClose();
+        setTimeout(() => {
+            nav.navigate('FollowList', {
+                userId,
+                initialTab: tab,
+                username: profile.username ?? undefined,
+            });
+        }, 300);
+    };
 
     const name = profile?.display_name ?? '';
     const hasMeta = profile?.pronouns || profile?.age !== null;
@@ -97,9 +175,26 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                         <X size={18} color="white" />
                     </TouchableOpacity>
 
+                    {profile && !isSelf && !blockedByThem && (
+                        <TouchableOpacity style={styles.kebabBtn} onPress={handleKebab} activeOpacity={0.8} disabled={blockBusy}>
+                            {blockBusy
+                                ? <ActivityIndicator size="small" color="white" />
+                                : <MoreHorizontal size={18} color="white" />
+                            }
+                        </TouchableOpacity>
+                    )}
+
                     <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
                         {loading ? (
                             <ActivityIndicator color={colors.primary} style={{ paddingVertical: 48 }} />
+                        ) : blockedByThem ? (
+                            <View style={styles.unavailableWrap}>
+                                <Text style={styles.unavailableName}>This profile is unavailable</Text>
+                                <Text style={styles.unavailableSub}>You can't view this profile right now.</Text>
+                                <TouchableOpacity onPress={onClose} style={styles.backPill} activeOpacity={0.75}>
+                                    <Text style={styles.backPillText}>Go back</Text>
+                                </TouchableOpacity>
+                            </View>
                         ) : error ? (
                             <Text style={styles.errorText}>{error}</Text>
                         ) : profile ? (
@@ -117,6 +212,27 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                 {profile.username ? (
                                     <Text style={styles.username}>@{profile.username}</Text>
                                 ) : null}
+
+                                {(profile.follower_count != null || profile.following_count != null) && (
+                                    <View style={styles.countsRow}>
+                                        <TouchableOpacity
+                                            style={styles.countPill}
+                                            onPress={() => navigateToFollowList('followers')}
+                                            activeOpacity={0.75}
+                                        >
+                                            <Text style={styles.countNum}>{profile.follower_count ?? 0}</Text>
+                                            <Text style={styles.countLabel}>Followers</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.countPill}
+                                            onPress={() => navigateToFollowList('following')}
+                                            activeOpacity={0.75}
+                                        >
+                                            <Text style={styles.countNum}>{profile.following_count ?? 0}</Text>
+                                            <Text style={styles.countLabel}>Following</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
 
                                 {hasMeta && (
                                     <Text style={styles.meta}>
@@ -228,6 +344,18 @@ function makeStyles(c: AppColors) {
         closeBtn: {
             position: 'absolute',
             top: 16,
+            right: 56,
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            backgroundColor: c.glassStrong,
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+        },
+        kebabBtn: {
+            position: 'absolute',
+            top: 16,
             right: 16,
             width: 34,
             height: 34,
@@ -257,6 +385,31 @@ function makeStyles(c: AppColors) {
             fontSize: 13,
             textAlign: 'center',
             marginBottom: 6,
+        },
+        countsRow: {
+            flexDirection: 'row',
+            gap: 10,
+            marginTop: 10,
+            marginBottom: 10,
+        },
+        countPill: {
+            alignItems: 'center',
+            paddingHorizontal: 18,
+            paddingVertical: 8,
+            borderRadius: 16,
+            backgroundColor: c.glass,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        countNum: {
+            color: c.textPrimary,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 16,
+        },
+        countLabel: {
+            color: c.text60,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 12,
         },
         meta: {
             color: c.text60,
@@ -298,6 +451,36 @@ function makeStyles(c: AppColors) {
             fontFamily: 'Inter_400Regular',
             textAlign: 'center',
             paddingVertical: 48,
+        },
+        unavailableWrap: {
+            alignItems: 'center',
+            paddingVertical: 40,
+        },
+        unavailableName: {
+            color: c.textPrimary,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 18,
+            textAlign: 'center',
+            marginBottom: 8,
+        },
+        unavailableSub: {
+            color: c.text60,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 14,
+            textAlign: 'center',
+            marginBottom: 24,
+        },
+        backPill: {
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: c.glassBorder,
+        },
+        backPillText: {
+            color: c.text80,
+            fontFamily: 'Inter_600SemiBold',
+            fontSize: 14,
         },
         friendBtn: {
             flexDirection: 'row',

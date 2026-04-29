@@ -104,6 +104,13 @@ router.post('/request', requireAuth, async (req: AuthedRequest, res, next) => {
         const me = req.user!.id;
         if (user_id === me) throw new HttpError(400, 'cannot_friend_self');
 
+        const { data: blockCheck } = await supabaseAdmin
+            .from('user_blocks')
+            .select('blocker_id')
+            .or(`and(blocker_id.eq.${me},blocked_id.eq.${user_id}),and(blocker_id.eq.${user_id},blocked_id.eq.${me})`)
+            .limit(1);
+        if ((blockCheck ?? []).length > 0) throw new HttpError(403, 'blocked');
+
         const { data: existing } = await supabaseAdmin
             .from('friendships')
             .select('id, status')

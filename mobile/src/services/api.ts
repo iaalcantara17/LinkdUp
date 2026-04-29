@@ -231,6 +231,31 @@ export const api = {
     unfollowUser: (userId: string) =>
         request<{ ok: boolean }>('DELETE', `/api/user/${userId}/follow`),
 
+    getFollowCounts: (userId: string) =>
+        request<{ followers: number; following: number }>('GET', `/api/user/${userId}/follow-counts`),
+    getFollowers: (userId: string, opts?: { limit?: number; before?: string }) => {
+        const params = new URLSearchParams();
+        if (opts?.limit) params.set('limit', String(opts.limit));
+        if (opts?.before) params.set('before', opts.before);
+        const qs = params.toString() ? '?' + params.toString() : '';
+        return request<any[]>('GET', `/api/user/${userId}/followers${qs}`);
+    },
+    getFollowing: (userId: string, opts?: { limit?: number; before?: string }) => {
+        const params = new URLSearchParams();
+        if (opts?.limit) params.set('limit', String(opts.limit));
+        if (opts?.before) params.set('before', opts.before);
+        const qs = params.toString() ? '?' + params.toString() : '';
+        return request<any[]>('GET', `/api/user/${userId}/following${qs}`);
+    },
+    removeFollower: (userId: string) =>
+        request<{ ok: boolean }>('DELETE', `/api/user/me/followers/${userId}`),
+    blockUser: (userId: string) =>
+        request<{ blocked: boolean }>('POST', `/api/user/${userId}/block`),
+    unblockUser: (userId: string) =>
+        request<{ ok: boolean }>('DELETE', `/api/user/${userId}/block`),
+    getBlockedUsers: () =>
+        request<any[]>('GET', '/api/user/me/blocked'),
+
     editFeedPost: (postId: string, caption: string | null) =>
         request<{ ok: boolean }>('PATCH', `/api/discover/feed/posts/${postId}`, { caption }),
 

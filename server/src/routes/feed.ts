@@ -15,6 +15,15 @@ router.get('/feed', requireAuth, async (req: AuthedRequest, res, next) => {
         const lat = req.query.lat ? parseFloat(req.query.lat as string) : null;
         const lng = req.query.lng ? parseFloat(req.query.lng as string) : null;
 
+        const { data: blockRows } = await supabaseAdmin
+            .from('user_blocks')
+            .select('blocker_id, blocked_id')
+            .or(`blocker_id.eq.${me},blocked_id.eq.${me}`);
+        const blockedCreatorIds = new Set<string>();
+        for (const row of blockRows ?? []) {
+            blockedCreatorIds.add(row.blocker_id === me ? row.blocked_id : row.blocker_id);
+        }
+
         let query = supabaseAdmin
             .from('feed_posts')
             .select('*')
@@ -26,7 +35,7 @@ router.get('/feed', requireAuth, async (req: AuthedRequest, res, next) => {
         const { data: posts, error } = await query;
         if (error) throw new HttpError(500, 'feed_query_failed', error.message);
 
-        const rawPosts = posts ?? [];
+        const rawPosts = (posts ?? []).filter((p: any) => !blockedCreatorIds.has(p.creator_id));
         const has_more = rawPosts.length > limit;
         const items = rawPosts.slice(0, limit);
 
@@ -284,6 +293,20 @@ router.post('/feed/posts/:id/comments', requireAuth, async (req: AuthedRequest, 
         const { body } = req.body;
         if (!body || typeof body !== 'string' || body.trim().length === 0) throw new HttpError(400, 'empty_body');
         if (body.length > 500) throw new HttpError(400, 'body_too_long');
+
+        const { data: postRow } = await supabaseAdmin
+            .from('feed_posts')
+            .select('creator_id')
+            .eq('id', req.params.id)
+            .single();
+        if (postRow && postRow.creator_id !== me) {
+            const { data: blockCheck } = await supabaseAdmin
+                .from('user_blocks')
+                .select('blocker_id')
+                .or(`and(blocker_id.eq.${me},blocked_id.eq.${postRow.creator_id}),and(blocker_id.eq.${postRow.creator_id},blocked_id.eq.${me})`)
+                .limit(1);
+            if ((blockCheck ?? []).length > 0) throw new HttpError(403, 'blocked');
+        }
 
         const { data: comment, error } = await supabaseAdmin
             .from('feed_comments')
