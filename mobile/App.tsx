@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import React from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -60,9 +60,7 @@ export default function App() {
         Inter_900Black,
     });
 
-    // On native, block render until fonts are ready to prevent FOUT.
-    // On web, render immediately so Lighthouse sees a real FCP instead of a spinner.
-    if (!fontsLoaded && Platform.OS !== 'web') {
+    if (!fontsLoaded) {
         return (
             <View style={{ flex: 1, backgroundColor: darkColors.bg, alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator color={darkColors.primary} />
