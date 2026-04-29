@@ -5,8 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, LinkingOptions } from '@react-navigation/native';
-import { useFonts, FontDisplay } from 'expo-font';
 import {
+    useFonts,
     Inter_400Regular,
     Inter_500Medium,
     Inter_700Bold,
@@ -54,10 +54,10 @@ function AppInner() {
 
 export default function App() {
     const [fontsLoaded] = useFonts({
-        Inter_400Regular: { uri: Inter_400Regular as any, display: FontDisplay.SWAP },
-        Inter_500Medium:  { uri: Inter_500Medium  as any, display: FontDisplay.SWAP },
-        Inter_700Bold:    { uri: Inter_700Bold    as any, display: FontDisplay.SWAP },
-        Inter_900Black:   { uri: Inter_900Black   as any, display: FontDisplay.SWAP },
+        Inter_400Regular,
+        Inter_500Medium,
+        Inter_700Bold,
+        Inter_900Black,
     });
 
     // On native, block render until fonts are ready to prevent FOUT.
