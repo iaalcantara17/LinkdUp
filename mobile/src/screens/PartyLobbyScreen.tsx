@@ -17,12 +17,14 @@ const LOBBY_HELP: { title: string; description: string }[] = [
     { title: 'Crew map', description: 'See where everyone\'s at. Midpoint appears once swiping starts.' },
     { title: 'Start swiping', description: 'Kick off the matching round (host only).' },
     { title: 'Party code', description: 'Share this code so friends can join.' },
+    { title: 'Locked-step voting', description: 'Swipe together — 10 spots, then pick the winner.' },
 ];
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+import { useLocationGuard } from '../hooks/useLocationGuard';
 
 export default function PartyLobbyScreen() {
     const nav = useNavigation<any>();
@@ -30,6 +32,7 @@ export default function PartyLobbyScreen() {
     const partyId: string = route.params.partyId;
     const { colors } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { checkLocation, GuardBubble } = useLocationGuard();
 
     const [party, setParty] = useState<any>(null);
     const codeCardRef = useRef<View>(null);
@@ -141,6 +144,9 @@ export default function PartyLobbyScreen() {
                     <Animated.View entering={FadeInDown.duration(400)}>
                         <Text style={styles.title}>{party?.name ?? 'Loading...'}</Text>
                         <Text style={styles.sub}>Status: {party?.status ?? '...'}</Text>
+                        <Text style={[styles.sub, { marginTop: 2, color: colors.text40 }]}>
+                            Swipe together — 10 spots, then pick the winner
+                        </Text>
 
                         <View style={styles.tabRow}>
                             <TouchableOpacity
@@ -229,7 +235,7 @@ export default function PartyLobbyScreen() {
                                     <Text style={[styles.crewLabel, { marginBottom: 4 }]}>Where everyone's at</Text>
                                     <Text style={styles.mapPrivacyNote}>Locations are approximate for privacy.</Text>
                                     <TouchableOpacity
-                                        onPress={() => nav.navigate('CrewMapFullscreen', { partyId })}
+                                        onPress={() => checkLocation(() => nav.navigate('CrewMapFullscreen', { partyId }))}
                                         activeOpacity={0.92}
                                     >
                                         <View style={{ position: 'relative' }}>
@@ -291,6 +297,7 @@ export default function PartyLobbyScreen() {
                 targetRef={codeCardRef}
                 placement="bottom"
             />
+            {GuardBubble}
         </View>
     );
 }

@@ -8,6 +8,7 @@ import { searchNearbyVenues, searchNearbyVenuesPaged, getVenuesWithRotation } fr
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
 import { fuzzCoords } from '../services/locationFuzz';
 import { generateVenuePitch } from '../services/aiPitch';
+import { evaluateProposal } from '../services/matchEngine';
 
 const router = Router();
 
@@ -252,7 +253,7 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
         const spread = maxSpreadKm(points);
         const radiusMeters = Math.min(Math.max(2000, spread * 1000 * 0.15), 25_000);
 
-        const venues = await searchNearbyVenues(center, radiusMeters, 15);
+        const venues = await searchNearbyVenues(center, radiusMeters, 10);
         if (venues.length === 0) throw new HttpError(502, 'no_venues_found');
 
         const rows = venues.map((v) => ({ ...v, party_id: partyId }));
@@ -267,6 +268,8 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
                 status: 'swiping',
                 midpoint_lat: center.latitude,
                 midpoint_lng: center.longitude,
+                current_card_index: 0,
+                voting_round: 1,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', partyId);
@@ -459,6 +462,11 @@ router.post('/:id/reset', requireAuth, async (req: AuthedRequest, res, next) => 
             .update({
                 status: 'swiping',
                 matched_location_id: null,
+                current_card_index: 0,
+                voting_round: 1,
+                proposal_location_id: null,
+                proposal_rank: 0,
+                rejected_location_ids: [],
                 updated_at: new Date().toISOString(),
             })
             .eq('id', partyId);
@@ -518,6 +526,47 @@ router.post('/:id/force-match', requireAuth, async (req: AuthedRequest, res, nex
         if (updateErr) throw new HttpError(500, 'match_failed', updateErr.message);
 
         res.json({ matched: true, location_id: recentLike.location_id });
+    } catch (e) { next(e); }
+});
+
+const proposalRespondSchema = z.object({ accepted: z.boolean() });
+
+router.post('/:id/proposal/respond', requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+        await assertMember(partyId, req.user!.id);
+
+        const { accepted } = proposalRespondSchema.parse(req.body);
+
+        const { data: party } = await supabaseAdmin
+            .from('parties')
+            .select('proposal_location_id, proposal_rank, voting_round, status')
+            .eq('id', partyId)
+            .single();
+
+        if (!party) throw new HttpError(404, 'party_not_found');
+        if (party.status !== 'proposing') throw new HttpError(409, 'party_not_proposing');
+        if (!party.proposal_location_id) throw new HttpError(409, 'no_active_proposal');
+
+        const { error: upsertErr } = await supabaseAdmin
+            .from('proposal_responses')
+            .upsert(
+                {
+                    party_id: partyId,
+                    voting_round: party.voting_round,
+                    proposal_rank: party.proposal_rank,
+                    location_id: party.proposal_location_id,
+                    user_id: req.user!.id,
+                    accepted,
+                    responded_at: new Date().toISOString(),
+                },
+                { onConflict: 'party_id,voting_round,proposal_rank,user_id' }
+            );
+        if (upsertErr) throw new HttpError(500, 'response_failed', upsertErr.message);
+
+        await evaluateProposal(partyId);
+
+        res.json({ ok: true });
     } catch (e) { next(e); }
 });
 

@@ -12,13 +12,17 @@ import { api } from '../services/api';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+import { useLocationGuard } from '../hooks/useLocationGuard';
 
 const SUGGESTIONS = ['Weekend Warriors', 'Alumni Hangout', 'Study Group Reunion', 'Friday Night Crew'];
+const MAX_NAME = 40;
+const MIN_NAME = 2;
 
 export default function CreatePartyScreen() {
     const nav = useNavigation<any>();
     const { colors, isDark } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { checkLocation, GuardBubble } = useLocationGuard();
 
     const [step, setStep] = useState<'name' | 'invite'>('name');
     const [partyName, setPartyName] = useState('');
@@ -26,6 +30,7 @@ export default function CreatePartyScreen() {
     const [partyId, setPartyId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [nameTouched, setNameTouched] = useState(false);
     const [isPublic, setIsPublic] = useState<boolean>(() => {
         if (typeof localStorage !== 'undefined') {
             return localStorage.getItem('linkdup_default_party_public') === 'true';
@@ -33,20 +38,34 @@ export default function CreatePartyScreen() {
         return false;
     });
 
-    const handleNext = async () => {
+    const trimmedName = partyName.trim();
+    const nameValid = trimmedName.length >= MIN_NAME && partyName.length <= MAX_NAME;
+    const nameError = nameTouched && !nameValid
+        ? trimmedName.length < MIN_NAME
+            ? `Name must be at least ${MIN_NAME} characters`
+            : `Name must be ${MAX_NAME} characters or fewer`
+        : null;
+
+    const doCreate = async () => {
+        if (!nameValid) return;
+        setLoading(true);
+        try {
+            const r = await api.createParty(partyName.trim(), isPublic);
+            setPartyCode(r.code);
+            setPartyId(r.party_id);
+            setStep('invite');
+        } catch (e: any) {
+            Alert.alert('Could not create party', e?.message ?? 'unknown');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleNext = () => {
         if (step === 'name') {
-            if (!partyName) return;
-            setLoading(true);
-            try {
-                const r = await api.createParty(partyName, isPublic);
-                setPartyCode(r.code);
-                setPartyId(r.party_id);
-                setStep('invite');
-            } catch (e: any) {
-                Alert.alert('Could not create party', e?.message ?? 'unknown');
-            } finally {
-                setLoading(false);
-            }
+            setNameTouched(true);
+            if (!nameValid) return;
+            checkLocation(doCreate);
         } else {
             if (partyId) nav.replace('PartyLobby', { partyId });
         }
@@ -60,6 +79,8 @@ export default function CreatePartyScreen() {
         } catch {}
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const continueDisabled = step === 'name' ? !nameValid : false;
 
     return (
         <View style={styles.root}>
@@ -97,21 +118,38 @@ export default function CreatePartyScreen() {
                             <Text style={styles.stepTitle}>Name your party</Text>
                             <Text style={styles.stepSub}>Give your crew a memorable name</Text>
 
-                            <TextInput
-                                style={styles.nameInput}
-                                placeholder="e.g. Weekend Brunch Crew"
-                                placeholderTextColor={colors.text30}
-                                value={partyName}
-                                onChangeText={setPartyName}
-                                autoFocus
-                            />
+                            <View>
+                                <TextInput
+                                    style={[styles.nameInput, nameError ? styles.nameInputError : null]}
+                                    placeholder="e.g. Weekend Brunch Crew"
+                                    placeholderTextColor={colors.text30}
+                                    value={partyName}
+                                    onChangeText={setPartyName}
+                                    onBlur={() => setNameTouched(true)}
+                                    autoFocus
+                                    maxLength={MAX_NAME}
+                                />
+                                <View style={styles.nameFooterRow}>
+                                    {nameError ? (
+                                        <Text style={styles.nameError}>{nameError}</Text>
+                                    ) : (
+                                        <View />
+                                    )}
+                                    <Text style={[
+                                        styles.charCounter,
+                                        partyName.length > MAX_NAME - 5 ? { color: colors.danger } : null,
+                                    ]}>
+                                        {partyName.length}/{MAX_NAME}
+                                    </Text>
+                                </View>
+                            </View>
 
                             <Text style={styles.suggestLabel}>Quick suggestions:</Text>
                             <View style={styles.suggestWrap}>
                                 {SUGGESTIONS.map((s) => (
                                     <TouchableOpacity
                                         key={s}
-                                        onPress={() => setPartyName(s)}
+                                        onPress={() => { setPartyName(s); setNameTouched(false); }}
                                         style={styles.suggestPill}
                                     >
                                         <Text style={styles.suggestText}>{s}</Text>
@@ -189,11 +227,13 @@ export default function CreatePartyScreen() {
                 <GradientButton
                     title={step === 'name' ? 'Continue' : 'Go to Lobby'}
                     onPress={handleNext}
-                    disabled={step === 'name' ? !partyName : false}
+                    disabled={continueDisabled}
                     loading={loading}
                     rightIcon={<ArrowRight size={20} color="white" />}
                 />
             </LinearGradient>
+
+            {GuardBubble}
         </View>
     );
 }
@@ -219,8 +259,30 @@ function makeStyles(c: AppColors) {
             paddingVertical: 20,
             color: c.textPrimary,
             fontSize: 18,
-            marginBottom: 24,
             fontFamily: 'Inter_400Regular',
+        },
+        nameInputError: {
+            borderColor: '#EF4444',
+        },
+        nameFooterRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: 6,
+            marginBottom: 16,
+            minHeight: 18,
+        },
+        nameError: {
+            color: '#EF4444',
+            fontSize: 12,
+            fontFamily: 'Inter_400Regular',
+            flex: 1,
+        },
+        charCounter: {
+            color: c.text40,
+            fontSize: 12,
+            fontFamily: 'Inter_400Regular',
+            marginLeft: 8,
         },
 
         suggestLabel: { color: c.text40, fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 10 },

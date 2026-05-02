@@ -150,7 +150,10 @@ router.post('/ensure-profile', requireAuth, async (req: AuthedRequest, res, next
             )
             .select('id, email, display_name, graduation_year, school_id, avatar_color')
             .single();
-        if (error) throw new HttpError(500, 'ensure_profile_failed', error.message);
+        if (error) {
+            console.error('[ensure-profile] FAILED uid=%s email=%s error=%s', req.user!.id, body.email, error.message);
+            throw new HttpError(500, 'ensure_profile_failed', error.message);
+        }
         res.json(data);
     } catch (e) { next(e); }
 });

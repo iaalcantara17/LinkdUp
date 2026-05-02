@@ -294,6 +294,9 @@ export const api = {
 
     deleteAccount: () => request<{ ok: boolean }>('DELETE', '/api/user/me'),
 
+    respondToProposal: (partyId: string, accepted: boolean) =>
+        request<{ ok: boolean }>('POST', `/api/party/${partyId}/proposal/respond`, { accepted }),
+
     getFriends: () => request<any[]>('GET', '/api/friends'),
     getPendingRequests: () => request<any[]>('GET', '/api/friends/pending'),
     getOutgoingRequests: () => request<any[]>('GET', '/api/friends/outgoing'),

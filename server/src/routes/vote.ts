@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
-import { evaluateMatch } from '../services/matchEngine';
+import { tryAdvanceCard } from '../services/matchEngine';
 
 const router = Router();
 
@@ -44,9 +44,9 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
         );
         if (voteErr) throw new HttpError(500, 'vote_failed', voteErr.message);
 
-        const match = await evaluateMatch(partyId);
+        const result = await tryAdvanceCard(partyId);
 
-        res.json({ ok: true, match });
+        res.json({ ok: true, match: result.matchResult });
     } catch (e) { next(e); }
 });
 

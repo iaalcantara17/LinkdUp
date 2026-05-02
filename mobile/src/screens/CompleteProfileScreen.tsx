@@ -1,18 +1,20 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import {
     View, Text, TextInput, StyleSheet, Alert, ScrollView,
     KeyboardAvoidingView, Platform, ActivityIndicator,
+    TouchableOpacity, FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowRight, Check, X } from 'lucide-react-native';
+import { ArrowRight, Check, X, AlertTriangle } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 function reasonToText(reason: string | undefined): string {
     switch (reason) {
@@ -26,22 +28,62 @@ function reasonToText(reason: string | undefined): string {
     }
 }
 
+interface School { id: string; name: string; city: string; state: string; }
+
+interface FieldError {
+    displayName: string | null;
+    username: string | null;
+    school: string | null;
+}
+
 export default function CompleteProfileScreen() {
     const nav = useNavigation<any>();
     const { colors } = useTheme();
+    const { refreshProfile } = useAuth();
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
-    const [schoolName,  setSchoolName]  = useState('');
-    const [gradYear,    setGradYear]    = useState('');
-    const [username,    setUsername]    = useState('');
-    const [loading,     setLoading]     = useState(false);
+    const [displayName,  setDisplayName]  = useState('');
+    const [username,     setUsername]     = useState('');
+    const [gradYear,     setGradYear]     = useState('');
+    const [loading,      setLoading]      = useState(false);
 
-    const [usernameStatus,  setUsernameStatus]  = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
-    const [usernameReason,  setUsernameReason]  = useState<string | null>(null);
+    const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+    const [schoolQuery,    setSchoolQuery]    = useState('');
+    const [schoolResults,  setSchoolResults]  = useState<School[]>([]);
+    const [schoolSearching, setSchoolSearching] = useState(false);
+    const [schoolDropdownOpen, setSchoolDropdownOpen] = useState(false);
 
-    const gradRef     = useRef<TextInput>(null);
+    const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
+    const [usernameReason, setUsernameReason] = useState<string | null>(null);
+
+    const [touched, setTouched] = useState({ displayName: false, username: false, school: false });
+    const [errors, setErrors] = useState<FieldError>({ displayName: null, username: null, school: null });
+
     const usernameRef = useRef<TextInput>(null);
+    const gradRef     = useRef<TextInput>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const schoolDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const validateDisplayName = (val: string): string | null => {
+        if (!val.trim()) return 'Display name is required';
+        if (val.trim().length > 50) return 'Maximum 50 characters';
+        return null;
+    };
+
+    useEffect(() => {
+        if (!touched.displayName) return;
+        setErrors(e => ({ ...e, displayName: validateDisplayName(displayName) }));
+    }, [displayName, touched.displayName]);
+
+    useEffect(() => {
+        if (!touched.school) return;
+        setErrors(e => ({ ...e, school: selectedSchool ? null : 'Please select a school from the list' }));
+    }, [selectedSchool, touched.school]);
+
+    const handleDisplayNameBlur = () => {
+        setTouched(t => ({ ...t, displayName: true }));
+        setErrors(e => ({ ...e, displayName: validateDisplayName(displayName) }));
+    };
 
     const handleUsernameChange = (text: string) => {
         const clean = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -70,25 +112,68 @@ export default function CompleteProfileScreen() {
         }, 300);
     };
 
-    const canSubmit = usernameStatus === 'available';
+    const handleUsernameBlur = () => {
+        setTouched(t => ({ ...t, username: true }));
+    };
+
+    const handleSchoolQueryChange = (text: string) => {
+        setSchoolQuery(text);
+        setSelectedSchool(null);
+        setSchoolDropdownOpen(true);
+        if (schoolDebounceRef.current) clearTimeout(schoolDebounceRef.current);
+        if (!text.trim()) { setSchoolResults([]); return; }
+        schoolDebounceRef.current = setTimeout(async () => {
+            setSchoolSearching(true);
+            try {
+                const results = await api.schools(text.trim());
+                setSchoolResults(results);
+            } catch {
+                setSchoolResults([]);
+            } finally {
+                setSchoolSearching(false);
+            }
+        }, 300);
+    };
+
+    const handleSchoolSelect = (school: School) => {
+        setSelectedSchool(school);
+        setSchoolQuery(school.name);
+        setSchoolDropdownOpen(false);
+        setSchoolResults([]);
+        setTouched(t => ({ ...t, school: true }));
+        setErrors(e => ({ ...e, school: null }));
+    };
+
+    const handleSchoolBlur = () => {
+        setTouched(t => ({ ...t, school: true }));
+        if (!selectedSchool) {
+            setErrors(e => ({ ...e, school: 'Please select a school from the list' }));
+            setSchoolQuery('');
+        }
+        setTimeout(() => setSchoolDropdownOpen(false), 150);
+    };
+
+    const canSubmit =
+        !validateDisplayName(displayName) &&
+        usernameStatus === 'available' &&
+        selectedSchool !== null;
 
     const handleSave = async () => {
+        setTouched({ displayName: true, username: true, school: true });
+        const dnErr = validateDisplayName(displayName);
+        const schoolErr = selectedSchool ? null : 'Please select a school from the list';
+        setErrors({ displayName: dnErr, username: null, school: schoolErr });
+
         if (!canSubmit) return;
         setLoading(true);
         try {
-            let schoolId: string | undefined;
-            if (schoolName.trim()) {
-                try {
-                    const school = await api.lookupSchool(schoolName.trim());
-                    schoolId = school.id;
-                } catch {}
-            }
             await api.updateProfile({
+                display_name: displayName.trim(),
                 username,
+                school_id: selectedSchool!.id,
                 graduation_year: gradYear ? parseInt(gradYear, 10) : undefined,
-                school_id: schoolId,
             });
-            nav.replace('Home');
+            await refreshProfile();
         } catch (e: any) {
             if (e?.message === 'username_taken') {
                 setUsernameStatus('unavailable');
@@ -100,6 +185,8 @@ export default function CompleteProfileScreen() {
             setLoading(false);
         }
     };
+
+    const usernameInvalid = touched.username && usernameStatus === 'unavailable';
 
     return (
         <View style={styles.root}>
@@ -113,24 +200,54 @@ export default function CompleteProfileScreen() {
                         keyboardShouldPersistTaps="handled"
                     >
                         <Animated.View entering={FadeInDown.duration(500)}>
-                            <Text style={styles.title}>Almost there!</Text>
+                            <Text style={styles.title}>Complete your profile</Text>
                             <Text style={styles.sub}>
-                                Pick a username and add your school so people can find you.
+                                Set up your display name, username, and school to continue.
                             </Text>
                         </Animated.View>
 
                         <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.card}>
+
+                            {/* Display Name */}
                             <View style={styles.fieldGroup}>
-                                <Text style={styles.label}>Username <Text style={{ color: colors.danger }}>*</Text></Text>
-                                <View style={styles.usernameRow}>
+                                <Text style={styles.label}>
+                                    Display Name <Text style={{ color: colors.danger }}>*</Text>
+                                </Text>
+                                <TextInput
+                                    style={[styles.input, touched.displayName && errors.displayName ? styles.inputError : null]}
+                                    placeholder="Your name"
+                                    placeholderTextColor={colors.text30}
+                                    value={displayName}
+                                    onChangeText={setDisplayName}
+                                    onBlur={handleDisplayNameBlur}
+                                    returnKeyType="next"
+                                    onSubmitEditing={() => usernameRef.current?.focus()}
+                                    blurOnSubmit={false}
+                                    maxLength={50}
+                                />
+                                {touched.displayName && errors.displayName && (
+                                    <View style={styles.errorRow}>
+                                        <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                                        <Text style={styles.errorText}>{errors.displayName}</Text>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Username */}
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>
+                                    Username <Text style={{ color: colors.danger }}>*</Text>
+                                </Text>
+                                <View style={[styles.usernameRow, touched.username && usernameInvalid ? styles.inputError : null]}>
                                     <Text style={styles.atSign}>@</Text>
                                     <TextInput
                                         ref={usernameRef}
-                                        style={[styles.input, styles.usernameInput]}
+                                        style={[styles.input, styles.usernameInput, { borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 0 }]}
                                         placeholder="your_handle"
                                         placeholderTextColor={colors.text30}
                                         value={username}
                                         onChangeText={handleUsernameChange}
+                                        onBlur={handleUsernameBlur}
                                         autoCapitalize="none"
                                         autoCorrect={false}
                                         returnKeyType="next"
@@ -148,12 +265,12 @@ export default function CompleteProfileScreen() {
                                             <Check size={13} color={colors.success} style={{ marginRight: 4 }} />
                                         )}
                                         {usernameStatus === 'unavailable' && (
-                                            <X size={13} color={colors.danger} style={{ marginRight: 4 }} />
+                                            <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
                                         )}
                                         <Text style={[
                                             styles.validationText,
                                             usernameStatus === 'available'   && { color: colors.success },
-                                            usernameStatus === 'unavailable' && { color: colors.danger },
+                                            usernameStatus === 'unavailable' && { color: '#EF4444' },
                                         ]}>
                                             {usernameStatus === 'checking'    ? 'Checking...' :
                                              usernameStatus === 'available'   ? 'Available' :
@@ -161,24 +278,84 @@ export default function CompleteProfileScreen() {
                                         </Text>
                                     </View>
                                 )}
+                                {touched.username && username.length === 0 && (
+                                    <View style={styles.errorRow}>
+                                        <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                                        <Text style={styles.errorText}>Username is required</Text>
+                                    </View>
+                                )}
                             </View>
 
-                            <View style={styles.fieldGroup}>
-                                <Text style={styles.label}>School Name</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="University of..."
-                                    placeholderTextColor={colors.text30}
-                                    value={schoolName}
-                                    onChangeText={setSchoolName}
-                                    returnKeyType="next"
-                                    onSubmitEditing={() => gradRef.current?.focus()}
-                                    blurOnSubmit={false}
-                                />
+                            {/* School (search + dropdown) */}
+                            <View style={[styles.fieldGroup, { zIndex: 10 }]}>
+                                <Text style={styles.label}>
+                                    School <Text style={{ color: colors.danger }}>*</Text>
+                                </Text>
+                                <View>
+                                    <View style={styles.schoolInputRow}>
+                                        <TextInput
+                                            style={[
+                                                styles.input,
+                                                { flex: 1 },
+                                                touched.school && errors.school ? styles.inputError : null,
+                                            ]}
+                                            placeholder="Search for your school..."
+                                            placeholderTextColor={colors.text30}
+                                            value={schoolQuery}
+                                            onChangeText={handleSchoolQueryChange}
+                                            onBlur={handleSchoolBlur}
+                                            autoCorrect={false}
+                                        />
+                                        {selectedSchool && (
+                                            <View style={styles.schoolCheckIcon}>
+                                                <Check size={16} color={colors.success} />
+                                            </View>
+                                        )}
+                                    </View>
+                                    {schoolDropdownOpen && schoolQuery.length > 0 && (
+                                        <View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.glassBorder }]}>
+                                            {schoolSearching ? (
+                                                <ActivityIndicator size="small" color={colors.text60} style={{ padding: 12 }} />
+                                            ) : schoolResults.length === 0 ? (
+                                                <Text style={[styles.dropdownEmpty, { color: colors.text40 }]}>No schools found</Text>
+                                            ) : (
+                                                <FlatList
+                                                    data={schoolResults}
+                                                    keyExtractor={item => item.id}
+                                                    keyboardShouldPersistTaps="handled"
+                                                    style={{ maxHeight: 200 }}
+                                                    renderItem={({ item }) => (
+                                                        <TouchableOpacity
+                                                            style={[styles.dropdownItem, { borderBottomColor: colors.glassBorder }]}
+                                                            onPress={() => handleSchoolSelect(item)}
+                                                            activeOpacity={0.7}
+                                                        >
+                                                            <Text style={[styles.dropdownItemName, { color: colors.textPrimary }]}>
+                                                                {item.name}
+                                                            </Text>
+                                                            {(item.city || item.state) && (
+                                                                <Text style={[styles.dropdownItemSub, { color: colors.text60 }]}>
+                                                                    {[item.city, item.state].filter(Boolean).join(', ')}
+                                                                </Text>
+                                                            )}
+                                                        </TouchableOpacity>
+                                                    )}
+                                                />
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
+                                {touched.school && errors.school && (
+                                    <View style={styles.errorRow}>
+                                        <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                                        <Text style={styles.errorText}>{errors.school}</Text>
+                                    </View>
+                                )}
                             </View>
 
+                            {/* Graduation Year (optional) */}
                             <View style={styles.fieldGroup}>
-                                <Text style={styles.label}>Graduation Year</Text>
+                                <Text style={styles.label}>Graduation Year <Text style={{ color: colors.text40 }}>(optional)</Text></Text>
                                 <TextInput
                                     ref={gradRef}
                                     style={styles.input}
@@ -199,8 +376,8 @@ export default function CompleteProfileScreen() {
                                 disabled={!canSubmit || loading}
                                 rightIcon={<ArrowRight size={20} color="white" />}
                             />
-                            {!canSubmit && username.length === 0 && (
-                                <Text style={styles.hint}>Choose a username to continue.</Text>
+                            {!canSubmit && (
+                                <Text style={styles.hint}>Complete all required fields to continue.</Text>
                             )}
                         </Animated.View>
                     </ScrollView>
@@ -213,7 +390,7 @@ export default function CompleteProfileScreen() {
 function makeStyles(c: AppColors) {
     return StyleSheet.create({
         root:  { flex: 1, backgroundColor: c.bg },
-        title: { ...typography.h1, color: c.textPrimary, fontSize: 32, marginBottom: 8 },
+        title: { ...typography.h1, color: c.textPrimary, fontSize: 30, marginBottom: 8 },
         sub:   { ...typography.body, color: c.text60, marginBottom: 32 },
         card: {
             backgroundColor: c.glass,
@@ -224,7 +401,15 @@ function makeStyles(c: AppColors) {
         },
         fieldGroup:    { marginBottom: 16 },
         label:         { color: c.text80, fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 8 },
-        usernameRow:   { flexDirection: 'row', alignItems: 'center' },
+        usernameRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: c.glassStrong,
+            borderWidth: 1,
+            borderColor: c.glassBorderStrong,
+            borderRadius: radii.md,
+            paddingHorizontal: 16,
+        },
         atSign:        { color: c.text60, fontSize: 18, fontFamily: 'Inter_500Medium', marginRight: 6 },
         usernameInput: { flex: 1 },
         input: {
@@ -232,14 +417,46 @@ function makeStyles(c: AppColors) {
             borderWidth: 1,
             borderColor: c.glassBorderStrong,
             borderRadius: radii.md,
-            paddingVertical: 16,
+            paddingVertical: 14,
             paddingHorizontal: 16,
             color: c.textPrimary,
             fontSize: 16,
             fontFamily: 'Inter_400Regular',
         },
+        inputError: {
+            borderColor: '#EF4444',
+        },
+        errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+        errorText: { color: '#EF4444', fontSize: 12, fontFamily: 'Inter_400Regular' },
         validationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
         validationText: { color: c.text60, fontSize: 12, fontFamily: 'Inter_400Regular' },
         hint: { color: c.text40, textAlign: 'center', marginTop: 10, fontSize: 12, fontFamily: 'Inter_400Regular' },
+        schoolInputRow: { flexDirection: 'row', alignItems: 'center' },
+        schoolCheckIcon: {
+            position: 'absolute',
+            right: 14,
+            top: 0,
+            bottom: 0,
+            justifyContent: 'center',
+        },
+        dropdown: {
+            borderWidth: 1,
+            borderRadius: radii.md,
+            marginTop: 4,
+            overflow: 'hidden',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.2,
+            shadowRadius: 8,
+            elevation: 6,
+        },
+        dropdownEmpty: { padding: 12, fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+        dropdownItem: {
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderBottomWidth: 1,
+        },
+        dropdownItemName: { fontFamily: 'Inter_500Medium', fontSize: 14 },
+        dropdownItemSub:  { fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 2 },
     });
 }
