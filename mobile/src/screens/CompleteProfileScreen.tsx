@@ -39,13 +39,21 @@ interface FieldError {
 export default function CompleteProfileScreen() {
     const nav = useNavigation<any>();
     const { colors } = useTheme();
-    const { refreshProfile } = useAuth();
+    const { refreshProfile, userProfile } = useAuth();
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [displayName,  setDisplayName]  = useState('');
     const [username,     setUsername]     = useState('');
     const [gradYear,     setGradYear]     = useState('');
     const [loading,      setLoading]      = useState(false);
+
+    const nameAlreadySet = Boolean(userProfile?.display_name?.trim());
+
+    useEffect(() => {
+        if (userProfile?.display_name?.trim()) {
+            setDisplayName(userProfile.display_name.trim());
+        }
+    }, [userProfile?.display_name]);
 
     const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
     const [schoolQuery,    setSchoolQuery]    = useState('');
@@ -160,7 +168,7 @@ export default function CompleteProfileScreen() {
 
     const handleSave = async () => {
         setTouched({ displayName: true, username: true, school: true });
-        const dnErr = validateDisplayName(displayName);
+        const dnErr = nameAlreadySet ? null : validateDisplayName(displayName);
         const schoolErr = selectedSchool ? null : 'Please select a school from the list';
         setErrors({ displayName: dnErr, username: null, school: schoolErr });
 
@@ -174,6 +182,7 @@ export default function CompleteProfileScreen() {
                 graduation_year: gradYear ? parseInt(gradYear, 10) : undefined,
             });
             await refreshProfile();
+            nav.replace(userProfile?.has_seen_walkthrough ? 'Home' : 'Walkthrough');
         } catch (e: any) {
             if (e?.message === 'username_taken') {
                 setUsernameStatus('unavailable');
@@ -202,36 +211,40 @@ export default function CompleteProfileScreen() {
                         <Animated.View entering={FadeInDown.duration(500)}>
                             <Text style={styles.title}>Complete your profile</Text>
                             <Text style={styles.sub}>
-                                Set up your display name, username, and school to continue.
+                                {nameAlreadySet
+                                    ? 'Choose a username and select your school to continue.'
+                                    : 'Set up your display name, username, and school to continue.'}
                             </Text>
                         </Animated.View>
 
                         <Animated.View entering={FadeInDown.delay(100).duration(500)} style={styles.card}>
 
-                            {/* Display Name */}
-                            <View style={styles.fieldGroup}>
-                                <Text style={styles.label}>
-                                    Display Name <Text style={{ color: colors.danger }}>*</Text>
-                                </Text>
-                                <TextInput
-                                    style={[styles.input, touched.displayName && errors.displayName ? styles.inputError : null]}
-                                    placeholder="Your name"
-                                    placeholderTextColor={colors.text30}
-                                    value={displayName}
-                                    onChangeText={setDisplayName}
-                                    onBlur={handleDisplayNameBlur}
-                                    returnKeyType="next"
-                                    onSubmitEditing={() => usernameRef.current?.focus()}
-                                    blurOnSubmit={false}
-                                    maxLength={50}
-                                />
-                                {touched.displayName && errors.displayName && (
-                                    <View style={styles.errorRow}>
-                                        <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
-                                        <Text style={styles.errorText}>{errors.displayName}</Text>
-                                    </View>
-                                )}
-                            </View>
+                            {/* Display Name — hidden if already populated from Google / prior signup */}
+                            {!nameAlreadySet && (
+                                <View style={styles.fieldGroup}>
+                                    <Text style={styles.label}>
+                                        Display Name <Text style={{ color: colors.danger }}>*</Text>
+                                    </Text>
+                                    <TextInput
+                                        style={[styles.input, touched.displayName && errors.displayName ? styles.inputError : null]}
+                                        placeholder="Your name"
+                                        placeholderTextColor={colors.text30}
+                                        value={displayName}
+                                        onChangeText={setDisplayName}
+                                        onBlur={handleDisplayNameBlur}
+                                        returnKeyType="next"
+                                        onSubmitEditing={() => usernameRef.current?.focus()}
+                                        blurOnSubmit={false}
+                                        maxLength={50}
+                                    />
+                                    {touched.displayName && errors.displayName && (
+                                        <View style={styles.errorRow}>
+                                            <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                                            <Text style={styles.errorText}>{errors.displayName}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
 
                             {/* Username */}
                             <View style={styles.fieldGroup}>
