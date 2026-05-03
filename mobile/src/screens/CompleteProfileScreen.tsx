@@ -170,12 +170,14 @@ export default function CompleteProfileScreen() {
 
     const handleSchoolBlur = () => {
         setTouched(t => ({ ...t, school: true }));
-        if (selectingSchoolRef.current) return;
-        if (!selectedSchoolRef.current) {
-            setErrors(e => ({ ...e, school: 'Please select a school from the list' }));
-            setSchoolQuery('');
-        }
-        setTimeout(() => setSchoolDropdownOpen(false), 150);
+        setTimeout(() => {
+            if (selectingSchoolRef.current) return;
+            if (!selectedSchoolRef.current) {
+                setErrors(e => ({ ...e, school: 'Please select a school from the list' }));
+                setSchoolQuery('');
+            }
+            setSchoolDropdownOpen(false);
+        }, 200);
     };
 
     const canSubmit =
