@@ -44,6 +44,7 @@ interface Venue {
     address: string | null;
     photo_url: string | null;
     rating: number | null;
+    is_priority?: boolean | null;
     user_ratings_total?: number | null;
     google_place_id?: string | null;
     distances?: Array<{ user_id: string; display_name: string; miles: number }>;
@@ -87,6 +88,14 @@ const DEMO_VENUES: Venue[] = [
     },
 ];
 
+const sortLockedStepVenues = (items: Venue[]) => [...items].sort((a, b) => {
+    if (!!a.is_priority !== !!b.is_priority) return a.is_priority ? -1 : 1;
+    const aRating = a.rating ?? -1;
+    const bRating = b.rating ?? -1;
+    if (aRating !== bRating) return bRating - aRating;
+    return a.id.localeCompare(b.id);
+});
+
 export default function SwipeScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
@@ -117,7 +126,9 @@ export default function SwipeScreen() {
     const crewRef = useRef<CrewMember[]>([]);
     const serverIndexRef = useRef(0);
     const myVotedIdsRef = useRef<Set<string>>(new Set());
+    const votedCardIndexRef = useRef<number | null>(null);
     const votingRoundRef = useRef(1);
+    const advancedFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [toast, setToast] = useState<string | null>(null);
 
@@ -129,6 +140,7 @@ export default function SwipeScreen() {
     const [votingRound, setVotingRound] = useState(1);
     const [roundStartIndex, setRoundStartIndex] = useState(0);
     const [hasVotedCurrentCard, setHasVotedCurrentCard] = useState(false);
+    const [advancedFlash, setAdvancedFlash] = useState(false);
     const [currentCardVoterIds, setCurrentCardVoterIds] = useState<Set<string>>(new Set());
 
     const [pitchModal, setPitchModal] = useState<{
@@ -145,6 +157,17 @@ export default function SwipeScreen() {
     // The effective display index: server-driven for real parties, local for demo
     const index = isDemo ? localIndex : serverIndex;
 
+    const setCurrentVoteState = useCallback((voted: boolean, cardIndex = serverIndexRef.current) => {
+        setHasVotedCurrentCard(voted);
+        votedCardIndexRef.current = voted ? cardIndex : null;
+    }, []);
+
+    const showAdvancedFlash = useCallback(() => {
+        if (advancedFlashTimeoutRef.current) clearTimeout(advancedFlashTimeoutRef.current);
+        setAdvancedFlash(true);
+        advancedFlashTimeoutRef.current = setTimeout(() => setAdvancedFlash(false), 900);
+    }, []);
+
     const load = useCallback(async () => {
         try {
             const [locs, members, me, myVotes, partyData] = await Promise.all([
@@ -158,7 +181,7 @@ export default function SwipeScreen() {
             myUserIdRef.current = me?.id ?? null;
 
             const nextVenues = Array.isArray(locs) && locs.length > 0
-                ? locs
+                ? sortLockedStepVenues(locs)
                 : isDemo ? DEMO_VENUES : [];
             setVenues(nextVenues);
             venuesRef.current = nextVenues;
@@ -178,7 +201,7 @@ export default function SwipeScreen() {
 
                 const currentVenue = nextVenues[sIdx];
                 if (currentVenue) {
-                    setHasVotedCurrentCard(votedIds.has(currentVenue.id));
+                    setCurrentVoteState(votedIds.has(currentVenue.id), sIdx);
                 }
 
                 if (p.status === 'proposing' && p.proposal_location_id) {
@@ -220,11 +243,15 @@ export default function SwipeScreen() {
         } finally {
             setLoading(false);
         }
-    }, [partyId, isDemo, nav]);
+    }, [partyId, isDemo, nav, setCurrentVoteState]);
 
     useEffect(() => { load(); }, [load]);
     useEffect(() => { venuesRef.current = venues; }, [venues]);
     useEffect(() => { crewRef.current = crew; }, [crew]);
+    useEffect(() => () => {
+        if (advancedFlashTimeoutRef.current) clearTimeout(advancedFlashTimeoutRef.current);
+        if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+    }, []);
 
     // Re-sync server state on focus (handles reconnect / back-navigate)
     useFocusEffect(
@@ -240,7 +267,7 @@ export default function SwipeScreen() {
                     serverIndexRef.current = sIdx;
                     const newVenue = venuesRef.current[sIdx];
                     const voted = newVenue ? myVotedIdsRef.current.has(newVenue.id) : false;
-                    setHasVotedCurrentCard(voted);
+                    setCurrentVoteState(voted, sIdx);
                     setCurrentCardVoterIds(new Set());
                 }
                 if (round !== votingRoundRef.current) {
@@ -252,7 +279,7 @@ export default function SwipeScreen() {
 
                 if (p.status === 'matched') nav.replace('Match', { partyId });
             }).catch(() => {});
-        }, [partyId, isDemo, nav])
+        }, [partyId, isDemo, nav, setCurrentVoteState])
     );
 
     const showToast = useCallback((msg: string) => {
@@ -278,10 +305,17 @@ export default function SwipeScreen() {
 
                 if (newIdx !== serverIndexRef.current) {
                     serverIndexRef.current = newIdx;
-                    const newVenue = venuesRef.current[newIdx];
-                    const voted = newVenue ? myVotedIdsRef.current.has(newVenue.id) : false;
-                    setHasVotedCurrentCard(voted);
+                    setCurrentVoteState(false, newIdx);
                     setCurrentCardVoterIds(new Set());
+                    setCrew(prev => {
+                        const updated = prev.map((m) => ({
+                            ...m,
+                            status: m.user_id === myUserIdRef.current ? 'active' as const : 'waiting' as const,
+                        }));
+                        crewRef.current = updated;
+                        return updated;
+                    });
+                    showAdvancedFlash();
                     translateX.value = 0;
                     translateY.value = 0;
                 }
@@ -305,7 +339,7 @@ export default function SwipeScreen() {
             .subscribe();
 
         return () => { supabase.removeChannel(partiesChannel); };
-    }, [partyId, isDemo, nav, translateX, translateY]);
+    }, [partyId, isDemo, nav, setCurrentVoteState, showAdvancedFlash, translateX, translateY]);
 
     // Votes + members realtime
     useEffect(() => {
@@ -322,13 +356,14 @@ export default function SwipeScreen() {
 
                 // Track per-card votes for waiting overlay
                 const currentVenue = venuesRef.current[serverIndexRef.current];
-                if (currentVenue && v.location_id === currentVenue.id) {
-                    setCurrentCardVoterIds(prev => {
-                        const next = new Set(prev);
-                        next.add(v.user_id);
-                        return next;
-                    });
-                }
+                const isVoteOnCurrentCard = currentVenue && v.location_id === currentVenue.id;
+                if (!isVoteOnCurrentCard) return;
+
+                setCurrentCardVoterIds(prev => {
+                    const next = new Set(prev);
+                    next.add(v.user_id);
+                    return next;
+                });
 
                 setCrew((prev) => {
                     const updated = prev.map((m) =>
@@ -437,7 +472,7 @@ export default function SwipeScreen() {
         if (isRealVenue) {
             if (!isDemo) {
                 // Mark as voted and show waiting overlay; index advances via realtime
-                setHasVotedCurrentCard(true);
+                setCurrentVoteState(true, serverIndexRef.current);
                 myVotedIdsRef.current.add(current.id);
                 const myId = myUserIdRef.current;
                 if (myId) {
@@ -459,7 +494,7 @@ export default function SwipeScreen() {
             } catch (err: any) {
                 console.warn('[swipe] vote failed', err?.message);
                 if (!isDemo) {
-                    setHasVotedCurrentCard(false);
+                    setCurrentVoteState(false, serverIndexRef.current);
                     myVotedIdsRef.current.delete(current.id);
                     const myId = myUserIdRef.current;
                     if (myId) {
@@ -497,15 +532,17 @@ export default function SwipeScreen() {
         });
     };
 
+    const buttonsLocked = !isDemo && hasVotedCurrentCard && votedCardIndexRef.current === serverIndex;
+
     const pan = Gesture.Pan()
         .onUpdate((e) => {
             // Don't allow panning if user already voted on this card
-            if (!isDemo && hasVotedCurrentCard) return;
+            if (buttonsLocked) return;
             translateX.value = e.translationX;
             translateY.value = e.translationY;
         })
         .onEnd((e) => {
-            if (!isDemo && hasVotedCurrentCard) return;
+            if (buttonsLocked) return;
             if (Math.abs(e.translationX) > SWIPE_THRESHOLD) {
                 const direction = e.translationX > 0 ? 'right' : 'left';
                 const liked = direction === 'right';
@@ -651,6 +688,14 @@ export default function SwipeScreen() {
     if (hasVotedCurrentCard && myUserIdRef.current) {
         votedOnCurrentCard.add(myUserIdRef.current);
     }
+    const waitingNames = crew
+        .filter((member) => !votedOnCurrentCard.has(member.user_id))
+        .map((member) => member.display_name);
+    const turnStatusLabel = advancedFlash
+        ? 'Everyone voted - next card!'
+        : buttonsLocked
+            ? `Voted ✓ - waiting for ${waitingNames.length > 0 ? waitingNames.join(', ') : 'everyone'}...`
+            : 'Your turn - swipe or tap to vote';
 
     return (
         <View style={styles.root}>
@@ -794,7 +839,7 @@ export default function SwipeScreen() {
                             </LinearGradient>
 
                             {/* Waiting overlay */}
-                            {!isDemo && hasVotedCurrentCard && (
+                            {!isDemo && buttonsLocked && (
                                 <View style={styles.waitingOverlay}>
                                     <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
                                     <View style={styles.waitingContent}>
@@ -866,21 +911,25 @@ export default function SwipeScreen() {
                     </View>
                 </BlurView>
 
+                {!isDemo && (
+                    <Text style={styles.turnStatusLabel}>{turnStatusLabel}</Text>
+                )}
+
                 {Platform.OS !== 'web' ? (
                     <View style={styles.actions}>
                         <TouchableOpacity
-                            onPress={() => { if (!(!isDemo && hasVotedCurrentCard)) swipeOff('left'); }}
-                            activeOpacity={(!isDemo && hasVotedCurrentCard) ? 1 : 0.85}
-                            style={{ opacity: (!isDemo && hasVotedCurrentCard) ? 0.3 : 1 }}
+                            onPress={() => { if (!buttonsLocked) swipeOff('left'); }}
+                            activeOpacity={buttonsLocked ? 1 : 0.85}
+                            style={{ opacity: buttonsLocked ? 0.3 : 1 }}
                         >
                             <View style={styles.passBtn}>
                                 <X size={32} color={colors.danger} />
                             </View>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={() => { if (!(!isDemo && hasVotedCurrentCard)) swipeOff('right'); }}
-                            activeOpacity={(!isDemo && hasVotedCurrentCard) ? 1 : 0.85}
-                            style={{ opacity: (!isDemo && hasVotedCurrentCard) ? 0.3 : 1 }}
+                            onPress={() => { if (!buttonsLocked) swipeOff('right'); }}
+                            activeOpacity={buttonsLocked ? 1 : 0.85}
+                            style={{ opacity: buttonsLocked ? 0.3 : 1 }}
                         >
                             <LinearGradient
                                 colors={colors.gradient as any}
@@ -895,16 +944,16 @@ export default function SwipeScreen() {
                 ) : (
                     <View style={styles.webActions}>
                         <TouchableOpacity
-                            onPress={() => { if (!(!isDemo && hasVotedCurrentCard)) swipeOff('left'); }}
-                            activeOpacity={(!isDemo && hasVotedCurrentCard) ? 1 : 0.85}
-                            style={[styles.webPassBtn, (!isDemo && hasVotedCurrentCard) && { opacity: 0.3 }]}
+                            onPress={() => { if (!buttonsLocked) swipeOff('left'); }}
+                            activeOpacity={buttonsLocked ? 1 : 0.85}
+                            style={[styles.webPassBtn, buttonsLocked && { opacity: 0.3 }]}
                         >
                             <X size={26} color={colors.danger} />
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={() => { if (!(!isDemo && hasVotedCurrentCard)) swipeOff('right'); }}
-                            activeOpacity={(!isDemo && hasVotedCurrentCard) ? 1 : 0.85}
-                            style={[{ opacity: (!isDemo && hasVotedCurrentCard) ? 0.3 : 1 }]}
+                            onPress={() => { if (!buttonsLocked) swipeOff('right'); }}
+                            activeOpacity={buttonsLocked ? 1 : 0.85}
+                            style={[{ opacity: buttonsLocked ? 0.3 : 1 }]}
                         >
                             <LinearGradient
                                 colors={colors.gradient as any}
@@ -1158,6 +1207,14 @@ function makeStyles(c: AppColors, dark: boolean) {
             borderWidth: 2, borderColor: c.bg,
         },
         crewName: { color: c.text60, fontSize: 10, marginTop: 4, fontFamily: 'Inter_400Regular' },
+        turnStatusLabel: {
+            color: c.text80,
+            fontFamily: 'Inter_600SemiBold',
+            fontSize: 13,
+            textAlign: 'center',
+            marginTop: 10,
+            paddingHorizontal: 20,
+        },
 
         actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 32, paddingVertical: 16 },
         passBtn: {

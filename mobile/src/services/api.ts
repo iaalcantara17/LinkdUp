@@ -103,6 +103,17 @@ export const api = {
 
     generateDates: (partyId: string) => request<any>('POST', `/api/party/${partyId}/dates`),
     getDates: (partyId: string) => request<any[]>('GET', `/api/party/${partyId}/dates`),
+    proposeDate: (partyId: string, proposedDate: string, timeSlot?: string) =>
+        request<any>('POST', `/api/party/${partyId}/dates`, {
+            proposed_date: proposedDate,
+            ...(timeSlot ? { time_slot: timeSlot } : {}),
+        }),
+    voteOnDate: (partyId: string, dateId: string, available: boolean) =>
+        request<any>('POST', `/api/party/${partyId}/dates/${dateId}/vote`, { available }),
+    lockDateById: (partyId: string, dateId: string) =>
+        request<any>('POST', `/api/party/${partyId}/dates/${dateId}/lock`),
+    deleteProposedDate: (partyId: string, dateId: string) =>
+        request<{ ok: boolean }>('DELETE', `/api/party/${partyId}/dates/${dateId}`),
     voteDates: (partyId: string, ids: string[]) =>
         request<any>('POST', `/api/party/${partyId}/dates/vote`, { date_slot_ids: ids }),
     lockDate: (partyId: string, id: string) =>

@@ -134,18 +134,20 @@ export default function AnchoredHint({
         positionStyle.bottom = Math.min(screenHeight - rect.y + offset, screenHeight - 40);
     }
 
+    const backdropPointerEvents = backdropActive ? 'auto' as const : 'none' as const;
     const tailUpStyle = { position: 'absolute' as const, top: -TAIL, left: tailLeft, width: 0, height: 0, borderLeftWidth: TAIL, borderRightWidth: TAIL, borderBottomWidth: TAIL, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: CARD_BG };
     const tailDownStyle = { position: 'absolute' as const, bottom: -TAIL, left: tailLeft, width: 0, height: 0, borderLeftWidth: TAIL, borderRightWidth: TAIL, borderTopWidth: TAIL, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: CARD_BG };
 
     return (
         <Modal visible transparent animationType="none" onRequestClose={dismiss}>
             <View style={{ flex: 1 }}>
-                <TouchableOpacity
-                    style={StyleSheet.absoluteFill}
-                    activeOpacity={1}
-                    onPress={dismiss}
-                    pointerEvents={backdropActive ? 'box-only' : 'none'}
-                />
+                <View style={StyleSheet.absoluteFill} pointerEvents={backdropPointerEvents}>
+                    <TouchableOpacity
+                        style={StyleSheet.absoluteFill}
+                        activeOpacity={1}
+                        onPress={dismiss}
+                    />
+                </View>
                 <Animated.View style={[positionStyle, animStyle]}>
                     <View style={styles.card} onStartShouldSetResponder={() => true}>
                         {placement === 'bottom' && <View style={tailUpStyle} />}

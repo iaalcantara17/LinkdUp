@@ -30,6 +30,7 @@ async function assertHost(partyId: string, userId: string) {
 // POST /:id/dates — any member proposes a single date
 const proposeDateSchema = z.object({
     proposed_date: z.string().min(1),
+    time_slot: z.string().optional(),
 });
 
 router.post('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => {
@@ -72,6 +73,65 @@ router.post('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => 
     } catch (e) { next(e); }
 });
 
+async function getDateVoteSummary(dateId: string) {
+    const { data: updatedVotes } = await supabaseAdmin
+        .from('date_votes')
+        .select('user_id, available')
+        .eq('party_date_id', dateId);
+
+    const voteCount = (updatedVotes ?? []).filter((v) => v.available).length;
+    return { vote_count: voteCount, votes: updatedVotes ?? [] };
+}
+
+async function exportLockedDateToCalendars(partyId: string, dateRecord: { starts_at: string; ends_at: string }) {
+    const { data: party } = await supabaseAdmin
+        .from('parties')
+        .select('matched_location_id, name')
+        .eq('id', partyId)
+        .single();
+
+    const { data: location } = party?.matched_location_id
+        ? await supabaseAdmin.from('locations').select('name, address').eq('id', party.matched_location_id).single()
+        : { data: null };
+
+    const { data: memberRows } = await supabaseAdmin
+        .from('party_members')
+        .select('user_id')
+        .eq('party_id', partyId);
+
+    const memberIds = (memberRows ?? []).map((m: any) => m.user_id);
+    if (memberIds.length === 0) return 0;
+
+    const { data: allMemberUsers } = await supabaseAdmin
+        .from('users')
+        .select('id, email, google_calendar_token')
+        .in('id', memberIds);
+
+    const attendeeEmails = (allMemberUsers ?? []).map((u: any) => u.email).filter(Boolean);
+    const connectedUsers = (allMemberUsers ?? []).filter((u: any) => !!u.google_calendar_token);
+
+    const ev = {
+        summary: party?.name ? `LinkdUp: ${party.name}` : `LinkdUp meetup${location ? ` at ${location.name}` : ''}`,
+        description: 'Locked in via LinkdUp.',
+        location: location ? `${location.name} - ${location.address}` : undefined,
+        startISO: dateRecord.starts_at,
+        endISO: dateRecord.ends_at,
+        attendeeEmails,
+    };
+
+    let exported = 0;
+    for (const user of connectedUsers) {
+        try {
+            await createCalendarEventForUser(user.id, ev);
+            exported++;
+        } catch (e) {
+            console.error(`[dates:lock] gcal export failed for ${user.id}:`, e);
+        }
+    }
+
+    return exported;
+}
+
 // GET /:id/dates — all proposed dates, enriched with proposer + vote details
 router.get('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
@@ -109,13 +169,23 @@ router.get('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => {
             : { data: [] as any[] };
         const userMap: Record<string, any> = Object.fromEntries((users ?? []).map((u: any) => [u.id, u]));
 
-        const votesByDate = new Map<string, Array<{ user_id: string; display_name: string; available: boolean }>>();
+        const votesByDate = new Map<string, Array<{
+            user_id: string;
+            display_name: string;
+            username: string | null;
+            avatar_color: string | null;
+            avatar_url: string | null;
+            available: boolean;
+        }>>();
         for (const v of votes ?? []) {
             if (!votesByDate.has(v.party_date_id)) votesByDate.set(v.party_date_id, []);
             const u = userMap[v.user_id];
             votesByDate.get(v.party_date_id)!.push({
                 user_id: v.user_id,
                 display_name: u?.display_name ?? '?',
+                username: u?.username ?? null,
+                avatar_color: u?.avatar_color ?? null,
+                avatar_url: u?.avatar_url ?? null,
                 available: v.available,
             });
         }
@@ -183,13 +253,8 @@ router.post('/:id/dates/:dateId/vote', requireAuth, async (req: AuthedRequest, r
             );
         if (error) throw new HttpError(500, 'vote_failed', error.message);
 
-        const { data: updatedVotes } = await supabaseAdmin
-            .from('date_votes')
-            .select('user_id, available')
-            .eq('party_date_id', dateId);
-
-        const voteCount = (updatedVotes ?? []).filter((v) => v.available).length;
-        res.json({ ok: true, vote_count: voteCount, votes: updatedVotes ?? [] });
+        const summary = await getDateVoteSummary(dateId);
+        res.json({ ok: true, ...summary });
     } catch (e) { next(e); }
 });
 
@@ -213,59 +278,7 @@ router.post('/:id/dates/:dateId/lock', requireAuth, async (req: AuthedRequest, r
             .eq('id', partyId);
         if (error) throw new HttpError(500, 'lock_failed', error.message);
 
-        let gcalExported = 0;
-
-        (async () => {
-            try {
-                const { data: party } = await supabaseAdmin
-                    .from('parties')
-                    .select('matched_location_id, name')
-                    .eq('id', partyId)
-                    .single();
-
-                const { data: location } = party?.matched_location_id
-                    ? await supabaseAdmin.from('locations').select('name, address').eq('id', party.matched_location_id).single()
-                    : { data: null };
-
-                const { data: memberRows } = await supabaseAdmin
-                    .from('party_members')
-                    .select('user_id')
-                    .eq('party_id', partyId);
-
-                const memberIds = (memberRows ?? []).map((m: any) => m.user_id);
-                if (memberIds.length === 0) return;
-
-                const { data: allMemberUsers } = await supabaseAdmin
-                    .from('users')
-                    .select('id, email, google_calendar_token')
-                    .in('id', memberIds);
-
-                const attendeeEmails = (allMemberUsers ?? []).map((u: any) => u.email).filter(Boolean);
-                const connectedUsers = (allMemberUsers ?? []).filter((u: any) => !!u.google_calendar_token);
-
-                if (connectedUsers.length === 0) return;
-
-                const ev = {
-                    summary: party?.name ? `LinkdUp: ${party.name}` : `LinkdUp meetup${location ? ` at ${location.name}` : ''}`,
-                    description: 'Locked in via LinkdUp.',
-                    location: location ? `${location.name} - ${location.address}` : undefined,
-                    startISO: dateRecord.starts_at,
-                    endISO: dateRecord.ends_at,
-                    attendeeEmails,
-                };
-
-                for (const user of connectedUsers) {
-                    try {
-                        await createCalendarEventForUser(user.id, ev);
-                        gcalExported++;
-                    } catch (e) {
-                        console.error(`[dates:lock] gcal export failed for ${user.id}:`, e);
-                    }
-                }
-            } catch (e) {
-                console.error('[dates:lock] gcal background export error:', e);
-            }
-        })();
+        const gcalExported = await exportLockedDateToCalendars(partyId, dateRecord);
 
         res.json({ ok: true, gcal_exported: gcalExported });
     } catch (e) { next(e); }

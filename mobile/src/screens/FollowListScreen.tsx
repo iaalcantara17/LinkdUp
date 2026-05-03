@@ -21,7 +21,7 @@ export default function FollowListScreen() {
     const route = useRoute<RouteT>();
     const { userId, initialTab, username } = route.params;
     const { colors } = useTheme();
-    const { user: authUser } = useAuth();
+    const { userProfile } = useAuth();
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [activeTab, setActiveTab] = useState<'followers' | 'following'>(initialTab);
@@ -29,7 +29,7 @@ export default function FollowListScreen() {
     const [loading, setLoading] = useState(false);
     const [actionBusy, setActionBusy] = useState<Record<string, boolean>>({});
 
-    const isOwn = authUser?.id === userId;
+    const isOwn = userProfile?.id === userId;
 
     const load = useCallback(async (tab: 'followers' | 'following') => {
         setLoading(true);

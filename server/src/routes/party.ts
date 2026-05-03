@@ -311,7 +311,8 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
             .select('*')
             .eq('party_id', partyId)
             .order('is_priority', { ascending: false })
-            .order('rating', { ascending: false, nullsFirst: false });
+            .order('rating', { ascending: false, nullsFirst: false })
+            .order('id', { ascending: true });
         if (error) throw error;
 
         const { data: locMemberRows } = await supabaseAdmin
