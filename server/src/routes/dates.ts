@@ -27,6 +27,13 @@ async function assertHost(partyId: string, userId: string) {
     if (data.host_user_id !== userId) throw new HttpError(403, 'not_host');
 }
 
+function isProposedBySchemaError(err: unknown) {
+    const message = typeof err === 'object' && err && 'message' in err
+        ? String((err as { message?: unknown }).message ?? '')
+        : String(err ?? '');
+    return message.includes('proposed_by');
+}
+
 // POST /:id/dates — any member proposes a single date
 const proposeDateSchema = z.object({
     proposed_date: z.string().min(1),
@@ -43,25 +50,59 @@ router.post('/:id/dates', requireAuth, async (req: AuthedRequest, res, next) => 
         if (isNaN(start.getTime())) throw new HttpError(400, 'invalid_date');
         const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
 
-        const { data: existing } = await supabaseAdmin
-            .from('party_dates')
-            .select('id, starts_at, ends_at, proposed_by')
-            .eq('party_id', partyId)
-            .eq('starts_at', start.toISOString())
-            .maybeSingle();
+        const startsAt = start.toISOString();
+        const endsAt = end.toISOString();
+
+        let existing;
+        try {
+            const existingResult = await supabaseAdmin
+                .from('party_dates')
+                .select('id, starts_at, ends_at, proposed_by')
+                .eq('party_id', partyId)
+                .eq('starts_at', startsAt)
+                .maybeSingle();
+            if (existingResult.error) throw existingResult.error;
+            existing = existingResult.data;
+        } catch (err) {
+            if (!isProposedBySchemaError(err)) throw err;
+            const existingFallback = await supabaseAdmin
+                .from('party_dates')
+                .select('id, starts_at, ends_at')
+                .eq('party_id', partyId)
+                .eq('starts_at', startsAt)
+                .maybeSingle();
+            if (existingFallback.error) throw existingFallback.error;
+            existing = existingFallback.data;
+        }
         if (existing) return res.json(existing);
 
-        const { data: created, error } = await supabaseAdmin
-            .from('party_dates')
-            .insert({
-                party_id: partyId,
-                starts_at: start.toISOString(),
-                ends_at: end.toISOString(),
-                proposed_by: req.user!.id,
-            })
-            .select('id, starts_at, ends_at, proposed_by')
-            .single();
-        if (error || !created) throw new HttpError(500, 'propose_failed', error?.message);
+        const fields = {
+            party_id: partyId,
+            starts_at: startsAt,
+            ends_at: endsAt,
+        };
+        let created;
+        try {
+            const createdResult = await supabaseAdmin
+                .from('party_dates')
+                .insert({
+                    ...fields,
+                    proposed_by: req.user!.id,
+                })
+                .select('id, starts_at, ends_at, proposed_by')
+                .single();
+            if (createdResult.error || !createdResult.data) throw createdResult.error ?? new Error('propose_failed');
+            created = createdResult.data;
+        } catch (err) {
+            if (!isProposedBySchemaError(err)) throw new HttpError(500, 'propose_failed', err instanceof Error ? err.message : String(err));
+            const fallback = await supabaseAdmin
+                .from('party_dates')
+                .insert(fields)
+                .select('id, starts_at, ends_at')
+                .single();
+            if (fallback.error || !fallback.data) throw new HttpError(500, 'propose_failed', fallback.error?.message);
+            created = fallback.data;
+        }
 
         await supabaseAdmin
             .from('parties')
