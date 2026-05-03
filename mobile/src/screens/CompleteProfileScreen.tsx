@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import {
     View, Text, TextInput, StyleSheet, Alert, ScrollView,
     KeyboardAvoidingView, Platform, ActivityIndicator,
-    TouchableOpacity, FlatList,
+    TouchableOpacity, FlatList, Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -69,6 +69,7 @@ export default function CompleteProfileScreen() {
 
     const usernameRef = useRef<TextInput>(null);
     const gradRef     = useRef<TextInput>(null);
+    const selectingSchoolRef = useRef(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const schoolDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -144,16 +145,22 @@ export default function CompleteProfileScreen() {
     };
 
     const handleSchoolSelect = (school: School) => {
+        selectingSchoolRef.current = true;
         setSelectedSchool(school);
         setSchoolQuery(school.name);
         setSchoolDropdownOpen(false);
         setSchoolResults([]);
         setTouched(t => ({ ...t, school: true }));
         setErrors(e => ({ ...e, school: null }));
+        Keyboard.dismiss();
+        requestAnimationFrame(() => {
+            selectingSchoolRef.current = false;
+        });
     };
 
     const handleSchoolBlur = () => {
         setTouched(t => ({ ...t, school: true }));
+        if (selectingSchoolRef.current) return;
         if (!selectedSchool) {
             setErrors(e => ({ ...e, school: 'Please select a school from the list' }));
             setSchoolQuery('');
@@ -206,7 +213,7 @@ export default function CompleteProfileScreen() {
                 >
                     <ScrollView
                         contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48 }}
-                        keyboardShouldPersistTaps="handled"
+                        keyboardShouldPersistTaps="always"
                     >
                         <Animated.View entering={FadeInDown.duration(500)}>
                             <Text style={styles.title}>Complete your profile</Text>
@@ -335,12 +342,12 @@ export default function CompleteProfileScreen() {
                                                 <FlatList
                                                     data={schoolResults}
                                                     keyExtractor={item => item.id}
-                                                    keyboardShouldPersistTaps="handled"
+                                                    keyboardShouldPersistTaps="always"
                                                     style={{ maxHeight: 200 }}
                                                     renderItem={({ item }) => (
                                                         <TouchableOpacity
                                                             style={[styles.dropdownItem, { borderBottomColor: colors.glassBorder }]}
-                                                            onPress={() => handleSchoolSelect(item)}
+                                                            onPressIn={() => handleSchoolSelect(item)}
                                                             activeOpacity={0.7}
                                                         >
                                                             <Text style={[styles.dropdownItemName, { color: colors.textPrimary }]}>
