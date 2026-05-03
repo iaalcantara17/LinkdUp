@@ -69,6 +69,7 @@ export default function CompleteProfileScreen() {
 
     const usernameRef = useRef<TextInput>(null);
     const gradRef     = useRef<TextInput>(null);
+    const selectedSchoolRef = useRef<School | null>(null);
     const selectingSchoolRef = useRef(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const schoolDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -128,14 +129,22 @@ export default function CompleteProfileScreen() {
     const handleSchoolQueryChange = (text: string) => {
         setSchoolQuery(text);
         setSelectedSchool(null);
+        selectedSchoolRef.current = null;
         setSchoolDropdownOpen(true);
         if (schoolDebounceRef.current) clearTimeout(schoolDebounceRef.current);
         if (!text.trim()) { setSchoolResults([]); return; }
         schoolDebounceRef.current = setTimeout(async () => {
             setSchoolSearching(true);
             try {
-                const results = await api.schools(text.trim());
+                const searchText = text.trim();
+                const results = await api.schools(searchText);
                 setSchoolResults(results);
+                const exactMatch = results.find(s => s.name.toLowerCase() === searchText.toLowerCase());
+                if (exactMatch) {
+                    selectedSchoolRef.current = exactMatch;
+                    setSelectedSchool(exactMatch);
+                    setErrors(e => ({ ...e, school: null }));
+                }
             } catch {
                 setSchoolResults([]);
             } finally {
@@ -146,6 +155,7 @@ export default function CompleteProfileScreen() {
 
     const handleSchoolSelect = (school: School) => {
         selectingSchoolRef.current = true;
+        selectedSchoolRef.current = school;
         setSelectedSchool(school);
         setSchoolQuery(school.name);
         setSchoolDropdownOpen(false);
@@ -153,15 +163,15 @@ export default function CompleteProfileScreen() {
         setTouched(t => ({ ...t, school: true }));
         setErrors(e => ({ ...e, school: null }));
         Keyboard.dismiss();
-        requestAnimationFrame(() => {
+        setTimeout(() => {
             selectingSchoolRef.current = false;
-        });
+        }, 250);
     };
 
     const handleSchoolBlur = () => {
         setTouched(t => ({ ...t, school: true }));
         if (selectingSchoolRef.current) return;
-        if (!selectedSchool) {
+        if (!selectedSchoolRef.current) {
             setErrors(e => ({ ...e, school: 'Please select a school from the list' }));
             setSchoolQuery('');
         }
