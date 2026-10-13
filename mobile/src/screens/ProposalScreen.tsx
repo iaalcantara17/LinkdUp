@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Check, X, Star } from 'lucide-react-native';
-import { api } from '../services/api';
+import { api, photoUri } from '../services/api';
 import { supabase } from '../services/supabase';
 import AvatarBubble from '../components/AvatarBubble';
 import { typography, radii } from '../theme';
@@ -251,7 +251,7 @@ export default function ProposalScreen() {
                         <View style={styles.heroCard}>
                             {venue.photo_url ? (
                                 <Image
-                                    source={{ uri: venue.photo_url }}
+                                    source={{ uri: photoUri(venue.photo_url) }}
                                     style={styles.heroPhoto}
                                     accessibilityLabel={venue.name}
                                     accessibilityRole="image"

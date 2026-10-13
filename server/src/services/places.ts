@@ -79,7 +79,7 @@ export async function searchNearbyVenues(center: LatLng, radiusMeters = 5000, ma
         const name = p.displayName?.text ?? 'Unknown';
         const photoName = p.photos?.[0]?.name as string | undefined;
         const photoUrl = photoName
-            ? `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=800&key=${config.google.mapsApiKey}`
+            ? `/api/photo?name=${encodeURIComponent(photoName)}`
             : null;
         out.push({
             google_place_id: p.id,
@@ -205,7 +205,7 @@ export async function searchNearbyVenuesPaged(
     const venues = results.map((p: any): PlaceCandidate => {
         const photoRef = p.photos?.[0]?.photo_reference as string | undefined;
         const photo_url = photoRef
-            ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${config.google.mapsApiKey}`
+            ? `/api/photo?ref=${encodeURIComponent(photoRef)}`
             : null;
         return {
             google_place_id: p.place_id,
@@ -308,7 +308,7 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
     const mapped: PlaceCandidate[] = filtered.map((p: any) => {
         const photoName = p.photos?.[0]?.name as string | undefined;
         const photoUrl = photoName
-            ? `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=800&key=${config.google.mapsApiKey}`
+            ? `/api/photo?name=${encodeURIComponent(photoName)}`
             : null;
         return {
             google_place_id: p.id,

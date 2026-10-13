@@ -18,7 +18,7 @@ import { Sparkles, Calendar, ArrowRight, MapPin, Star } from 'lucide-react-nativ
 import GradientButton from '../components/GradientButton';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
-import { api } from '../services/api';
+import { api, photoUri } from '../services/api';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -257,7 +257,7 @@ export default function MatchScreen() {
                     <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.venueCard}>
                         <View style={styles.venueImageWrap}>
                             {venue.photo_url ? (
-                                <Image source={{ uri: venue.photo_url }} style={styles.venueImage} accessibilityLabel={venue.name} accessibilityRole="image" />
+                                <Image source={{ uri: photoUri(venue.photo_url) }} style={styles.venueImage} accessibilityLabel={venue.name} accessibilityRole="image" />
                             ) : (
                                 <View style={styles.venueImage} />
                             )}

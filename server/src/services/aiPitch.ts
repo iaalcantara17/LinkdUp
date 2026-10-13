@@ -28,15 +28,13 @@ export async function generateVenuePitch(
     venue: VenuePitchInput,
     partyCtx: PartyPitchContext,
 ): Promise<{ pitch: string }> {
+    if (!config.features.geminiPitches) return { pitch: FALLBACK };
+
     const key = cacheKey(venue, partyCtx);
     const cached = pitchCache.get(key);
     if (cached) return { pitch: cached };
 
-    const apiKey =
-        (config as any).gemini?.apiKey ||
-        process.env.GEMINI_API_KEY ||
-        process.env.GOOGLE_GEMINI_API_KEY ||
-        '';
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || '';
 
     if (!apiKey) return { pitch: FALLBACK };
 
