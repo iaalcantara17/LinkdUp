@@ -2,11 +2,6 @@ import axios from 'axios';
 import { config } from '../config';
 import { LatLng } from './midpoint';
 
-export interface PagedVenueResult {
-    venues: PlaceCandidate[];
-    nextPageToken: string | null;
-}
-
 export interface PlaceCandidate {
     google_place_id: string;
     name: string;
@@ -153,10 +148,6 @@ export function isBlockedVenue(p: any): boolean {
     return false;
 }
 
-// The new Places API has no pagination; the legacy API is used only to seed
-// next_page_token on party start and discover initial load.
-const NEARBY_SEARCH_LEGACY_URL = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
-
 // Rotation buckets for load-more calls. Food is last to avoid front-loading it.
 export const ROTATION_TYPES: string[][] = [
     ['museum', 'art_gallery', 'library', 'tourist_attraction'],
@@ -167,67 +158,9 @@ export const ROTATION_TYPES: string[][] = [
 ];
 export const ROTATION_COUNT = ROTATION_TYPES.length;
 
-const DEFAULT_LEGACY_KEYWORDS = [
-    'restaurant', 'cafe', 'bar', 'park',
-    'tourist_attraction', 'bowling_alley', 'movie_theater',
-    'night_club', 'amusement_park', 'art_gallery', 'museum',
-];
-
-export async function searchNearbyVenuesPaged(
-    center: LatLng,
-    radiusMeters = 5000,
-    pageToken?: string,
-    keywords?: string[],
-): Promise<PagedVenueResult> {
-    // Google requires that only key + pagetoken are sent when a pageToken is supplied.
-    const params: Record<string, any> = { key: config.google.mapsApiKey };
-    if (pageToken) {
-        params.pagetoken = pageToken;
-    } else {
-        const kw = keywords ?? DEFAULT_LEGACY_KEYWORDS;
-        params.location = `${center.latitude},${center.longitude}`;
-        params.radius = radiusMeters;
-        params.type = 'establishment';
-        params.keyword = kw.join('|');
-    }
-
-    const res = await axios.get(NEARBY_SEARCH_LEGACY_URL, { params, timeout: 10_000 });
-    const rawResults = (res.data?.results ?? []) as any[];
-    const results = rawResults.filter((p: any) =>
-        isAcceptableVenueType({
-            name: p.name ?? '',
-            primaryType: p.types?.[0] ?? null,
-            types: p.types ?? [],
-        }),
-    );
-    const next: string | null = res.data?.next_page_token ?? null;
-
-    const venues = results.map((p: any): PlaceCandidate => {
-        const photoRef = p.photos?.[0]?.photo_reference as string | undefined;
-        const photo_url = photoRef
-            ? `/api/photo?ref=${encodeURIComponent(photoRef)}`
-            : null;
-        return {
-            google_place_id: p.place_id,
-            name: p.name ?? 'Unknown',
-            address: p.vicinity ?? '',
-            latitude: p.geometry?.location?.lat ?? 0,
-            longitude: p.geometry?.location?.lng ?? 0,
-            photo_url,
-            rating: p.rating ?? null,
-            user_ratings_total: p.user_ratings_total ?? null,
-            category: humanizeCategory(p.types?.[0] ?? null),
-            price_level: typeof p.price_level === 'number' ? p.price_level : null,
-        };
-    });
-
-    return { venues, nextPageToken: next };
-}
-
 export interface VenueRotationParams {
     center: LatLng;
     baseRadiusMeters?: number;
-    pageToken?: string;
     rotationSeed?: number;
     excludeIds?: Set<string>;
 }

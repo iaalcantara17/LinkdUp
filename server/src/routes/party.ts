@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoint';
-import { searchNearbyVenues, searchNearbyVenuesPaged, getVenuesWithRotation } from '../services/places';
+import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
 import { fuzzCoords } from '../services/locationFuzz';
 import { generateVenuePitch } from '../services/aiPitch';
@@ -275,22 +275,6 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
             .eq('id', partyId);
         if (updateErr) throw new HttpError(500, 'status_update_failed', updateErr.message);
 
-        // Seed the legacy pagination token so /more-venues gets page-2 results
-        // rather than duplicating the initial New API result set.
-        (async () => {
-            try {
-                const { nextPageToken } = await searchNearbyVenuesPaged(center, radiusMeters);
-                if (nextPageToken) {
-                    await supabaseAdmin
-                        .from('parties')
-                        .update({ next_page_token: nextPageToken })
-                        .eq('id', partyId);
-                }
-            } catch (e) {
-                console.error('[party:start] legacy token seed failed (non-fatal):', e);
-            }
-        })();
-
         res.json({
             ok: true,
             midpoint: center,
@@ -401,7 +385,7 @@ router.get('/:id/more-venues', requireAuth, async (req: AuthedRequest, res, next
 
         const { data: party } = await supabaseAdmin
             .from('parties')
-            .select('midpoint_lat, midpoint_lng, next_page_token, venue_rotation_seed')
+            .select('midpoint_lat, midpoint_lng, venue_rotation_seed')
             .eq('id', partyId)
             .single();
 
@@ -411,7 +395,6 @@ router.get('/:id/more-venues', requireAuth, async (req: AuthedRequest, res, next
 
         const center = { latitude: party.midpoint_lat, longitude: party.midpoint_lng };
         const rotationSeed: number = party.venue_rotation_seed ?? 0;
-        const pageToken: string | undefined = party.next_page_token ?? undefined;
 
         const { data: existing } = await supabaseAdmin
             .from('locations')
@@ -421,7 +404,6 @@ router.get('/:id/more-venues', requireAuth, async (req: AuthedRequest, res, next
 
         const { venues, nextPageToken, newSeed, exhausted } = await getVenuesWithRotation({
             center,
-            pageToken,
             rotationSeed,
             excludeIds: existingIds,
         });

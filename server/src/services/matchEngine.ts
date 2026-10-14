@@ -126,7 +126,7 @@ async function legacyEvaluateMatch(partyId: string): Promise<MatchResult> {
 async function loadFiveMoreVenues(partyId: string): Promise<{ totalBefore: number }> {
     const { data: partyRow } = await supabaseAdmin
         .from('parties')
-        .select('midpoint_lat, midpoint_lng, venue_rotation_seed, next_page_token')
+        .select('midpoint_lat, midpoint_lng, venue_rotation_seed')
         .eq('id', partyId)
         .single();
 
@@ -144,7 +144,6 @@ async function loadFiveMoreVenues(partyId: string): Promise<{ totalBefore: numbe
 
     const { venues, nextPageToken, newSeed } = await getVenuesWithRotation({
         center,
-        pageToken: partyRow.next_page_token ?? undefined,
         rotationSeed: partyRow.venue_rotation_seed ?? 0,
         excludeIds: existingPlaceIds,
     });

@@ -22,7 +22,7 @@ Every push to the deploy branch redeploys automatically (`autoDeployTrigger: com
 
 ## 2. Supabase
 
-Nothing changes in the project itself. Run `server/src/db/migrations/031_photo_proxy_urls.sql` once in the Supabase SQL editor. It replaces old photo URLs that had the Maps key in them with `/api/photo?...` links. The last query should show `0` keyed URLs left in both tables.
+Nothing changes in the project itself. Run `server/src/db/migrations/031_photo_proxy_urls.sql` once in the Supabase SQL editor. It replaces old photo URLs that had the Maps key in them with `/api/photo?name=...` links, and clears old-style photo references (those can't be loaded anymore, so the app shows its placeholder instead). The last query should show `0` in every column.
 
 ## 3. Vercel (web app)
 
@@ -38,8 +38,7 @@ Nothing changes in the project itself. Run `server/src/db/migrations/031_photo_p
 
 **Maps key:** only the server uses this key now. The browser loads venue photos through our `/api/photo` route, so the key never leaves Render.
 - Application restrictions: **None** (Render has no fixed outbound IP on the free plan, and no browser uses the key).
-- API restrictions: **Places API (New)** and **Geocoding API**.
-- Heads up: `searchNearbyVenuesPaged` (the "load more" path) and old photo references still use the legacy **Places API**. If that path breaks with a `REQUEST_DENIED` error, add the legacy Places API to the key, or move that function to Places API (New).
+- API restrictions: exactly **Places API (New)** and **Geocoding API**. Nothing else.
 
 ## 5. Maps cost guard
 
@@ -48,7 +47,6 @@ Nothing changes in the project itself. Run `server/src/db/migrations/031_photo_p
    - Places API (New), Nearby Search: **300/day**
    - Places API (New), Place Photos: **1,000/day**
    - Geocoding API: **100/day**
-   - Places API (legacy), if enabled: **300/day**
 3. Our side already helps: `/api/photo` caches up to 300 images in memory, sends `Cache-Control` for 7 days, and limits each IP to 120 requests a minute.
 
 ## 6. Free-tier sleep

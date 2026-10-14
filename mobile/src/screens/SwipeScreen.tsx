@@ -791,8 +791,17 @@ export default function SwipeScreen() {
 
                     <GestureDetector gesture={pan}>
                         <Animated.View style={[styles.card, topCardStyle]}>
-                            {current.photo_url && (
+                            {current.photo_url ? (
                                 <Image source={{ uri: photoUri(current.photo_url) }} style={StyleSheet.absoluteFillObject} accessibilityLabel={current.name} accessibilityRole="image" />
+                            ) : (
+                                <LinearGradient
+                                    colors={colors.gradient as any}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={[StyleSheet.absoluteFillObject, { alignItems: 'center', justifyContent: 'center', paddingBottom: 120 }]}
+                                >
+                                    <MapPin size={64} color="white" />
+                                </LinearGradient>
                             )}
 
                             {crew.length > 1 && (voteCounts[current.id] ?? 0) > 0 && (

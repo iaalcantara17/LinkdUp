@@ -14,7 +14,6 @@ let server: Server;
 let base = '';
 let seq = 0;
 const newName = () => `places/ChIJplace${++seq}/photos/AeYphoto_${seq}-x`;
-const newRef = () => `AUc7tXlegacyRef_${++seq}-abcdefgh`;
 
 before(async () => {
     const app = express();
@@ -61,17 +60,6 @@ test('new API photo name returns image bytes with cache headers', async () => {
     assertNoKey(res, buf.toString('latin1'));
 });
 
-test('legacy photo reference returns image bytes', async () => {
-    const calls = mockGoogle();
-    const res = await get(`ref=${newRef()}&w=400`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    assert.equal(res.status, 200);
-    assert.deepEqual(buf, IMG);
-    assert.ok(calls[0].url.startsWith('https://maps.googleapis.com/maps/api/place/photo?'));
-    assert.match(calls[0].url, /maxwidth=400/);
-    assertNoKey(res, buf.toString('latin1'));
-});
-
 test('width is clamped to the maximum', async () => {
     const calls = mockGoogle();
     const res = await get(`name=${encodeURIComponent(newName())}&w=99999`);
@@ -81,12 +69,13 @@ test('width is clamped to the maximum', async () => {
 
 test('repeat views are served from memory', async () => {
     const calls = mockGoogle();
-    const qs = `ref=${newRef()}`;
+    const qs = `name=${encodeURIComponent(newName())}`;
     assert.equal((await get(qs)).status, 200);
+    const afterFirst = calls.length;
     const second = await get(qs);
     assert.equal(second.status, 200);
     assert.deepEqual(Buffer.from(await second.arrayBuffer()), IMG);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, afterFirst);
 });
 
 for (const qs of [
@@ -98,14 +87,16 @@ for (const qs of [
     'ref=has%20space_abcdefghijk',
     'ref=http%3A%2F%2Fevil.example.com',
     'ref=short',
+    'ref=AUc7tXlegacyRef_valid-abcdefgh',
     `ref=AUc7tXlegacyRef_valid-abcdefgh&name=${encodeURIComponent('places/a/photos/b')}`,
-    'ref=AUc7tXlegacyRef_valid-abcdefgh&w=abc',
-    'ref=AUc7tXlegacyRef_valid-abcdefgh&w=0',
-    'ref=AUc7tXlegacyRef_valid-abcdefgh&w=-5',
-    'ref=AUc7tXlegacyRef_valid-abcdefgh&url=https%3A%2F%2Fevil.example.com',
-    'ref=AUc7tXlegacyRef_valid-abcdefgh&host=evil.example.com',
-    'ref[]=AUc7tXlegacyRef_valid-abcdefgh',
-    'ref=AUc7tXlegacyRef_valid-abcdefgh&ref=AUc7tXlegacyRef_other-abcdefgh',
+    'photoreference=AUc7tXlegacyRef_valid-abcdefgh',
+    'name=places%2FChIJvalid%2Fphotos%2FAeYvalid&w=abc',
+    'name=places%2FChIJvalid%2Fphotos%2FAeYvalid&w=0',
+    'name=places%2FChIJvalid%2Fphotos%2FAeYvalid&w=-5',
+    'name=places%2FChIJvalid%2Fphotos%2FAeYvalid&url=https%3A%2F%2Fevil.example.com',
+    'name=places%2FChIJvalid%2Fphotos%2FAeYvalid&host=evil.example.com',
+    'name[]=places%2FChIJvalid%2Fphotos%2FAeYvalid',
+    'name=places%2FChIJvalid%2Fphotos%2FAeYvalid&name=places%2FChIJother%2Fphotos%2FAeYother',
 ]) {
     test(`rejects ${JSON.stringify(qs)} with 400 and no Google call`, async () => {
         const calls = mockGoogle();
@@ -128,7 +119,7 @@ test('upstream error returns a clean 502 without the Google body', async () => {
 
 test('upstream non-image response returns 502', async () => {
     mockGoogle(() => new Response('<html>error</html>', { headers: { 'content-type': 'text/html' } }));
-    const res = await get(`ref=${newRef()}`);
+    const res = await get(`name=${encodeURIComponent(newName())}`);
     const body = await res.text();
     assert.equal(res.status, 502);
     assert.ok(!body.includes('html'));
@@ -138,7 +129,7 @@ test('upstream network failure returns 502', async () => {
     mockGoogle(() => {
         throw new TypeError(`fetch failed for key=${KEY}`);
     });
-    const res = await get(`ref=${newRef()}`);
+    const res = await get(`name=${encodeURIComponent(newName())}`);
     const body = await res.text();
     assert.equal(res.status, 502);
     assertNoKey(res, body);
@@ -157,7 +148,7 @@ test('per-IP rate limit returns 429', async () => {
     mockGoogle();
     let last: Response | undefined;
     for (let i = 0; i <= RATE_LIMIT; i++) {
-        last = await get('ref=short');
+        last = await get('name=bad');
         await last.arrayBuffer();
     }
     assert.equal(last!.status, 429);
