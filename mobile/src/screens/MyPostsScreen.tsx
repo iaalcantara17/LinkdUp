@@ -2,13 +2,15 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
     View, Text, Image, TouchableOpacity, FlatList,
     StyleSheet, useWindowDimensions, ActivityIndicator,
-    Modal, TextInput, Alert, KeyboardAvoidingView, Platform,
+    Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Heart, MessageCircle, MoreVertical, Pencil, Trash2, Plus } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
+import DialogHost from '../components/DialogHost';
+import { confirm, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -78,37 +80,26 @@ export default function MyPostsScreen() {
             );
             setEditPost(null);
         } catch {
-            Alert.alert('Error', 'Could not save changes');
+            showError("Couldn't save caption", 'Check your connection and try again.');
         } finally {
             setEditSaving(false);
         }
     }, [editPost, editCaption, editSaving]);
 
-    const handleDelete = useCallback((post: PostItem) => {
+    const handleDelete = useCallback(async (post: PostItem) => {
+        const ok = await confirm({
+            title: 'Delete post?',
+            message: "Its likes and comments will be deleted too. This can't be undone.",
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
         setMenuPost(null);
-
-        const doDelete = async () => {
-            try {
-                await api.deleteFeedPost(post.id);
-                setPosts((prev) => prev.filter((p) => p.id !== post.id));
-            } catch {
-                showToast('Could not delete post');
-            }
-        };
-
-        if (Platform.OS === 'web') {
-            if ((window as any).confirm('Delete this post?\n\nThis will permanently remove your post and all its likes and comments.')) {
-                doDelete();
-            }
-        } else {
-            Alert.alert(
-                'Delete Post',
-                'This will permanently remove your post and all its likes and comments.',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Delete', style: 'destructive', onPress: doDelete },
-                ]
-            );
+        if (!ok) return;
+        try {
+            await api.deleteFeedPost(post.id);
+            setPosts((prev) => prev.filter((p) => p.id !== post.id));
+        } catch {
+            showToast('Could not delete post');
         }
     }, [showToast]);
 
@@ -262,6 +253,7 @@ export default function MyPostsScreen() {
                         </View>
                     </TouchableOpacity>
                 </SafeAreaView>
+                <DialogHost />
             </Modal>
 
             {/* Edit caption modal */}
@@ -323,6 +315,7 @@ export default function MyPostsScreen() {
                         </TouchableOpacity>
                     </SafeAreaView>
                 </KeyboardAvoidingView>
+                <DialogHost />
             </Modal>
         </View>
     );

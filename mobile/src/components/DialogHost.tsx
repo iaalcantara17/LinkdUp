@@ -30,7 +30,12 @@ export default function DialogHost() {
 
     return (
         <>
-            <Modal visible={!!dialog} transparent animationType="fade" onRequestClose={dismiss}>
+            <Modal
+                visible={!!dialog}
+                transparent
+                animationType={Platform.OS === 'ios' ? 'none' : 'fade'}
+                onRequestClose={dismiss}
+            >
                 <View style={styles.backdrop}>
                     {dialog?.role === 'dialog' && (
                         <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} accessible={false} tabIndex={-1} />

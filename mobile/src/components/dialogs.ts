@@ -57,8 +57,8 @@ export function respond(index: number) {
     const [head, ...rest] = queue;
     if (!head) return;
     queue = rest;
-    emit();
     head.resolve(index);
+    emit();
 }
 
 export function dismiss() {

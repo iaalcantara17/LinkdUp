@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    ActivityIndicator, Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ArrowLeft } from 'lucide-react-native';
 import AvatarBubble from '../components/AvatarBubble';
 import { api } from '../services/api';
+import { confirm, errorText, showError, showMenu, type MenuAction } from '../components/dialogs';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import type { AppColors } from '../theme';
@@ -40,7 +41,7 @@ export default function FollowListScreen() {
                 : await api.getFollowing(userId, { limit: 50 });
             setItems(data ?? []);
         } catch (e: any) {
-            Alert.alert('Error', e?.message ?? 'Could not load list');
+            showError("Couldn't load this list", errorText(e, 'Check your connection and try again.'));
         } finally {
             setLoading(false);
         }
@@ -54,28 +55,22 @@ export default function FollowListScreen() {
     };
 
     const handleRemoveFollower = async (item: any) => {
-        Alert.alert(
-            'Remove follower?',
-            "Remove this follower? They'll have to follow you again.",
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Remove',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setActionBusy((b) => ({ ...b, [item.id]: true }));
-                        try {
-                            await api.removeFollower(item.id);
-                            setItems((prev) => prev.filter((u) => u.id !== item.id));
-                        } catch (e: any) {
-                            Alert.alert('Error', e?.message ?? 'Try again');
-                        } finally {
-                            setActionBusy((b) => ({ ...b, [item.id]: false }));
-                        }
-                    },
-                },
-            ]
-        );
+        const ok = await confirm({
+            title: 'Remove this follower?',
+            message: "They'll need to follow you again to see your updates.",
+            confirmLabel: 'Remove',
+            destructive: true,
+        });
+        if (!ok) return;
+        setActionBusy((b) => ({ ...b, [item.id]: true }));
+        try {
+            await api.removeFollower(item.id);
+            setItems((prev) => prev.filter((u) => u.id !== item.id));
+        } catch (e: any) {
+            showError("Couldn't remove follower", errorText(e, 'Try again in a moment.'));
+        } finally {
+            setActionBusy((b) => ({ ...b, [item.id]: false }));
+        }
     };
 
     const handleUnfollow = async (item: any) => {
@@ -84,7 +79,7 @@ export default function FollowListScreen() {
             await api.unfollowUser(item.id);
             setItems((prev) => prev.map((u) => u.id === item.id ? { ...u, follows_back: false } : u));
         } catch (e: any) {
-            Alert.alert('Error', e?.message ?? 'Try again');
+            showError("Couldn't unfollow", errorText(e, 'Try again in a moment.'));
         } finally {
             setActionBusy((b) => ({ ...b, [item.id]: false }));
         }
@@ -96,48 +91,40 @@ export default function FollowListScreen() {
             await api.followUser(item.id);
             setItems((prev) => prev.map((u) => u.id === item.id ? { ...u, follows_back: true } : u));
         } catch (e: any) {
-            Alert.alert('Error', e?.message ?? 'Try again');
+            showError("Couldn't follow", errorText(e, 'Try again in a moment.'));
         } finally {
             setActionBusy((b) => ({ ...b, [item.id]: false }));
         }
     };
 
     const handleBlock = async (item: any) => {
-        Alert.alert(
-            'Block user?',
-            `Block @${item.username ?? item.display_name}? They won't be able to follow you or see your profile.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Block',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setActionBusy((b) => ({ ...b, [item.id]: true }));
-                        try {
-                            await api.blockUser(item.id);
-                            setItems((prev) => prev.filter((u) => u.id !== item.id));
-                        } catch (e: any) {
-                            Alert.alert('Error', e?.message ?? 'Try again');
-                        } finally {
-                            setActionBusy((b) => ({ ...b, [item.id]: false }));
-                        }
-                    },
-                },
-            ]
-        );
+        const ok = await confirm({
+            title: `Block @${item.username ?? item.display_name}?`,
+            message: "They won't be able to follow you or see your profile.",
+            confirmLabel: 'Block',
+            destructive: true,
+        });
+        if (!ok) return;
+        setActionBusy((b) => ({ ...b, [item.id]: true }));
+        try {
+            await api.blockUser(item.id);
+            setItems((prev) => prev.filter((u) => u.id !== item.id));
+        } catch (e: any) {
+            showError("Couldn't block this person", errorText(e, 'Try again in a moment.'));
+        } finally {
+            setActionBusy((b) => ({ ...b, [item.id]: false }));
+        }
     };
 
     const handleLongPress = (item: any) => {
-        const options: Array<{ text: string; onPress?: () => void; style?: 'cancel' | 'destructive' | 'default' }> = [
-            { text: 'View profile', onPress: () => nav.navigate('UserProfile', { userId: item.id }) },
-            { text: 'Block', style: 'destructive', onPress: () => handleBlock(item) },
+        const actions: MenuAction[] = [
+            { label: 'View profile', onPress: () => nav.navigate('UserProfile', { userId: item.id }) },
+            { label: 'Block', destructive: true, onPress: () => handleBlock(item) },
         ];
         if (isOwn && activeTab === 'followers') {
-            options.push({ text: 'Remove follower', style: 'destructive', onPress: () => handleRemoveFollower(item) });
+            actions.push({ label: 'Remove follower', destructive: true, onPress: () => handleRemoveFollower(item) });
         }
-        options.push({ text: 'Cancel', style: 'cancel' });
-
-        Alert.alert(item.display_name ?? 'User', undefined, options);
+        showMenu(item.display_name ?? 'Options', actions);
     };
 
     const renderActionButton = (item: any) => {

@@ -2,12 +2,13 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
     View, Text, Image, TouchableOpacity, FlatList,
     StyleSheet, useWindowDimensions, ActivityIndicator,
-    ScrollView, Alert,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Trash2 } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
+import { confirm, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -70,52 +71,35 @@ export default function SavedScreen() {
         return posts.filter((p) => p.collection_id === activeTab);
     }, [posts, activeTab]);
 
-    const handleDeleteCollection = useCallback((col: Collection) => {
-        Alert.alert(
-            `Delete "${col.name}"?`,
-            'Saved posts in this collection will move to All Saved.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await api.deleteCollection(col.id);
-                            setCollections((prev) => prev.filter((c) => c.id !== col.id));
-                            setPosts((prev) => prev.map((p) =>
-                                p.collection_id === col.id ? { ...p, collection_id: null } : p
-                            ));
-                            if (activeTab === col.id) setActiveTab('all');
-                        } catch {
-                            Alert.alert('Error', 'Could not delete collection');
-                        }
-                    },
-                },
-            ]
-        );
+    const handleDeleteCollection = useCallback(async (col: Collection) => {
+        const ok = await confirm({
+            title: `Delete "${col.name}"?`,
+            message: 'Its posts stay saved and move to All Saved.',
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return;
+        try {
+            await api.deleteCollection(col.id);
+            setCollections((prev) => prev.filter((c) => c.id !== col.id));
+            setPosts((prev) => prev.map((p) =>
+                p.collection_id === col.id ? { ...p, collection_id: null } : p
+            ));
+            if (activeTab === col.id) setActiveTab('all');
+        } catch {
+            showError("Couldn't delete collection", 'Check your connection and try again.');
+        }
     }, [activeTab]);
 
-    const handleUnsave = useCallback((post: SavedPost) => {
-        Alert.alert(
-            'Remove from Saved?',
-            undefined,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Remove',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await api.unbookmarkFeedPost(post.id);
-                            setPosts((prev) => prev.filter((p) => p.id !== post.id));
-                        } catch {
-                            Alert.alert('Error', 'Could not remove post');
-                        }
-                    },
-                },
-            ]
-        );
+    const handleUnsave = useCallback(async (post: SavedPost) => {
+        const ok = await confirm({ title: 'Remove from Saved?', confirmLabel: 'Remove', destructive: true });
+        if (!ok) return;
+        try {
+            await api.unbookmarkFeedPost(post.id);
+            setPosts((prev) => prev.filter((p) => p.id !== post.id));
+        } catch {
+            showError("Couldn't remove post", 'Check your connection and try again.');
+        }
     }, []);
 
     const renderItem = useCallback(({ item }: { item: SavedPost }) => (
