@@ -22,12 +22,12 @@ export default function BottomNav() {
     return (
         <View style={styles.wrap} pointerEvents="box-none">
             <BlurView intensity={40} tint={isDark ? 'dark' : 'light'} style={styles.blur}>
-                <View style={styles.inner}>
+                <View style={styles.inner} accessibilityRole="tablist">
                     {items.map((item) => {
                         const active = route.name === item.key;
                         const color = active ? colors.primary : colors.text40;
                         return (
-                            <TouchableOpacity key={item.key} style={styles.item} onPress={item.onPress} activeOpacity={0.7}>
+                            <TouchableOpacity key={item.key} style={styles.item} onPress={item.onPress} activeOpacity={0.7} accessibilityRole="tab" accessibilityState={{ selected: active }}>
                                 <item.Icon size={24} color={color} />
                                 <Text style={[styles.label, { color }]}>{item.label}</Text>
                             </TouchableOpacity>
