@@ -22,3 +22,11 @@ test('report does not promise a review that never happens', () => {
     assert.doesNotMatch(src, /review/i);
     assert.match(src, /Reporting isn't available yet/);
 });
+
+test('Report lives only in the profile sheet menu, behind a labeled button', () => {
+    const sheet = read('components/UserProfileSheet.tsx');
+    assert.match(sheet, /label: 'Report'/);
+    assert.match(sheet, /accessibilityLabel=\{`More options for \$\{/);
+    const others = ['screens/FriendsScreen.tsx', 'screens/FollowListScreen.tsx', 'screens/ProfileScreen.tsx', 'components/FeedCard.tsx', 'components/CommentSheet.tsx'];
+    for (const f of others) assert.doesNotMatch(read(f), /'Report'/, f);
+});

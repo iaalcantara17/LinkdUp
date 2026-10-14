@@ -153,12 +153,19 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
         >
             <View style={styles.overlay}>
                 <SafeAreaView style={styles.sheet} edges={['bottom']}>
-                    <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8}>
+                    <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Close">
                         <X size={18} color="white" />
                     </TouchableOpacity>
 
                     {profile && !isSelf && !blockedByThem && (
-                        <TouchableOpacity style={styles.kebabBtn} onPress={handleKebab} activeOpacity={0.8} disabled={blockBusy}>
+                        <TouchableOpacity
+                            style={styles.kebabBtn}
+                            onPress={handleKebab}
+                            activeOpacity={0.8}
+                            disabled={blockBusy}
+                            accessibilityRole="button"
+                            accessibilityLabel={`More options for ${profile.display_name ?? 'this person'}`}
+                        >
                             {blockBusy
                                 ? <ActivityIndicator size="small" color="white" />
                                 : <MoreHorizontal size={18} color="white" />
@@ -326,11 +333,11 @@ function makeStyles(c: AppColors) {
         },
         closeBtn: {
             position: 'absolute',
-            top: 16,
-            right: 56,
-            width: 34,
-            height: 34,
-            borderRadius: 17,
+            top: 12,
+            right: 64,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
             backgroundColor: c.glassStrong,
             alignItems: 'center',
             justifyContent: 'center',
@@ -338,11 +345,11 @@ function makeStyles(c: AppColors) {
         },
         kebabBtn: {
             position: 'absolute',
-            top: 16,
-            right: 16,
-            width: 34,
-            height: 34,
-            borderRadius: 17,
+            top: 12,
+            right: 12,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
             backgroundColor: c.glassStrong,
             alignItems: 'center',
             justifyContent: 'center',
