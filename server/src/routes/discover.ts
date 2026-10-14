@@ -3,7 +3,7 @@ import axios from 'axios';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { supabaseAdmin } from '../db';
-import { searchNearbyVenues, searchNearbyVenuesPaged, getVenuesWithRotation } from '../services/places';
+import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { generateVenuePitch } from '../services/aiPitch';
 import { distanceMiles, LatLng } from '../services/midpoint';
 import { config } from '../config';
@@ -12,7 +12,6 @@ const router = Router();
 
 const NEARBY_PARTY_RADIUS_MILES = 50;
 
-const discoverPageTokens = new Map<string, string>();
 const discoverRotationSeeds = new Map<string, number>();
 
 router.get('/venues', requireAuth, async (req: AuthedRequest, res, next) => {
@@ -32,19 +31,7 @@ router.get('/venues', requireAuth, async (req: AuthedRequest, res, next) => {
             ),
         }));
 
-        // Seed the legacy pagination token so /venues/more gets page-2 results
-        // rather than duplicating the initial New API result set.
-        const userId = req.user!.id;
-        discoverPageTokens.delete(userId);
-        discoverRotationSeeds.delete(userId);
-        (async () => {
-            try {
-                const { nextPageToken } = await searchNearbyVenuesPaged(center, 8000);
-                if (nextPageToken) discoverPageTokens.set(userId, nextPageToken);
-            } catch (e) {
-                console.error('[discover:venues] legacy token seed failed (non-fatal):', e);
-            }
-        })();
+        discoverRotationSeeds.delete(req.user!.id);
 
         res.json(enriched);
     } catch (e) {
@@ -59,7 +46,6 @@ router.get('/venues/more', requireAuth, async (req: AuthedRequest, res, next) =>
         if (isNaN(lat) || isNaN(lng)) throw new HttpError(400, 'invalid_coordinates');
 
         const userId = req.user!.id;
-        const storedToken = discoverPageTokens.get(userId);
         const rotationSeed = discoverRotationSeeds.get(userId) ?? 0;
         const center = { latitude: lat, longitude: lng };
 
@@ -70,17 +56,11 @@ router.get('/venues/more', requireAuth, async (req: AuthedRequest, res, next) =>
 
         const { venues, nextPageToken, newSeed, exhausted } = await getVenuesWithRotation({
             center,
-            pageToken: storedToken,
             rotationSeed,
             excludeIds: excludeFromClient,
         });
 
-        if (nextPageToken) {
-            discoverPageTokens.set(userId, nextPageToken);
-        } else {
-            discoverPageTokens.delete(userId);
-            discoverRotationSeeds.set(userId, newSeed);
-        }
+        discoverRotationSeeds.set(userId, newSeed);
 
         const callerLoc: LatLng = { latitude: lat, longitude: lng };
         const enriched = venues.map((v) => ({

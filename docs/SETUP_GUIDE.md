@@ -108,17 +108,13 @@ Scan the QR code with your phone (Camera app on iOS, Expo Go app on Android). Th
 
 ---
 
-## 6. Deploy backend to Railway
+## 6. Deploy backend (Render)
 
-Do this in week 3 of the sprint, not week 1. You want a real public URL so the demo works on any network, not just your LAN.
+Railway is retired. The backend now runs on Render's free tier from `render.yaml`, and the web app runs on Vercel. Follow [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
-1. Go to **railway.app** → **Login with GitHub** → authorize.
-2. **New Project → Deploy from GitHub repo → linkdup**. Pick your repo.
-3. Railway will detect the monorepo. Set the **root directory** to `/server` in the service settings.
-4. **Variables** tab → paste every variable from `server/.env` (use the production Supabase values, NOT local; though for this project they're the same).
-5. **Settings → Networking → Generate Domain**. Copy the generated `https://linkdup-server-production.up.railway.app` (or whatever it is).
-6. Update `mobile/.env` so `EXPO_PUBLIC_API_URL` points to that Railway URL instead of your LAN IP.
-7. Update the Google OAuth client redirect URI list to add `https://<railway-url>/api/calendar/oauth/callback`.
+1. Render → **New → Blueprint** → pick the repo, then fill in the `sync: false` variables.
+2. Point `EXPO_PUBLIC_API_URL` (in `mobile/.env` and on Vercel) at `https://<your-service>.onrender.com`.
+3. Add `https://<your-service>.onrender.com/api/calendar/oauth/callback` to the Google OAuth client redirect URIs.
 
 ---
 

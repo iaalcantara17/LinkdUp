@@ -15,7 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from 'lucide-react-native';
-import { api } from '../services/api';
+import { api, photoUri } from '../services/api';
 import { supabase } from '../services/supabase';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
@@ -711,7 +711,7 @@ export default function SwipeScreen() {
                     <View style={styles.pitchSheet}>
                         <View style={styles.pitchDragBar} />
                         {pitchModal?.photo_url ? (
-                            <Image source={{ uri: pitchModal.photo_url }} style={styles.pitchPhoto} accessibilityLabel={pitchModal.venueName} accessibilityRole="image" />
+                            <Image source={{ uri: photoUri(pitchModal.photo_url) }} style={styles.pitchPhoto} accessibilityLabel={pitchModal.venueName} accessibilityRole="image" />
                         ) : null}
                         <Text style={styles.pitchVenueName}>{pitchModal?.venueName}</Text>
                         {pitchModal?.loading ? (
@@ -785,14 +785,23 @@ export default function SwipeScreen() {
                 <View style={styles.cardStackWrap}>
                     {next && (
                         <View style={[styles.card, { transform: [{ scale: 0.95 }], opacity: 0.5 }]}>
-                            {next.photo_url && <Image source={{ uri: next.photo_url }} style={StyleSheet.absoluteFillObject} accessibilityLabel={next.name} accessibilityRole="image" />}
+                            {next.photo_url && <Image source={{ uri: photoUri(next.photo_url) }} style={StyleSheet.absoluteFillObject} accessibilityLabel={next.name} accessibilityRole="image" />}
                         </View>
                     )}
 
                     <GestureDetector gesture={pan}>
                         <Animated.View style={[styles.card, topCardStyle]}>
-                            {current.photo_url && (
-                                <Image source={{ uri: current.photo_url }} style={StyleSheet.absoluteFillObject} accessibilityLabel={current.name} accessibilityRole="image" />
+                            {current.photo_url ? (
+                                <Image source={{ uri: photoUri(current.photo_url) }} style={StyleSheet.absoluteFillObject} accessibilityLabel={current.name} accessibilityRole="image" />
+                            ) : (
+                                <LinearGradient
+                                    colors={colors.gradient as any}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={[StyleSheet.absoluteFillObject, { alignItems: 'center', justifyContent: 'center', paddingBottom: 120 }]}
+                                >
+                                    <MapPin size={64} color="white" />
+                                </LinearGradient>
                             )}
 
                             {crew.length > 1 && (voteCounts[current.id] ?? 0) > 0 && (

@@ -2,6 +2,11 @@ import { supabase } from './supabase';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL!;
 
+export function photoUri(url: string | null | undefined): string | undefined {
+    if (!url) return undefined;
+    return url.startsWith('/') ? `${BASE}${url}` : url;
+}
+
 async function authHeader(): Promise<Record<string, string>> {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;

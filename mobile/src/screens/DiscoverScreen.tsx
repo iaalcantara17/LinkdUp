@@ -24,7 +24,7 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
     { title: 'Your Likes', description: 'See everything you\'ve saved. Tap the heart to remove.' },
     { title: 'Join a nearby party', description: 'Scroll down to see public parties you can ask to join.' },
 ];
-import { api } from '../services/api';
+import { api, photoUri } from '../services/api';
 import { colors, radii } from '../theme';
 
 interface DiscoverVenue {
@@ -130,7 +130,7 @@ function VenueDetailModal({ venue, onClose }: { venue: DiscoverVenue | null; onC
             <View style={modalStyles.overlay}>
                 <SafeAreaView style={modalStyles.sheet} edges={['bottom']}>
                     {venue.photo_url ? (
-                        <Image source={{ uri: venue.photo_url }} style={modalStyles.photo} />
+                        <Image source={{ uri: photoUri(venue.photo_url) }} style={modalStyles.photo} />
                     ) : (
                         <LinearGradient
                             colors={colors.gradient as any}
@@ -217,7 +217,7 @@ function VenueCard({
     return (
         <TouchableOpacity style={venueCardStyles.card} onPress={onPress} activeOpacity={0.85}>
             {venue.photo_url ? (
-                <Image source={{ uri: venue.photo_url }} style={venueCardStyles.photo} />
+                <Image source={{ uri: photoUri(venue.photo_url) }} style={venueCardStyles.photo} />
             ) : (
                 <LinearGradient
                     colors={colors.gradient as any}
@@ -268,7 +268,7 @@ function LikedVenueCard({ venue, onUnlike }: { venue: DiscoverLike; onUnlike: ()
         <View style={likedCardStyles.card}>
             <View style={likedCardStyles.photoWrap}>
                 {venue.photo_url ? (
-                    <Image source={{ uri: venue.photo_url }} style={likedCardStyles.photo} />
+                    <Image source={{ uri: photoUri(venue.photo_url) }} style={likedCardStyles.photo} />
                 ) : (
                     <LinearGradient
                         colors={colors.gradient as any}
@@ -707,7 +707,7 @@ export default function DiscoverScreen() {
                                                     >
                                                         {venues[featuredIndex].photo_url ? (
                                                             <Image
-                                                                source={{ uri: venues[featuredIndex].photo_url! }}
+                                                                source={{ uri: photoUri(venues[featuredIndex].photo_url) }}
                                                                 style={webCardStyles.photo}
                                                             />
                                                         ) : (

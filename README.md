@@ -34,7 +34,7 @@ linkdup/
 | Maps | Google Places API (New) + Geocoding API |
 | AI | Gemini 2.5 Flash-Lite (venue pitch generation) |
 | Calendar | Google Calendar API v3 with OAuth user consent |
-| Hosting | Railway (backend), Expo Go / EAS (mobile) |
+| Hosting | Render (backend), Vercel (web), Expo Go / EAS (mobile) |
 
 ## Running locally
 
@@ -51,6 +51,10 @@ cp .env.example .env       # set EXPO_PUBLIC_API_URL to your server address
 npm install --legacy-peer-deps
 npx expo start --web --clear
 ```
+
+## Deployment
+
+The backend runs on Render's free tier from `render.yaml`, and the web app runs on Vercel. Railway is retired. Steps are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Team
 

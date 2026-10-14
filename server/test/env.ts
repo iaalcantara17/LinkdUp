@@ -1,0 +1,13 @@
+process.env.DOTENV_CONFIG_PATH = 'test/.env.none';
+process.env.NODE_ENV = 'test';
+process.env.SUPABASE_URL = 'http://localhost:54321';
+process.env.SUPABASE_ANON_KEY = 'test-anon-key';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+process.env.GOOGLE_MAPS_API_KEY = 'TEST_MAPS_KEY_do_not_leak_123';
+process.env.GOOGLE_OAUTH_CLIENT_ID = 'test-client-id';
+process.env.GOOGLE_OAUTH_CLIENT_SECRET = 'test-client-secret';
+process.env.GOOGLE_OAUTH_REDIRECT_URI = 'http://localhost:3000/callback';
+delete process.env.CORS_ORIGIN;
+delete process.env.ENABLE_GEMINI_PITCHES;
+delete process.env.GEMINI_API_KEY;
+delete process.env.GOOGLE_GEMINI_API_KEY;

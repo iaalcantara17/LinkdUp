@@ -17,9 +17,11 @@ import calendarRoutes from './routes/calendar';
 import discoverRoutes from './routes/discover';
 import feedRoutes from './routes/feed';
 import friendsRoutes from './routes/friends';
+import photoRoutes from './routes/photo';
 
 const app = express();
 
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({
     origin: (origin, cb) => {
@@ -54,6 +56,7 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/discover', discoverRoutes);
 app.use('/api/discover', feedRoutes);
 app.use('/api/friends', friendsRoutes);
+app.use('/api/photo', photoRoutes);
 
 app.use((req, res) => {
     res.status(404).json({ error: 'not_found', path: req.path });
