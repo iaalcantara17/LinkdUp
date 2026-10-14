@@ -16,6 +16,8 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from 'lucide-react-native';
 import { api, photoUri } from '../services/api';
+import { errorText } from '../components/dialogs';
+import { deckProgress, sortDeck, turnLabel } from '../services/swipeDeck';
 import { supabase } from '../services/supabase';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
@@ -45,6 +47,7 @@ interface Venue {
     photo_url: string | null;
     rating: number | null;
     is_priority?: boolean | null;
+    created_at?: string | null;
     user_ratings_total?: number | null;
     google_place_id?: string | null;
     distances?: Array<{ user_id: string; display_name: string; miles: number }>;
@@ -88,14 +91,6 @@ const DEMO_VENUES: Venue[] = [
     },
 ];
 
-const sortLockedStepVenues = (items: Venue[]) => [...items].sort((a, b) => {
-    if (!!a.is_priority !== !!b.is_priority) return a.is_priority ? -1 : 1;
-    const aRating = a.rating ?? -1;
-    const bRating = b.rating ?? -1;
-    if (aRating !== bRating) return bRating - aRating;
-    return a.id.localeCompare(b.id);
-});
-
 export default function SwipeScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
@@ -127,7 +122,6 @@ export default function SwipeScreen() {
     const serverIndexRef = useRef(0);
     const myVotedIdsRef = useRef<Set<string>>(new Set());
     const votedCardIndexRef = useRef<number | null>(null);
-    const votingRoundRef = useRef(1);
     const advancedFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [toast, setToast] = useState<string | null>(null);
@@ -138,7 +132,6 @@ export default function SwipeScreen() {
 
     // Server-driven state
     const [votingRound, setVotingRound] = useState(1);
-    const [roundStartIndex, setRoundStartIndex] = useState(0);
     const [hasVotedCurrentCard, setHasVotedCurrentCard] = useState(false);
     const [advancedFlash, setAdvancedFlash] = useState(false);
     const [currentCardVoterIds, setCurrentCardVoterIds] = useState<Set<string>>(new Set());
@@ -168,11 +161,18 @@ export default function SwipeScreen() {
         advancedFlashTimeoutRef.current = setTimeout(() => setAdvancedFlash(false), 900);
     }, []);
 
+    const handedOff = useRef(false);
+    const goToProposal = useCallback((locationId: string) => {
+        if (handedOff.current) return;
+        handedOff.current = true;
+        nav.replace('Proposal', { partyId, locationId });
+    }, [nav, partyId]);
+
     const load = useCallback(async () => {
         try {
             const [locs, members, me, myVotes, partyData] = await Promise.all([
                 api.getLocations(partyId).catch(() => []),
-                api.getMembers(partyId).catch(() => []),
+                api.getMembers(partyId).catch(() => null),
                 api.me().catch(() => null),
                 isDemo ? Promise.resolve([]) : api.getMyVotes(partyId).catch(() => []),
                 isDemo ? Promise.resolve(null) : api.getParty(partyId).catch(() => null),
@@ -181,7 +181,7 @@ export default function SwipeScreen() {
             myUserIdRef.current = me?.id ?? null;
 
             const nextVenues = Array.isArray(locs) && locs.length > 0
-                ? sortLockedStepVenues(locs)
+                ? sortDeck(locs as Venue[])
                 : isDemo ? DEMO_VENUES : [];
             setVenues(nextVenues);
             venuesRef.current = nextVenues;
@@ -195,7 +195,6 @@ export default function SwipeScreen() {
                 const round = p.voting_round ?? 1;
 
                 serverIndexRef.current = sIdx;
-                votingRoundRef.current = round;
                 setServerIndex(sIdx);
                 setVotingRound(round);
 
@@ -205,11 +204,8 @@ export default function SwipeScreen() {
                 }
 
                 if (p.status === 'proposing' && p.proposal_location_id) {
-                    const memberCount = (members ?? []).length;
-                    if (memberCount > 1) {
-                        nav.navigate('Proposal', { partyId, locationId: p.proposal_location_id });
-                        return;
-                    }
+                    goToProposal(p.proposal_location_id);
+                    return;
                 }
                 if (p.status === 'matched') {
                     nav.replace('Match', { partyId });
@@ -231,7 +227,7 @@ export default function SwipeScreen() {
                 }));
                 setCrew(realCrew);
                 crewRef.current = realCrew;
-            } else {
+            } else if (members !== null) {
                 const fallback: CrewMember[] = [{ user_id: me?.id ?? 'you', display_name: 'You', status: 'active' }];
                 setCrew(fallback);
                 crewRef.current = fallback;
@@ -239,13 +235,19 @@ export default function SwipeScreen() {
         } catch {
             setVenues(DEMO_VENUES);
             venuesRef.current = DEMO_VENUES;
-            setCrew([{ user_id: 'you', display_name: 'You', status: 'active' }]);
         } finally {
             setLoading(false);
         }
-    }, [partyId, isDemo, nav, setCurrentVoteState]);
+    }, [partyId, isDemo, nav, setCurrentVoteState, goToProposal]);
 
     useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        translateX.value = 0;
+        translateY.value = 0;
+    }, [index, translateX, translateY]);
+    useEffect(() => {
+        if (!isDemo && venues.length > 0 && serverIndex >= venues.length) load();
+    }, [isDemo, serverIndex, venues.length, load]);
     useEffect(() => { venuesRef.current = venues; }, [venues]);
     useEffect(() => { crewRef.current = crew; }, [crew]);
     useEffect(() => () => {
@@ -269,10 +271,6 @@ export default function SwipeScreen() {
                     const voted = newVenue ? myVotedIdsRef.current.has(newVenue.id) : false;
                     setCurrentVoteState(voted, sIdx);
                     setCurrentCardVoterIds(new Set());
-                }
-                if (round !== votingRoundRef.current) {
-                    votingRoundRef.current = round;
-                    setRoundStartIndex(sIdx);
                 }
                 setServerIndex(sIdx);
                 setVotingRound(round);
@@ -316,22 +314,13 @@ export default function SwipeScreen() {
                         return updated;
                     });
                     showAdvancedFlash();
-                    translateX.value = 0;
-                    translateY.value = 0;
-                }
-                if (newRound !== votingRoundRef.current) {
-                    votingRoundRef.current = newRound;
-                    setRoundStartIndex(newIdx);
                 }
 
                 setServerIndex(newIdx);
                 setVotingRound(newRound);
 
                 if (p.status === 'proposing' && p.proposal_location_id) {
-                    const isSolo = crewRef.current.length === 1;
-                    if (!isSolo) {
-                        nav.navigate('Proposal', { partyId, locationId: p.proposal_location_id });
-                    }
+                    goToProposal(p.proposal_location_id);
                 } else if (p.status === 'matched') {
                     nav.replace('Match', { partyId });
                 }
@@ -339,7 +328,7 @@ export default function SwipeScreen() {
             .subscribe();
 
         return () => { supabase.removeChannel(partiesChannel); };
-    }, [partyId, isDemo, nav, setCurrentVoteState, showAdvancedFlash, translateX, translateY]);
+    }, [partyId, isDemo, nav, setCurrentVoteState, showAdvancedFlash, translateX, translateY, goToProposal]);
 
     // Votes + members realtime
     useEffect(() => {
@@ -454,11 +443,13 @@ export default function SwipeScreen() {
                 showToast('Swipe right on at least one spot first.');
             }
         } catch (err: any) {
-            showToast(err?.message ?? 'Something went wrong');
+            setForceMatchModal(false);
+            if (err?.message === 'party_not_swiping') load();
+            else showToast(errorText(err, "Couldn't pick right now. Try again."));
         } finally {
             setForcingMatch(false);
         }
-    }, [partyId, nav, showToast]);
+    }, [partyId, nav, showToast, load]);
 
     // Unified vote handler — does NOT advance local index for group parties
     const advance = async (liked: boolean) => {
@@ -491,7 +482,14 @@ export default function SwipeScreen() {
                     nav.replace('Match', { partyId });
                     return;
                 }
+                if (r?.proposing) {
+                    load();
+                    return;
+                }
+                if (crewRef.current.length === 1) load();
             } catch (err: any) {
+                translateX.value = withSpring(0);
+                translateY.value = withSpring(0);
                 console.warn('[swipe] vote failed', err?.message);
                 if (!isDemo) {
                     setCurrentVoteState(false, serverIndexRef.current);
@@ -519,8 +517,6 @@ export default function SwipeScreen() {
                 }
             }
             setLocalIndex(prev => prev + 1);
-            translateX.value = 0;
-            translateY.value = 0;
         }
         // For group parties: DO NOT advance local index — wait for server push
     };
@@ -574,15 +570,7 @@ export default function SwipeScreen() {
 
     const isSolo = crew.length === 1 && partyId !== 'demo';
 
-    // Progress bar calculation
-    const roundSizeTarget = votingRound === 1 ? 10 : 5;
-    const withinRoundIdx = Math.max(0, serverIndex - roundStartIndex);
-    const progressPercent = isDemo
-        ? (localIndex + 1) / Math.max(1, venues.length)
-        : Math.min((withinRoundIdx + 1) / roundSizeTarget, 1);
-    const progressLabel = isDemo
-        ? `${localIndex + 1} / ${venues.length}`
-        : `Card ${withinRoundIdx + 1} of ${roundSizeTarget}`;
+    const { label: progressLabel, percent: progressPercent } = deckProgress(index, venues.length);
 
     if (loading) {
         return (
@@ -691,11 +679,7 @@ export default function SwipeScreen() {
     const waitingNames = crew
         .filter((member) => !votedOnCurrentCard.has(member.user_id))
         .map((member) => member.display_name);
-    const turnStatusLabel = advancedFlash
-        ? 'Everyone voted - next card!'
-        : buttonsLocked
-            ? `Voted ✓ - waiting for ${waitingNames.length > 0 ? waitingNames.join(', ') : 'everyone'}...`
-            : 'Your turn - swipe or tap to vote';
+    const turnStatusLabel = turnLabel({ solo: isSolo, locked: buttonsLocked, flash: advancedFlash, waitingNames });
 
     return (
         <View style={styles.root}>
@@ -848,7 +832,7 @@ export default function SwipeScreen() {
                             </LinearGradient>
 
                             {/* Waiting overlay */}
-                            {!isDemo && buttonsLocked && (
+                            {!isDemo && buttonsLocked && !isSolo && (
                                 <View style={styles.waitingOverlay}>
                                     <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
                                     <View style={styles.waitingContent}>

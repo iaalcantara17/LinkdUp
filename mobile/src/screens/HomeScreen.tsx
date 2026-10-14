@@ -15,7 +15,9 @@ import { Plus, MoreVertical, Users, ChevronRight } from 'lucide-react-native';
 import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import AnchoredHint from '../components/AnchoredHint';
-import { api } from '../services/api';
+import { api, MyLocation } from '../services/api';
+import { latestOnly } from '../hooks/latestOnly';
+import { locationSourceLabel } from '../services/locationChoice';
 import DialogHost from '../components/DialogHost';
 import { confirm, errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
@@ -45,6 +47,7 @@ interface PartyRow {
     total_votes: number;
     venue_count: number;
     member_avatars: MemberAvatar[];
+    my_location?: MyLocation;
 }
 
 function StackedAvatars({ avatars, colors }: { avatars: MemberAvatar[]; colors: AppColors }) {
@@ -131,6 +134,13 @@ function PartyCard({ party, onPress, onMenuPress, colors }: { party: PartyRow; o
                     <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 2 }} numberOfLines={1}>{party.name}</Text>
                     <Text style={{ color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
                         {party.member_count} {party.member_count === 1 ? 'member' : 'members'}
+                    </Text>
+                    <Text
+                        style={{ color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}
+                        numberOfLines={1}
+                        accessibilityLabel={`Your location for this party: ${locationSourceLabel(party.my_location).replace('Custom: ', 'Custom, ')}`}
+                    >
+                        Your location: {locationSourceLabel(party.my_location)}
                     </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -234,8 +244,10 @@ export default function HomeScreen() {
     const [profileUserId, setProfileUserId] = useState<string | null>(null);
     const walkthroughCheckedRef = useRef(false);
     const friendsCardRef = useRef<View>(null);
+    const [latestLoad] = useState(() => latestOnly());
 
     const load = useCallback(async () => {
+        const isLatest = latestLoad();
         try {
             const [myProfile, myParties, pendingReqs, friends] = await Promise.all([
                 api.me().catch(() => null),
@@ -243,6 +255,7 @@ export default function HomeScreen() {
                 api.getPendingRequests().catch(() => []),
                 api.getFriends().catch(() => []),
             ]);
+            if (!isLatest()) return;
             if (myProfile) {
                 setMe(myProfile);
                 if (myProfile.theme_preference) {
@@ -254,17 +267,13 @@ export default function HomeScreen() {
                         nav.replace('Walkthrough', { fromSignup: true });
                         return;
                     }
-                    if (myProfile.location_permission_status === 'unset' || !myProfile.location_permission_status) {
-                        nav.replace('LocationPermission');
-                        return;
-                    }
                 }
             }
             setParties(myParties ?? []);
             setPendingCount((pendingReqs ?? []).length);
             setOnlineFriends((friends ?? []).filter((f: any) => f.is_online).slice(0, 5));
         } catch {}
-    }, [syncFromProfile]);
+    }, [syncFromProfile, latestLoad]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -296,6 +305,7 @@ export default function HomeScreen() {
         try {
             await api.deleteParty(party.id);
             setParties(ps => ps.filter(p => p.id !== party.id));
+            latestLoad();
         } catch (e: any) {
             showError("Couldn't delete party", errorText(e, 'Try again in a moment.'));
         }
@@ -313,6 +323,7 @@ export default function HomeScreen() {
         try {
             await api.leaveParty(party.id);
             setParties(ps => ps.filter(p => p.id !== party.id));
+            latestLoad();
         } catch (e: any) {
             showError("Couldn't leave party", errorText(e, 'Try again in a moment.'));
         }

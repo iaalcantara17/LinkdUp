@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { MapPin, Search } from 'lucide-react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { MapPin } from 'lucide-react-native';
 import GlassCard from './GlassCard';
 import GradientButton from './GradientButton';
+import PlaceSearch, { Place } from './PlaceSearch';
 import { useTheme } from '../context/ThemeContext';
 import type { AppColors } from '../theme';
-import { api, MyLocation, VENUE_LIMIT_MESSAGE } from '../services/api';
-import { chooseLocation, AskReason } from '../services/locationChoice';
+import { api, MyLocation } from '../services/api';
+import { chooseLocation, choiceLabel, pendingAction, AskReason } from '../services/locationChoice';
 import { getLiveLocation } from '../services/liveLocation';
 
 const ASK_COPY: Record<AskReason, string> = {
@@ -24,10 +26,10 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
     const [liveIssue, setLiveIssue] = useState<AskReason | null>(null);
     const [busy, setBusy] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
-    const [query, setQuery] = useState('');
-    const [preview, setPreview] = useState<{ latitude: number; longitude: number; label: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const tried = useRef(false);
+    const nav = useNavigation<any>();
+    const [afterAllow] = useState(() => pendingAction());
 
     const custom = myLocation?.custom_label ? { label: myLocation.custom_label } : null;
     const live = myLocation?.live_fresh ? { ok: true as const } : liveIssue ? { ok: false as const, reason: liveIssue } : null;
@@ -61,51 +63,26 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
         takeLive(false);
     }, [myLocation, takeLive]);
 
-    const search = async () => {
-        if (query.trim().length < 2) {
-            setError('Type at least two letters of a city or address.');
+    useFocusEffect(useCallback(() => {
+        afterAllow.resume(true);
+    }, [afterAllow]));
+
+    const chooseLive = () => {
+        if (liveIssue === 'prompt') {
+            afterAllow.arm(() => takeLive(false));
+            nav.navigate('LocationPermission');
             return;
         }
-        setBusy(true);
-        setError(null);
-        setPreview(null);
-        try {
-            setPreview(await api.searchPlace(query.trim()));
-        } catch (e: any) {
-            const msg = String(e?.message ?? '');
-            setError(
-                msg === VENUE_LIMIT_MESSAGE ? 'Place search is paused for today. Try again tomorrow, or use your live location.'
-                    : msg === 'place_not_found' ? "We couldn't find that place. Try a city name or a full address."
-                        : msg === 'rate_limited' ? 'Too many searches. Wait a minute and try again.'
-                            : "Couldn't search right now. Check your connection and try again.",
-            );
-        } finally {
-            setBusy(false);
-        }
+        takeLive(true);
     };
 
-    const confirm = async () => {
-        if (!preview) return;
-        setBusy(true);
-        setError(null);
-        try {
-            await api.setPartyLocation(partyId, { mode: 'custom', ...preview });
-            setSearchOpen(false);
-            setPreview(null);
-            setQuery('');
-            onChanged();
-        } catch {
-            setError("Couldn't save your location. Check your connection and try again.");
-        } finally {
-            setBusy(false);
-        }
+    const saveCustom = async (place: Place) => {
+        await api.setPartyLocation(partyId, { mode: 'custom', ...place });
+        setSearchOpen(false);
+        onChanged();
     };
 
-    const status = busy && choice.kind === 'ask'
-        ? 'Finding your location…'
-        : choice.kind === 'live' ? 'Live'
-            : choice.kind === 'custom' ? `Custom: ${choice.label}`
-                : 'Not set';
+    const status = busy && choice.kind === 'ask' ? 'Finding your location…' : choiceLabel(choice);
     const detail = choice.kind === 'live'
         ? 'Using where you are right now. Your crew sees an approximate spot.'
         : choice.kind === 'custom'
@@ -139,12 +116,12 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
                     <GradientButton
                         size="md"
                         title={choice.reason === 'prompt' ? 'Use my live location' : 'Try again'}
-                        onPress={() => takeLive(true)}
+                        onPress={chooseLive}
                         loading={busy}
                     />
                 )}
                 {choice.kind === 'custom' && (
-                    <GradientButton size="md" variant="ghost" title="Switch to live location" onPress={() => takeLive(true)} loading={busy} />
+                    <GradientButton size="md" variant="ghost" title="Use my live location" onPress={chooseLive} loading={busy} />
                 )}
                 {!searchOpen && (
                     <GradientButton size="md" variant="ghost" title="Use a different location" onPress={() => setSearchOpen(true)} disabled={busy} />
@@ -152,35 +129,7 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
             </View>
 
             {searchOpen && (
-                <View style={styles.searchArea}>
-                    <View style={styles.searchBox}>
-                        <Search size={16} color={colors.text40} />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="City or address"
-                            placeholderTextColor={colors.text30}
-                            value={query}
-                            onChangeText={setQuery}
-                            onSubmitEditing={search}
-                            returnKeyType="search"
-                            autoFocus
-                            maxLength={120}
-                            accessibilityLabel="Search for a city or address"
-                        />
-                    </View>
-                    {preview ? (
-                        <View style={styles.actions}>
-                            <Text style={styles.preview} accessibilityLiveRegion="polite">Use {preview.label}?</Text>
-                            <GradientButton size="md" title="Use this place" onPress={confirm} loading={busy} />
-                            <GradientButton size="md" variant="ghost" title="Cancel" onPress={() => setPreview(null)} disabled={busy} />
-                        </View>
-                    ) : (
-                        <View style={styles.actions}>
-                            <GradientButton size="md" variant="ghost" title="Search" onPress={search} loading={busy} />
-                            <GradientButton size="md" variant="ghost" title="Cancel" onPress={() => { setSearchOpen(false); setError(null); }} disabled={busy} />
-                        </View>
-                    )}
-                </View>
+                <PlaceSearch confirmLabel="Use this place" onPick={saveCustom} onCancel={() => { setSearchOpen(false); setError(null); }} />
             )}
 
             {error && <Text style={styles.error} accessibilityRole="alert">{error}</Text>}
@@ -197,20 +146,6 @@ function makeStyles(c: AppColors) {
         status: { flexShrink: 1, color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
         detail: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 20 },
         actions: { gap: 10, marginTop: 14 },
-        searchArea: { marginTop: 14 },
-        searchBox: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: c.glass,
-            borderRadius: 12,
-            paddingHorizontal: 14,
-            minHeight: 48,
-            gap: 10,
-            borderWidth: 1,
-            borderColor: c.glassBorder,
-        },
-        searchInput: { flex: 1, color: c.textPrimary, fontFamily: 'Inter_400Regular', fontSize: 15, minHeight: 44 },
-        preview: { color: c.textPrimary, fontFamily: 'Inter_500Medium', fontSize: 14 },
         error: {
             color: c.textPrimary,
             fontFamily: 'Inter_500Medium',

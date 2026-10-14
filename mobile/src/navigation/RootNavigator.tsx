@@ -54,8 +54,6 @@ export default function RootNavigator() {
             startScreen = 'CompleteProfile';
         } else if (!userProfile.has_seen_walkthrough) {
             startScreen = 'Walkthrough';
-        } else if (!userProfile.location_permission_status || userProfile.location_permission_status === 'unset') {
-            startScreen = 'LocationPermission';
         }
     }
 

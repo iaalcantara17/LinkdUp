@@ -84,6 +84,15 @@ export async function confirm(opts: {
     return index === 1;
 }
 
+export function confirmBlock(user: { username?: string | null; display_name?: string | null }) {
+    return confirm({
+        title: `Block @${user.username ?? user.display_name}?`,
+        message: "They won't be able to follow you or see your profile.",
+        confirmLabel: 'Block',
+        destructive: true,
+    });
+}
+
 export async function showError(title: string, message?: string): Promise<void> {
     await open({ role: 'alertdialog', title, message, buttons: [{ label: 'OK', style: 'default' }] });
 }
@@ -127,6 +136,11 @@ const FRIENDLY: Record<string, string> = {
     caption_too_long: "That's too long. Shorten it and try again.",
     body_too_long: "That's too long. Shorten it and try again.",
     empty_body: 'Write something first.',
+    party_not_swiping: 'This round of swiping has already ended.',
+    not_solo_party: 'Picking early only works when you swipe solo.',
+    invalid_credentials: "That email and password don't match. Try again.",
+    email_taken: 'That email is already registered. Log in instead.',
+    rate_limited: 'Too many tries. Wait a minute and try again.',
     'Failed to fetch': "We couldn't reach the server. Check your connection and try again.",
     'Network request failed': "We couldn't reach the server. Check your connection and try again.",
     'Load failed': "We couldn't reach the server. Check your connection and try again.",

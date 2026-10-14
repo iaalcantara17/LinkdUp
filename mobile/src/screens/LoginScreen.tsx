@@ -12,6 +12,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { errorText } from '../components/dialogs';
 import { supabase } from '../services/supabase';
 import GradientButton from '../components/GradientButton';
 import { colors, typography, spacing, radii } from '../theme';
@@ -171,7 +172,7 @@ export default function LoginScreen() {
                 });
             }
         } catch (e: any) {
-            setFormError(e?.message ?? 'Something went wrong. Please try again.');
+            setFormError(errorText(e, 'Something went wrong. Try again.'));
         } finally {
             setLoading(false);
         }
@@ -384,7 +385,7 @@ export default function LoginScreen() {
                                         });
                                         if (error) throw error;
                                     } catch (e: any) {
-                                        setFormError(e?.message ?? 'Google sign-in failed');
+                                        setFormError(errorText(e, "Couldn't sign in with Google. Try again."));
                                     }
                                 }}
                                 leftIcon={<GoogleIcon />}

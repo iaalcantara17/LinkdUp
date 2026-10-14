@@ -9,7 +9,7 @@ import { X, GraduationCap, UserPlus, UserCheck, Clock, MoreHorizontal } from 'lu
 import AvatarBubble from './AvatarBubble';
 import { api } from '../services/api';
 import DialogHost from './DialogHost';
-import { confirm, errorText, showError, showMenu, toast } from './dialogs';
+import { confirmBlock, errorText, showError, showMenu, toast } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -107,12 +107,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
 
     const handleBlock = async () => {
         if (!userId || !profile) return;
-        const ok = await confirm({
-            title: `Block @${profile.username ?? profile.display_name}?`,
-            message: "They won't be able to follow you or see your profile.",
-            confirmLabel: 'Block',
-            destructive: true,
-        });
+        const ok = await confirmBlock(profile);
         if (!ok) return;
         setBlockBusy(true);
         try {
@@ -129,7 +124,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
         if (!profile) return;
         showMenu(profile.display_name ?? 'Profile options', [
             { label: 'Block', destructive: true, onPress: handleBlock },
-            { label: 'Report', onPress: () => toast("Thanks. We'll review your report.", 'info') },
+            { label: 'Report', onPress: () => toast("Reporting isn't available yet. You can block this person for now.", 'info') },
         ]);
     };
 
@@ -158,12 +153,19 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
         >
             <View style={styles.overlay}>
                 <SafeAreaView style={styles.sheet} edges={['bottom']}>
-                    <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8}>
+                    <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Close">
                         <X size={18} color="white" />
                     </TouchableOpacity>
 
                     {profile && !isSelf && !blockedByThem && (
-                        <TouchableOpacity style={styles.kebabBtn} onPress={handleKebab} activeOpacity={0.8} disabled={blockBusy}>
+                        <TouchableOpacity
+                            style={styles.kebabBtn}
+                            onPress={handleKebab}
+                            activeOpacity={0.8}
+                            disabled={blockBusy}
+                            accessibilityRole="button"
+                            accessibilityLabel={`More options for ${profile.display_name ?? 'this person'}`}
+                        >
                             {blockBusy
                                 ? <ActivityIndicator size="small" color="white" />
                                 : <MoreHorizontal size={18} color="white" />
@@ -331,11 +333,11 @@ function makeStyles(c: AppColors) {
         },
         closeBtn: {
             position: 'absolute',
-            top: 16,
-            right: 56,
-            width: 34,
-            height: 34,
-            borderRadius: 17,
+            top: 12,
+            right: 64,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
             backgroundColor: c.glassStrong,
             alignItems: 'center',
             justifyContent: 'center',
@@ -343,11 +345,11 @@ function makeStyles(c: AppColors) {
         },
         kebabBtn: {
             position: 'absolute',
-            top: 16,
-            right: 16,
-            width: 34,
-            height: 34,
-            borderRadius: 17,
+            top: 12,
+            right: 12,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
             backgroundColor: c.glassStrong,
             alignItems: 'center',
             justifyContent: 'center',

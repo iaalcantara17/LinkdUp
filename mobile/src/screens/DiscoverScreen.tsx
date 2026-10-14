@@ -27,7 +27,8 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
 import { api, photoUri, VENUE_LIMIT_MESSAGE } from '../services/api';
 import { errorText, showError, toast } from '../components/dialogs';
 import { getLiveLocation } from '../services/liveLocation';
-import type { AskReason } from '../services/locationChoice';
+import { discoverOrigin, type AskReason } from '../services/locationChoice';
+import PlaceSearch, { Place } from '../components/PlaceSearch';
 import { colors, radii } from '../theme';
 
 const DISCOVER_LOCATION_COPY: Record<AskReason, string> = {
@@ -390,6 +391,9 @@ export default function DiscoverScreen() {
     const [userLat, setUserLat] = useState<number | null>(null);
     const [userLng, setUserLng] = useState<number | null>(null);
     const [noLocation, setNoLocation] = useState(false);
+    const picked = useRef<Place | null>(null);
+    const [pickedLabel, setPickedLabel] = useState<string | null>(null);
+    const [cityOpen, setCityOpen] = useState(false);
     const [locationIssue, setLocationIssue] = useState<AskReason | null>(null);
     const [loadingVenues, setLoadingVenues] = useState(false);
     const [venueLimited, setVenueLimited] = useState(false);
@@ -428,14 +432,19 @@ export default function DiscoverScreen() {
 
     const load = useCallback(async (force = false, prompt = false) => {
         try {
-            const reading = await getLiveLocation({ prompt });
-            if (!reading.ok) {
-                if (_venueCache && (reading.reason === 'timeout' || reading.reason === 'unavailable')) return;
-                setLocationIssue(reading.reason);
+            const reading = picked.current && !prompt ? ({ ok: false, reason: 'prompt' } as const) : await getLiveLocation({ prompt });
+            if (!reading.ok && _venueCache && (reading.reason === 'timeout' || reading.reason === 'unavailable')) return;
+            const origin = discoverOrigin(reading, picked.current);
+            if (!origin) {
+                if (!reading.ok) setLocationIssue(reading.reason);
                 setNoLocation(true);
                 return;
             }
-            const { latitude: lat, longitude: lng } = reading.coords;
+            if (origin.live) {
+                picked.current = null;
+                setPickedLabel(null);
+            }
+            const { latitude: lat, longitude: lng } = origin.coords;
             setUserLat(lat);
             setUserLng(lng);
             setNoLocation(false);
@@ -447,7 +456,7 @@ export default function DiscoverScreen() {
                 return;
             }
 
-            api.updateLocation(lat, lng).catch(() => {});
+            if (origin.live) api.updateLocation(lat, lng).catch(() => {});
             setLoadingVenues(true);
             setLoadingParties(true);
 
@@ -678,7 +687,18 @@ export default function DiscoverScreen() {
                         <>
                             <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
                                 <Text style={styles.title}>Discover</Text>
-                                <Text style={styles.subtitle}>Trending spots and parties near you</Text>
+                                <Text style={styles.subtitle}>
+                                    {pickedLabel ? `Trending spots and parties near ${pickedLabel}` : 'Trending spots and parties near you'}
+                                </Text>
+                                {pickedLabel && (
+                                    <TouchableOpacity
+                                        onPress={() => load(true, true)}
+                                        accessibilityRole="button"
+                                        style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
+                                    >
+                                        <Text style={[styles.subtitle, { color: colors.primary }]}>Use my live location instead</Text>
+                                    </TouchableOpacity>
+                                )}
                             </Animated.View>
 
                             {noLocation && (
@@ -693,6 +713,22 @@ export default function DiscoverScreen() {
                                             title={!locationIssue || locationIssue === 'prompt' ? 'Use my live location' : 'Try again'}
                                             onPress={() => load(true, true)}
                                         />
+                                        {cityOpen ? (
+                                            <PlaceSearch
+                                                confirmLabel="Show spots here"
+                                                onPick={async (place) => {
+                                                    picked.current = place;
+                                                    setPickedLabel(place.label);
+                                                    setCityOpen(false);
+                                                    await load(true);
+                                                }}
+                                                onCancel={() => setCityOpen(false)}
+                                            />
+                                        ) : (
+                                            <View style={{ marginTop: 10 }}>
+                                                <GradientButton variant="ghost" title="Pick a city" onPress={() => setCityOpen(true)} />
+                                            </View>
+                                        )}
                                     </View>
                                 </Animated.View>
                             )}

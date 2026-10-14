@@ -63,8 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const refreshProfile = useCallback(async () => {
-        await fetchProfile();
-    }, [fetchProfile]);
+        try {
+            setUserProfile(await api.me() as UserProfile);
+        } catch (e) {
+            console.error('[AuthContext] refreshProfile failed', e);
+        }
+    }, []);
 
     // On web: if Supabase redirected back with an OAuth hash fragment, hydrate the
     // session and provision the public.users profile before anything else renders.

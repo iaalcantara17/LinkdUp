@@ -13,7 +13,6 @@ import { errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
-import { useLocationGuard } from '../hooks/useLocationGuard';
 
 const SUGGESTIONS = ['Weekend Warriors', 'Alumni Hangout', 'Study Group Reunion', 'Friday Night Crew'];
 const MAX_NAME = 40;
@@ -23,7 +22,6 @@ export default function CreatePartyScreen() {
     const nav = useNavigation<any>();
     const { colors, isDark } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
-    const { checkLocation, GuardBubble } = useLocationGuard();
 
     const [step, setStep] = useState<'name' | 'invite'>('name');
     const [partyName, setPartyName] = useState('');
@@ -66,7 +64,7 @@ export default function CreatePartyScreen() {
         if (step === 'name') {
             setNameTouched(true);
             if (!nameValid) return;
-            checkLocation(doCreate);
+            doCreate();
         } else {
             if (partyId) nav.replace('PartyLobby', { partyId });
         }
@@ -234,7 +232,6 @@ export default function CreatePartyScreen() {
                 />
             </LinearGradient>
 
-            {GuardBubble}
         </View>
     );
 }

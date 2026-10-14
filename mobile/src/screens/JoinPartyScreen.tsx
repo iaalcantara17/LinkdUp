@@ -19,11 +19,15 @@ export default function JoinPartyScreen() {
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleJoin = async () => {
+    const handleJoin = () => {
         if (code.length !== 6) {
             showError('Check the invite code', 'Invite codes are 6 characters.');
             return;
         }
+        doJoin();
+    };
+
+    const doJoin = async () => {
         setLoading(true);
         try {
             const r = await api.joinParty(code);
