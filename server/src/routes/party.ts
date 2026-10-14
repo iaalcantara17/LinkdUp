@@ -7,7 +7,7 @@ import { rateLimit } from '../middleware/rateLimit';
 import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoint';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
-import { fuzzCoords } from '../services/locationFuzz';
+import { fuzzedLocation, myLocationView, MEMBER_LOCATION_COLUMNS } from '../services/memberLocation';
 import { generateVenuePitch } from '../services/aiPitch';
 import { evaluateProposal } from '../services/matchEngine';
 import { assertMember, assertHost } from '../services/membership';
@@ -95,7 +95,7 @@ router.get('/:id', requireAuth, async (req: AuthedRequest, res, next) => {
 
         const { data: rawMembers } = await supabaseAdmin
             .from('party_members')
-            .select('user_id, joined_at, is_online')
+            .select(`user_id, joined_at, is_online, ${MEMBER_LOCATION_COLUMNS}`)
             .eq('party_id', partyId);
 
         const memberUserIds = (rawMembers ?? []).map((m: any) => m.user_id);
@@ -104,8 +104,51 @@ router.get('/:id', requireAuth, async (req: AuthedRequest, res, next) => {
             : { data: [] as any[] };
         const userMap: Record<string, any> = Object.fromEntries((memberUsers ?? []).map((u: any) => [u.id, u]));
 
-        const members = (rawMembers ?? []).map((m: any) => ({ ...m, users: userMap[m.user_id] ?? null }));
-        res.json({ party, members });
+        const members = (rawMembers ?? []).map((m: any) => ({
+            user_id: m.user_id,
+            joined_at: m.joined_at,
+            is_online: m.is_online,
+            users: userMap[m.user_id] ?? null,
+        }));
+        const mine = (rawMembers ?? []).find((m: any) => m.user_id === req.user!.id);
+        res.json({ party, members, my_location: myLocationView(mine) });
+    } catch (e) { next(e); }
+});
+
+export const PARTY_LOCATION_LIMIT = 30;
+
+const latitude = z.number().finite().min(-90).max(90);
+const longitude = z.number().finite().min(-180).max(180);
+const partyLocationSchema = z.discriminatedUnion('mode', [
+    z.object({ mode: z.literal('live'), latitude, longitude }).strict(),
+    z.object({ mode: z.literal('custom'), latitude, longitude, label: z.string().trim().min(1).max(120) }).strict(),
+]);
+
+router.put('/:id/location', rateLimit(PARTY_LOCATION_LIMIT, 60_000), requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const partyId = req.params.id;
+        const me = req.user!.id;
+        await assertMember(partyId, me);
+        const body = partyLocationSchema.parse(req.body);
+        const now = new Date().toISOString();
+        const update = body.mode === 'live'
+            ? { live_latitude: body.latitude, live_longitude: body.longitude, live_at: now, location_mode: 'live' }
+            : { custom_latitude: body.latitude, custom_longitude: body.longitude, custom_label: body.label, location_mode: 'custom' };
+        const { data: row, error } = await supabaseAdmin
+            .from('party_members')
+            .update(update)
+            .eq('party_id', partyId)
+            .eq('user_id', me)
+            .select(MEMBER_LOCATION_COLUMNS)
+            .single();
+        if (error || !row) throw new HttpError(500, 'location_update_failed', error?.message);
+        if (body.mode === 'live') {
+            await supabaseAdmin
+                .from('users')
+                .update({ latitude: body.latitude, longitude: body.longitude, last_location_at: now })
+                .eq('id', me);
+        }
+        res.json(myLocationView(row));
     } catch (e) { next(e); }
 });
 
@@ -116,27 +159,26 @@ router.get('/:id/members', requireAuth, async (req: AuthedRequest, res, next) =>
 
         const { data: rawMembers, error: memberErr } = await supabaseAdmin
             .from('party_members')
-            .select('user_id, is_online, joined_at')
+            .select(`user_id, is_online, joined_at, ${MEMBER_LOCATION_COLUMNS}`)
             .eq('party_id', partyId);
         if (memberErr) throw memberErr;
 
         const memberUserIds = (rawMembers ?? []).map((m: any) => m.user_id);
         const { data: memberUsers } = memberUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_color, avatar_url, latitude, longitude').in('id', memberUserIds)
+            ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_color, avatar_url').in('id', memberUserIds)
             : { data: [] as any[] };
         const userMap: Record<string, any> = Object.fromEntries((memberUsers ?? []).map((u: any) => [u.id, u]));
 
         res.json((rawMembers ?? []).map((m: any) => {
+            const shown = fuzzedLocation(m, m.user_id);
             const u = userMap[m.user_id];
-            const fuzzed = u?.latitude != null && u?.longitude != null
-                ? fuzzCoords(u.latitude, u.longitude, m.user_id)
-                : null;
-            const { latitude, longitude, ...safeUser } = u ?? {};
             return {
-                ...m,
-                users: u ? safeUser : null,
-                display_lat: fuzzed?.lat ?? null,
-                display_lng: fuzzed?.lng ?? null,
+                user_id: m.user_id,
+                is_online: m.is_online,
+                joined_at: m.joined_at,
+                users: u ? { id: u.id, display_name: u.display_name, username: u.username, avatar_color: u.avatar_color, avatar_url: u.avatar_url } : null,
+                display_lat: shown?.latitude ?? null,
+                display_lng: shown?.longitude ?? null,
             };
         }));
     } catch (e) { next(e); }
@@ -223,20 +265,12 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
 
         const { data: memberRows } = await supabaseAdmin
             .from('party_members')
-            .select('user_id')
+            .select(`user_id, ${MEMBER_LOCATION_COLUMNS}`)
             .eq('party_id', partyId);
 
-        const startUserIds = (memberRows ?? []).map((m: any) => m.user_id);
-        const { data: startUsers } = startUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, latitude, longitude').in('id', startUserIds)
-            : { data: [] as any[] };
-
-        const points: LatLng[] = (startUsers ?? [])
-            .filter((u: any) => u.latitude != null && u.longitude != null)
-            .map((u: any) => {
-                const f = fuzzCoords(u.latitude, u.longitude, u.id);
-                return { latitude: f.lat, longitude: f.lng };
-            });
+        const points = (memberRows ?? [])
+            .map((m: any) => fuzzedLocation(m, m.user_id))
+            .filter((p): p is LatLng => p !== null);
 
         if (points.length === 0) throw new HttpError(400, 'no_member_locations');
 
@@ -292,17 +326,18 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
 
         const { data: locMemberRows } = await supabaseAdmin
             .from('party_members')
-            .select('user_id')
+            .select(`user_id, ${MEMBER_LOCATION_COLUMNS}`)
             .eq('party_id', partyId);
 
         const locUserIds = (locMemberRows ?? []).map((m: any) => m.user_id);
         const { data: locUsers } = locUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, display_name, latitude, longitude').in('id', locUserIds)
+            ? await supabaseAdmin.from('users').select('id, display_name').in('id', locUserIds)
             : { data: [] as any[] };
+        const names: Record<string, string> = Object.fromEntries((locUsers ?? []).map((u: any) => [u.id, u.display_name]));
 
-        const memberCoords = (locUsers ?? []).map((u: any) => {
-            const f = u.latitude != null && u.longitude != null ? fuzzCoords(u.latitude, u.longitude, u.id) : null;
-            return { user_id: u.id, display_name: u.display_name, latitude: f?.lat, longitude: f?.lng };
+        const memberCoords = (locMemberRows ?? []).map((m: any) => {
+            const f = fuzzedLocation(m, m.user_id);
+            return { user_id: m.user_id, display_name: names[m.user_id], latitude: f?.latitude, longitude: f?.longitude };
         });
 
         const enriched = (locations ?? []).map((loc) => ({

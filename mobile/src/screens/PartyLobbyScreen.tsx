@@ -19,7 +19,8 @@ const LOBBY_HELP: { title: string; description: string }[] = [
     { title: 'Party code', description: 'Share this code so friends can join.' },
     { title: 'Locked-step voting', description: 'Swipe together — 10 spots, then pick the winner.' },
 ];
-import { api } from '../services/api';
+import { api, MyLocation } from '../services/api';
+import LocationSourceCard from '../components/LocationSourceCard';
 import { supabase } from '../services/supabase';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
@@ -43,6 +44,7 @@ export default function PartyLobbyScreen() {
     const [profileUserId, setProfileUserId] = useState<string | null>(null);
     const [lobbyTab, setLobbyTab] = useState<'party' | 'invite'>('party');
     const [friendsList, setFriendsList] = useState<any[]>([]);
+    const [myLocation, setMyLocation] = useState<MyLocation | null>(null);
 
     const refresh = useCallback(async () => {
         try {
@@ -52,6 +54,7 @@ export default function PartyLobbyScreen() {
                 supabase.auth.getUser(),
             ]);
             if (p?.party) setParty(p.party);
+            if (p?.my_location) setMyLocation(p.my_location);
             setMembers(ms);
             setMe(sess.data.user?.id ?? null);
         } catch {}
@@ -91,7 +94,7 @@ export default function PartyLobbyScreen() {
             if (msg.includes('no_member_locations')) {
                 Alert.alert(
                     'Location needed',
-                    'At least one party member needs to set their location before starting.'
+                    'Nobody has a location for this party yet. Use your live location or pick a place under Your location, then start again.'
                 );
             } else if (msg.includes('party_already_started')) {
                 nav.replace('Swipe', { partyId });
@@ -194,6 +197,8 @@ export default function PartyLobbyScreen() {
                             <Text style={styles.tapHint}>tap to share</Text>
                         </GlassCard>
                         </View>
+
+                        <LocationSourceCard partyId={partyId} myLocation={myLocation} onChanged={refresh} />
 
                         <Text style={styles.crewLabel}>Crew ({members.length})</Text>
                         <View style={styles.crew}>
