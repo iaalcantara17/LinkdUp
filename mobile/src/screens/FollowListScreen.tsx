@@ -8,7 +8,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ArrowLeft } from 'lucide-react-native';
 import AvatarBubble from '../components/AvatarBubble';
 import { api } from '../services/api';
-import { confirm, errorText, showError, showMenu, type MenuAction } from '../components/dialogs';
+import { confirm, confirmBlock, errorText, showError, showMenu, type MenuAction } from '../components/dialogs';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import type { AppColors } from '../theme';
@@ -98,12 +98,7 @@ export default function FollowListScreen() {
     };
 
     const handleBlock = async (item: any) => {
-        const ok = await confirm({
-            title: `Block @${item.username ?? item.display_name}?`,
-            message: "They won't be able to follow you or see your profile.",
-            confirmLabel: 'Block',
-            destructive: true,
-        });
+        const ok = await confirmBlock(item);
         if (!ok) return;
         setActionBusy((b) => ({ ...b, [item.id]: true }));
         try {

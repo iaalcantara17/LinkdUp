@@ -9,7 +9,7 @@ import { X, GraduationCap, UserPlus, UserCheck, Clock, MoreHorizontal } from 'lu
 import AvatarBubble from './AvatarBubble';
 import { api } from '../services/api';
 import DialogHost from './DialogHost';
-import { confirm, errorText, showError, showMenu, toast } from './dialogs';
+import { confirmBlock, errorText, showError, showMenu, toast } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -107,12 +107,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
 
     const handleBlock = async () => {
         if (!userId || !profile) return;
-        const ok = await confirm({
-            title: `Block @${profile.username ?? profile.display_name}?`,
-            message: "They won't be able to follow you or see your profile.",
-            confirmLabel: 'Block',
-            destructive: true,
-        });
+        const ok = await confirmBlock(profile);
         if (!ok) return;
         setBlockBusy(true);
         try {

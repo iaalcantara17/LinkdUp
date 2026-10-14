@@ -6,11 +6,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, UserPlus, UserCheck, UserX, Search, Users } from 'lucide-react-native';
+import { ArrowLeft, UserPlus, UserCheck, UserX, Search, Users, Ban } from 'lucide-react-native';
 import HelpButton from '../components/HelpButton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
-import { confirm, errorText, showError } from '../components/dialogs';
+import { confirm, confirmBlock, errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -122,6 +122,14 @@ export default function FriendsScreen() {
         } catch (e: any) { showError("Couldn't remove friend", errorText(e, 'Try again in a moment.')); }
     };
 
+    const handleBlock = async (f: any) => {
+        if (!(await confirmBlock(f))) return;
+        try {
+            await api.blockUser(f.id);
+            setFriends((prev) => prev.filter((x) => x.id !== f.id));
+        } catch (e: any) { showError("Couldn't block this person", errorText(e, 'Try again in a moment.')); }
+    };
+
     const handleSendRequest = async (userId: string) => {
         try {
             await api.sendFriendRequest(userId);
@@ -188,8 +196,23 @@ export default function FriendsScreen() {
                                             <View style={{ flex: 1, marginLeft: 12 }}>
                                                 <Text style={styles.userName}>{f.display_name}</Text>
                                             </View>
-                                            <TouchableOpacity onPress={() => handleRemoveFriend(f.id, f.display_name)} style={styles.iconBtn} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                            <TouchableOpacity
+                                                onPress={() => handleRemoveFriend(f.id, f.display_name)}
+                                                style={styles.iconBtn}
+                                                activeOpacity={0.7}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={`Remove ${f.display_name}`}
+                                            >
                                                 <UserX size={18} color={colors.text40} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                onPress={() => handleBlock(f)}
+                                                style={[styles.iconBtn, { marginLeft: 8 }]}
+                                                activeOpacity={0.7}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={`Block ${f.display_name}`}
+                                            >
+                                                <Ban size={18} color={colors.text40} />
                                             </TouchableOpacity>
                                         </Animated.View>
                                     ))}
@@ -335,8 +358,8 @@ function makeStyles(c: AppColors) {
         userName: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
         userSub: { color: c.text40, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 2 },
         iconBtn: {
-            width: 36, height: 36,
-            borderRadius: 18,
+            width: 44, height: 44,
+            borderRadius: 22,
             backgroundColor: c.glass,
             alignItems: 'center', justifyContent: 'center',
         },

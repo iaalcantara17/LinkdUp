@@ -84,6 +84,15 @@ export async function confirm(opts: {
     return index === 1;
 }
 
+export function confirmBlock(user: { username?: string | null; display_name?: string | null }) {
+    return confirm({
+        title: `Block @${user.username ?? user.display_name}?`,
+        message: "They won't be able to follow you or see your profile.",
+        confirmLabel: 'Block',
+        destructive: true,
+    });
+}
+
 export async function showError(title: string, message?: string): Promise<void> {
     await open({ role: 'alertdialog', title, message, buttons: [{ label: 'OK', style: 'default' }] });
 }
