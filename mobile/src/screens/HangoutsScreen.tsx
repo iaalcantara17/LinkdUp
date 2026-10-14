@@ -10,7 +10,6 @@ import {
     Linking,
     Platform,
     RefreshControl,
-    Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -22,6 +21,8 @@ import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
 import { api } from '../services/api';
+import DialogHost from '../components/DialogHost';
+import { confirm, errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -179,46 +180,36 @@ export default function HangoutsScreen() {
     };
 
     const confirmDelete = async (h: Hangout) => {
+        const ok = await confirm({
+            title: `Delete "${h.venue?.name ?? h.name ?? 'this hangout'}"?`,
+            message: "This can't be undone.",
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
         setMenuHangout(null);
-        let ok: boolean;
-        if (Platform.OS === 'web') {
-            ok = (window as any).confirm(`Delete "${h.venue?.name ?? h.name ?? 'this hangout'}"? This cannot be undone.`);
-        } else {
-            ok = await new Promise<boolean>(resolve => {
-                Alert.alert('Delete hangout', 'This cannot be undone.', [
-                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-                ]);
-            });
-        }
         if (!ok) return;
         try {
             await api.deleteParty(h.id);
             setHangouts(hs => hs.filter(x => x.id !== h.id));
         } catch (e: any) {
-            Alert.alert('Could not delete', e?.message ?? 'unknown');
+            showError("Couldn't delete hangout", errorText(e, 'Try again in a moment.'));
         }
     };
 
     const confirmLeave = async (h: Hangout) => {
+        const ok = await confirm({
+            title: 'Leave this hangout?',
+            message: "You'll be removed from this hangout.",
+            confirmLabel: 'Leave',
+            destructive: true,
+        });
         setMenuHangout(null);
-        let ok: boolean;
-        if (Platform.OS === 'web') {
-            ok = (window as any).confirm(`Leave this hangout?`);
-        } else {
-            ok = await new Promise<boolean>(resolve => {
-                Alert.alert('Leave hangout', 'You will be removed from this party.', [
-                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                    { text: 'Leave', style: 'destructive', onPress: () => resolve(true) },
-                ]);
-            });
-        }
         if (!ok) return;
         try {
             await api.leaveParty(h.id);
             setHangouts(hs => hs.filter(x => x.id !== h.id));
         } catch (e: any) {
-            Alert.alert('Could not leave', e?.message ?? 'unknown');
+            showError("Couldn't leave hangout", errorText(e, 'Try again in a moment.'));
         }
     };
 
@@ -295,6 +286,7 @@ export default function HangoutsScreen() {
                         </TouchableOpacity>
                     </View>
                 </Pressable>
+                <DialogHost />
             </Modal>
         </View>
     );
