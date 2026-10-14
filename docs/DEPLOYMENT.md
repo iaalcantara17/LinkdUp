@@ -53,6 +53,8 @@ Nothing changes in the project itself. Run `server/src/db/migrations/031_photo_p
 
 Render's free web services go to sleep after about 15 minutes with no traffic. The first request after that takes around a minute while it wakes up, so open `/healthz` a minute before a demo. Sleeping also wipes the in-memory photo cache and rate limit counters, which is fine.
 
+Supabase's free plan pauses a project after about a week with no database activity. `GET /api/health/db` runs one tiny query and returns `{"ok":true}` (no login, no data, limited to 10 calls a minute per IP). Point a free external pinger such as UptimeRobot or cron-job.org at `https://<your-service>.onrender.com/api/health/db` once a week to keep both awake.
+
 ## 7. Railway (retired)
 
 The old Railway backend is gone. `server/railway.json` was deleted. Ignore Railway steps in older planning docs.

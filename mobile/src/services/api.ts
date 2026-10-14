@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL!;
 
+export const VENUE_LIMIT_MESSAGE = 'Venue lookups are paused for today, try again tomorrow';
+
 export function photoUri(url: string | null | undefined): string | undefined {
     if (!url) return undefined;
     return url.startsWith('/') ? `${BASE}${url}` : url;
@@ -26,7 +28,9 @@ async function request<T>(method: string, path: string, body?: any): Promise<T> 
     let data: any;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
     if (!res.ok) {
-        const msg = data?.error || data?.message || `HTTP ${res.status}`;
+        const msg = data?.error === 'venue_limit_reached'
+            ? VENUE_LIMIT_MESSAGE
+            : data?.error || data?.message || `HTTP ${res.status}`;
         throw new Error(msg);
     }
     return data as T;
@@ -195,7 +199,7 @@ export const api = {
             'POST', '/api/discover/feed/upload-url', { ext }
         ),
     uploadFeedPhoto: async (file: Blob | File): Promise<string> => {
-        const ext = (file as File).name?.split('.').pop() ?? 'jpg';
+        const ext = /\.([A-Za-z0-9]+)$/.exec((file as File).name ?? '')?.[1] ?? 'jpg';
         const { upload_url, public_url } = await api.getUploadUrl(ext);
         const res = await fetch(upload_url, {
             method: 'PUT',

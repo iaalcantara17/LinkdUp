@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import axios from 'axios';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
-import { HttpError } from '../middleware/error';
+import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
 import { supabaseAdmin } from '../db';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { generateVenuePitch } from '../services/aiPitch';
 import { distanceMiles, LatLng } from '../services/midpoint';
+import { fuzzCoords } from '../services/locationFuzz';
 import { config } from '../config';
 
 const router = Router();
@@ -54,11 +55,12 @@ router.get('/venues/more', requireAuth, async (req: AuthedRequest, res, next) =>
             excludeParam.split(',').map((s) => s.trim()).filter(Boolean),
         );
 
-        const { venues, nextPageToken, newSeed, exhausted } = await getVenuesWithRotation({
+        const { venues, nextPageToken, newSeed, exhausted, limited } = await getVenuesWithRotation({
             center,
             rotationSeed,
             excludeIds: excludeFromClient,
         });
+        if (limited) throw venueLimitReached();
 
         discoverRotationSeeds.set(userId, newSeed);
 
@@ -146,7 +148,8 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
             for (const uid of memberIds) {
                 const u = userMap.get(uid);
                 if (u?.latitude != null && u?.longitude != null) {
-                    const d = distanceMiles(callerLoc, { latitude: u.latitude, longitude: u.longitude });
+                    const f = fuzzCoords(u.latitude, u.longitude, uid);
+                    const d = distanceMiles(callerLoc, { latitude: f.lat, longitude: f.lng });
                     if (d < closestMiles) closestMiles = d;
                 }
             }
@@ -162,7 +165,7 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
                     status: party.status,
                     member_count: memberIds.length,
                     host_display_name: host?.display_name ?? 'Unknown',
-                    miles_away: parseFloat(closestMiles.toFixed(1)),
+                    miles_away: Math.max(1, Math.round(closestMiles)),
                     friends_inside: friendsInside,
                 });
             }
@@ -290,7 +293,7 @@ router.get('/places/search', requireAuth, async (req: AuthedRequest, res, next) 
 
         res.json(places);
     } catch (e: any) {
-        if (e instanceof HttpError) return next(e);
+        if (e instanceof HttpError || isGoogleQuotaError(e)) return next(e);
         next(new HttpError(500, 'places_search_failed', e?.message));
     }
 });

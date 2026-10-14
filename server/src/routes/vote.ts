@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { tryAdvanceCard } from '../services/matchEngine';
+import { assertMember } from '../services/membership';
 
 const router = Router();
 
@@ -16,14 +17,7 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
         const body = voteSchema.parse(req.body);
-
-        const { data: member } = await supabaseAdmin
-            .from('party_members')
-            .select('user_id')
-            .eq('party_id', partyId)
-            .eq('user_id', req.user!.id)
-            .maybeSingle();
-        if (!member) throw new HttpError(403, 'not_a_member');
+        await assertMember(partyId, req.user!.id);
 
         const { data: loc } = await supabaseAdmin
             .from('locations')
@@ -53,6 +47,7 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
 router.get('/:id/votes', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
+        await assertMember(partyId, req.user!.id);
         const { data, error } = await supabaseAdmin
             .from('v_party_vote_tallies')
             .select('location_id, location_name, yes_votes, no_votes, total_members')
@@ -65,6 +60,7 @@ router.get('/:id/votes', requireAuth, async (req: AuthedRequest, res, next) => {
 router.get('/:id/my-votes', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
+        await assertMember(partyId, req.user!.id);
         const { data, error } = await supabaseAdmin
             .from('votes')
             .select('location_id')

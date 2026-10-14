@@ -2,13 +2,15 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
-import { HttpError } from '../middleware/error';
+import { HttpError, venueLimitReached } from '../middleware/error';
+import { rateLimit } from '../middleware/rateLimit';
 import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoint';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
 import { fuzzCoords } from '../services/locationFuzz';
 import { generateVenuePitch } from '../services/aiPitch';
 import { evaluateProposal } from '../services/matchEngine';
+import { assertMember, assertHost } from '../services/membership';
 
 const router = Router();
 
@@ -26,22 +28,6 @@ async function generateUniqueCode(): Promise<string> {
         if (!data) return code;
     }
     throw new HttpError(500, 'code_collision');
-}
-
-async function assertMember(partyId: string, userId: string) {
-    const { data } = await supabaseAdmin
-        .from('party_members')
-        .select('user_id')
-        .eq('party_id', partyId)
-        .eq('user_id', userId)
-        .maybeSingle();
-    if (!data) throw new HttpError(403, 'not_a_member');
-}
-
-async function assertHost(partyId: string, userId: string) {
-    const { data } = await supabaseAdmin.from('parties').select('host_user_id').eq('id', partyId).single();
-    if (!data) throw new HttpError(404, 'party_not_found');
-    if (data.host_user_id !== userId) throw new HttpError(403, 'not_host');
 }
 
 const createSchema = z.object({
@@ -76,9 +62,11 @@ router.post('/', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
+export const JOIN_LIMIT = 20;
+
 const joinSchema = z.object({ code: z.string().length(6) });
 
-router.post('/join', requireAuth, async (req: AuthedRequest, res, next) => {
+router.post('/join', rateLimit(JOIN_LIMIT, 10 * 60_000), requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const body = joinSchema.parse(req.body);
         const { data: party } = await supabaseAdmin
@@ -245,7 +233,10 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
 
         const points: LatLng[] = (startUsers ?? [])
             .filter((u: any) => u.latitude != null && u.longitude != null)
-            .map((u: any) => ({ latitude: u.latitude, longitude: u.longitude }));
+            .map((u: any) => {
+                const f = fuzzCoords(u.latitude, u.longitude, u.id);
+                return { latitude: f.lat, longitude: f.lng };
+            });
 
         if (points.length === 0) throw new HttpError(400, 'no_member_locations');
 
@@ -309,12 +300,10 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
             ? await supabaseAdmin.from('users').select('id, display_name, latitude, longitude').in('id', locUserIds)
             : { data: [] as any[] };
 
-        const memberCoords = (locUsers ?? []).map((u: any) => ({
-            user_id: u.id,
-            display_name: u.display_name,
-            latitude: u.latitude,
-            longitude: u.longitude,
-        }));
+        const memberCoords = (locUsers ?? []).map((u: any) => {
+            const f = u.latitude != null && u.longitude != null ? fuzzCoords(u.latitude, u.longitude, u.id) : null;
+            return { user_id: u.id, display_name: u.display_name, latitude: f?.lat, longitude: f?.lng };
+        });
 
         const enriched = (locations ?? []).map((loc) => ({
             ...loc,
@@ -323,10 +312,10 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
                 .map((u) => ({
                     user_id: u.user_id,
                     display_name: u.display_name,
-                    miles: distanceMiles(
+                    miles: Math.round(distanceMiles(
                         { latitude: u.latitude!, longitude: u.longitude! },
                         { latitude: loc.latitude, longitude: loc.longitude }
-                    ),
+                    ) * 10) / 10,
                 })),
         }));
 
@@ -402,11 +391,12 @@ router.get('/:id/more-venues', requireAuth, async (req: AuthedRequest, res, next
             .eq('party_id', partyId);
         const existingIds = new Set((existing ?? []).map((r: any) => r.google_place_id));
 
-        const { venues, nextPageToken, newSeed, exhausted } = await getVenuesWithRotation({
+        const { venues, nextPageToken, newSeed, exhausted, limited } = await getVenuesWithRotation({
             center,
             rotationSeed,
             excludeIds: existingIds,
         });
+        if (limited) throw venueLimitReached();
 
         await supabaseAdmin
             .from('parties')

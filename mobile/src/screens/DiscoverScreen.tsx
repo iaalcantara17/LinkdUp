@@ -24,7 +24,7 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
     { title: 'Your Likes', description: 'See everything you\'ve saved. Tap the heart to remove.' },
     { title: 'Join a nearby party', description: 'Scroll down to see public parties you can ask to join.' },
 ];
-import { api, photoUri } from '../services/api';
+import { api, photoUri, VENUE_LIMIT_MESSAGE } from '../services/api';
 import { colors, radii } from '../theme';
 
 interface DiscoverVenue {
@@ -381,6 +381,7 @@ export default function DiscoverScreen() {
     const [userLng, setUserLng] = useState<number | null>(null);
     const [noLocation, setNoLocation] = useState(false);
     const [loadingVenues, setLoadingVenues] = useState(false);
+    const [venueLimited, setVenueLimited] = useState(false);
     const [loadingParties, setLoadingParties] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -448,11 +449,12 @@ export default function DiscoverScreen() {
             setLikedVenues(likes);
             setLikedPlaceIds(likedIds);
 
+            setVenueLimited(venueData.status === 'rejected' && venueData.reason?.message === VENUE_LIMIT_MESSAGE);
             let v = venueData.status === 'fulfilled' ? venueData.value : [];
             v = v.filter((venue: DiscoverVenue) => !likedIds.has(venue.google_place_id));
             const p = partyData.status === 'fulfilled' ? partyData.value : [];
 
-            _venueCache = v;
+            _venueCache = venueData.status === 'fulfilled' ? v : null;
             _partyCache = p;
             _cacheLat = lat;
             _cacheLng = lng;
@@ -571,6 +573,7 @@ export default function DiscoverScreen() {
             setHasMoreVenues(result?.hasMore ?? false);
         } catch (e: any) {
             console.error('[discover] load more venues', e);
+            if (e?.message === VENUE_LIMIT_MESSAGE) Alert.alert(VENUE_LIMIT_MESSAGE);
         } finally {
             setLoadingMoreVenues(false);
         }
@@ -693,7 +696,9 @@ export default function DiscoverScreen() {
                                     ) : venues.length === 0 ? (
                                         <View style={styles.inlineEmpty}>
                                             <Text style={styles.inlineEmptyText}>
-                                                No spots found nearby. Try refreshing after setting a precise location.
+                                                {venueLimited
+                                                    ? VENUE_LIMIT_MESSAGE
+                                                    : 'No spots found nearby. Try refreshing after setting a precise location.'}
                                             </Text>
                                         </View>
                                     ) : (

@@ -2,31 +2,36 @@ import { Router } from 'express';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
+import { assertMember } from '../services/membership';
 import {
     getAuthUrl,
     exchangeCodeForTokens,
     storeUserTokens,
     createCalendarEventForUser,
     buildICS,
+    signState,
+    verifyState,
 } from '../services/googleCalendar';
 
 const router = Router();
 
 router.get('/oauth/start', requireAuth, async (req: AuthedRequest, res) => {
-    const url = getAuthUrl(req.user!.id);
+    const url = getAuthUrl(signState(req.user!.id));
     res.json({ url });
 });
 
 router.get('/oauth/callback', async (req, res, next) => {
     try {
-        const code = req.query.code as string | undefined;
-        const state = req.query.state as string | undefined;
-        if (!code || !state) throw new HttpError(400, 'missing_params');
+        const code = req.query.code;
+        const state = req.query.state;
+        if (typeof code !== 'string' || typeof state !== 'string' || !code || !state) throw new HttpError(400, 'missing_params');
+        const userId = verifyState(state);
+        if (!userId) throw new HttpError(400, 'invalid_state');
 
         const tokens = await exchangeCodeForTokens(code);
         if (!tokens.access_token) throw new HttpError(500, 'no_access_token');
 
-        await storeUserTokens(state, tokens.access_token, tokens.refresh_token ?? null);
+        await storeUserTokens(userId, tokens.access_token, tokens.refresh_token ?? null);
 
         res.send(`
             <html><body style="font-family:system-ui;background:#0B0B14;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
@@ -42,6 +47,7 @@ router.get('/oauth/callback', async (req, res, next) => {
 router.post('/party/:id/export', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
+        await assertMember(partyId, req.user!.id);
 
         const { data: party } = await supabaseAdmin
             .from('parties')
@@ -92,6 +98,7 @@ router.post('/party/:id/export', requireAuth, async (req: AuthedRequest, res, ne
 router.get('/party/:id/ics', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
+        await assertMember(partyId, req.user!.id);
 
         const { data: party } = await supabaseAdmin
             .from('parties')

@@ -18,6 +18,7 @@ import discoverRoutes from './routes/discover';
 import feedRoutes from './routes/feed';
 import friendsRoutes from './routes/friends';
 import photoRoutes from './routes/photo';
+import healthRoutes from './routes/health';
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.get('/api/health', (_req, res) => {
     res.json({ ok: true, version: '0.1.0', env: config.nodeEnv });
 });
 
+app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/schools', schoolsRoutes);
 app.use('/api/user', userRoutes);
