@@ -3,12 +3,15 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
+import { rateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
-const lookupSchema = z.object({ name: z.string().min(1).max(200) });
+export const LOOKUP_LIMIT = 30;
 
-router.post('/lookup', async (req, res, next) => {
+const lookupSchema =z.object({ name: z.string().min(1).max(200) });
+
+router.post('/lookup', rateLimit(LOOKUP_LIMIT, 60_000), async (req, res, next) => {
     try {
         const { name } = lookupSchema.parse(req.body);
 

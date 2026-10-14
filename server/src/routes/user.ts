@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
+import { rateLimit } from '../middleware/rateLimit';
 import { geocodeCity } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
 
@@ -10,7 +11,9 @@ const router = Router();
 
 router.param('id', (_req, _res, next, id) => next(z.string().uuid().safeParse(id).success ? undefined : new HttpError(400, 'invalid_id')));
 
-const RESERVED_USERNAMES = ['admin', 'support', 'linkdup', 'system', 'root', 'help', 'api'];
+export const USERNAME_CHECK_LIMIT = 60;
+
+const RESERVED_USERNAMES =['admin', 'support', 'linkdup', 'system', 'root', 'help', 'api'];
 
 function validateUsername(u: string): { valid: boolean; reason?: string } {
     if (u.length < 3)  return { valid: false, reason: 'too_short' };
@@ -421,7 +424,7 @@ router.delete('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-router.get('/username-available', requireAuth, async (req: AuthedRequest, res, next) => {
+router.get('/username-available', rateLimit(USERNAME_CHECK_LIMIT, 60_000), requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const candidate = ((req.query.u as string) ?? '').toLowerCase().trim();
         const check = validateUsername(candidate);

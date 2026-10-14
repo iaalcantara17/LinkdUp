@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
+import { rateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -14,7 +15,11 @@ const signupSchema = z.object({
     graduation_year: z.number().int().min(1950).max(2100).optional(),
 });
 
-router.post('/signup', async (req, res, next) => {
+export const AUTH_LIMIT = 60;
+export const LOGIN_LIMIT = 10;
+const authLimit = rateLimit(AUTH_LIMIT, 60_000);
+
+router.post('/signup', rateLimit(LOGIN_LIMIT, 15 * 60_000), async (req, res, next) => {
     try {
         const body = signupSchema.parse(req.body);
 
@@ -96,7 +101,7 @@ const loginSchema = z.object({
     password: z.string(),
 });
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', rateLimit(LOGIN_LIMIT, 15 * 60_000), async (req, res, next) => {
     try {
         const body = loginSchema.parse(req.body);
         const { data, error } = await supabaseAdmin.auth.signInWithPassword({
@@ -119,7 +124,7 @@ router.post('/login', async (req, res, next) => {
     }
 });
 
-router.post('/logout', requireAuth, async (req: AuthedRequest, res, next) => {
+router.post('/logout', authLimit, requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         if (req.accessToken) {
             await supabaseAdmin.auth.admin.signOut(req.accessToken);
@@ -135,7 +140,7 @@ const ensureProfileSchema = z.object({
     display_name: z.string().min(1).max(100),
 });
 
-router.post('/ensure-profile', requireAuth, async (req: AuthedRequest, res, next) => {
+router.post('/ensure-profile', authLimit, requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const body = ensureProfileSchema.parse(req.body);
         const { data, error } = await supabaseAdmin
@@ -158,7 +163,7 @@ router.post('/ensure-profile', requireAuth, async (req: AuthedRequest, res, next
     } catch (e) { next(e); }
 });
 
-router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
+router.get('/me', authLimit, requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('users')

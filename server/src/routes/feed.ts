@@ -8,6 +8,8 @@ import { config } from '../config';
 
 const router = Router();
 
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif']);
+
 router.get('/feed', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
@@ -161,7 +163,8 @@ router.post('/feed/posts', requireAuth, async (req: AuthedRequest, res, next) =>
 router.post('/feed/upload-url', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
-        const ext = (req.body.ext as string | undefined) ?? 'jpg';
+        const ext = String(req.body?.ext ?? 'jpg').toLowerCase();
+        if (!IMAGE_EXTENSIONS.has(ext)) throw new HttpError(400, 'invalid_extension');
         const filePath = `${me}/${Date.now()}.${ext}`;
 
         const { data, error } = await supabaseAdmin.storage

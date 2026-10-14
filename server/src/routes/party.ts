@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError, venueLimitReached } from '../middleware/error';
+import { rateLimit } from '../middleware/rateLimit';
 import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoint';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
@@ -61,9 +62,11 @@ router.post('/', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
+export const JOIN_LIMIT = 20;
+
 const joinSchema = z.object({ code: z.string().length(6) });
 
-router.post('/join', requireAuth, async (req: AuthedRequest, res, next) => {
+router.post('/join', rateLimit(JOIN_LIMIT, 10 * 60_000), requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const body = joinSchema.parse(req.body);
         const { data: party } = await supabaseAdmin

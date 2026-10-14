@@ -199,7 +199,7 @@ export const api = {
             'POST', '/api/discover/feed/upload-url', { ext }
         ),
     uploadFeedPhoto: async (file: Blob | File): Promise<string> => {
-        const ext = (file as File).name?.split('.').pop() ?? 'jpg';
+        const ext = /\.([A-Za-z0-9]+)$/.exec((file as File).name ?? '')?.[1] ?? 'jpg';
         const { upload_url, public_url } = await api.getUploadUrl(ext);
         const res = await fetch(upload_url, {
             method: 'PUT',
