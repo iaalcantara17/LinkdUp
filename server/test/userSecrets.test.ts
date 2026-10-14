@@ -101,7 +101,7 @@ for (const [name, run] of selfEndpoints) {
     });
 }
 
-for (const [name, run] of selfEndpoints.filter(([n]) => n.includes('/api/auth/'))) {
+for (const [name, run] of selfEndpoints) {
     test(`${name} returns profile_schema_mismatch on a missing column and logs the real error server side`, async () => {
         const dbMessage = 'column users.theme_preference does not exist';
         mockSupabase(USERS, () => Response.json({ code: '42703', message: dbMessage }, { status: 400 }));
