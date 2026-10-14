@@ -136,6 +136,6 @@ export function errorText(e: unknown, fallback: string): string {
     const raw = (e as { message?: unknown } | undefined)?.message;
     if (typeof raw !== 'string' || !raw.trim()) return fallback;
     if (FRIENDLY[raw]) return FRIENDLY[raw];
-    if (/^[a-z0-9_]+$/.test(raw) || /^HTTP \d+$/.test(raw)) return fallback;
+    if (/^[a-z0-9_]+$/.test(raw) || /\b\d{3}$/.test(raw)) return fallback;
     return raw;
 }

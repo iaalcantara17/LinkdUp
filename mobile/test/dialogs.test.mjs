@@ -145,6 +145,7 @@ test('errorText hides raw server codes behind friendly text', () => {
     assert.equal(errorText(new Error('blocked'), fb), "You can't do that with this person.");
     assert.equal(errorText(new Error('some_new_code'), fb), fb);
     assert.equal(errorText(new Error('HTTP 500'), fb), fb);
+    assert.equal(errorText(new Error('Upload failed: 413'), fb), fb);
     assert.equal(errorText(new Error('unknown'), fb), fb);
     assert.equal(errorText(undefined, fb), fb);
     assert.equal(errorText(new Error('Email is already registered.'), fb), 'Email is already registered.');
