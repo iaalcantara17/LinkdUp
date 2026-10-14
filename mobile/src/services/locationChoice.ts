@@ -83,3 +83,12 @@ export function pendingAction() {
         },
     };
 }
+
+export function discoverOrigin(
+    reading: LiveResult,
+    picked: { latitude: number; longitude: number } | null,
+): { coords: Coords; live: boolean } | null {
+    if (reading.ok) return { coords: reading.coords, live: true };
+    if (picked) return { coords: { latitude: picked.latitude, longitude: picked.longitude }, live: false };
+    return null;
+}
