@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import { supabase } from '../services/supabase';
 import { typography } from '../theme';
 import type { AppColors } from '../theme';
@@ -44,7 +45,7 @@ export default function AuthCallbackScreen() {
                 }
             } catch (e: any) {
                 console.error('[auth-callback]', e?.message);
-                Alert.alert('Sign-in error', e?.message ?? 'Could not complete sign-in. Please try again.');
+                showError("Couldn't sign you in", errorText(e, 'Try signing in again.'));
                 try { nav.navigate('Login', { mode: 'login' }); } catch {}
             }
         })();
@@ -55,7 +56,7 @@ export default function AuthCallbackScreen() {
             if (handledRef.current) return;
             const { data } = await supabase.auth.getSession();
             if (!data.session) {
-                Alert.alert('Sign-in timed out', 'Please try again.');
+                showError('Sign-in took too long', 'Try signing in again.');
                 try { nav.navigate('Login', { mode: 'login' }); } catch {}
             }
         }, 15_000);

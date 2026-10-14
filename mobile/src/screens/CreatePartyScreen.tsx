@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import GradientButton from '../components/GradientButton';
 import AppSwitch from '../components/AppSwitch';
 import GlassCard from '../components/GlassCard';
 import { api } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -55,7 +56,7 @@ export default function CreatePartyScreen() {
             setPartyId(r.party_id);
             setStep('invite');
         } catch (e: any) {
-            Alert.alert('Could not create party', e?.message ?? 'unknown');
+            showError("Couldn't create party", errorText(e, 'Check your connection and try again.'));
         } finally {
             setLoading(false);
         }

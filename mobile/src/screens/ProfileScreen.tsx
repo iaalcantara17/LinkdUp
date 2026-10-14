@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
     Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +18,8 @@ import BottomNav from '../components/BottomNav';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { api } from '../services/api';
+import DialogHost from '../components/DialogHost';
+import { confirm, errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -197,13 +199,13 @@ export default function ProfileScreen() {
             if (editModal === 'username') {
                 const trimmed = editValue.toLowerCase().trim();
                 if (usernameStatus !== 'available') {
-                    Alert.alert('Check username', usernameReason ?? 'Choose a valid, available username.');
+                    showError('Pick another username', usernameReason ?? "Choose a username that's valid and available.");
                     return;
                 }
                 await api.updateProfile({ username: trimmed });
             } else if (editModal === 'displayName') {
                 const trimmed = editValue.trim();
-                if (!trimmed) { Alert.alert('Required', 'Display name cannot be empty.'); return; }
+                if (!trimmed) { showError('Add your name', "Your display name can't be empty."); return; }
                 await api.updateProfile({ display_name: trimmed });
             } else if (editModal === 'school') {
                 const trimmed = editValue.trim();
@@ -222,7 +224,7 @@ export default function ProfileScreen() {
                 } else {
                     const year = parseInt(trimmed, 10);
                     if (isNaN(year) || year < 1950 || year > 2100) {
-                        Alert.alert('Invalid year', 'Please enter a year between 1950 and 2100.');
+                        showError('Check the year', 'Enter a graduation year between 1950 and 2100.');
                         return;
                     }
                     await api.updateProfile({ graduation_year: year });
@@ -232,10 +234,10 @@ export default function ProfileScreen() {
             } else if (editModal === 'birthday') {
                 const iso = `${bdayYear}-${String(bdayMonth).padStart(2,'0')}-${String(bdayDay).padStart(2,'0')}`;
                 const d = new Date(iso);
-                if (isNaN(d.getTime())) { Alert.alert('Invalid date', 'Please enter a valid date.'); return; }
+                if (isNaN(d.getTime())) { showError('Check the date', 'Enter a valid birthday.'); return; }
                 const age = computeAgeFromISO(iso);
-                if (age === null || age < 13) { Alert.alert('Age requirement', 'You must be at least 13 years old.'); return; }
-                if (d > new Date()) { Alert.alert('Invalid date', 'Birthday cannot be in the future.'); return; }
+                if (age === null || age < 13) { showError('Check your birthday', 'You must be at least 13 years old.'); return; }
+                if (d > new Date()) { showError('Check the date', "Your birthday can't be in the future."); return; }
                 await api.updateProfile({ birthday: iso });
             } else if (editModal === 'bio') {
                 await api.updateProfile({ bio: editValue.trim() || null });
@@ -243,7 +245,7 @@ export default function ProfileScreen() {
             closeEdit();
             await loadProfile();
         } catch (e: any) {
-            Alert.alert('Save failed', e?.message ?? 'Unknown error');
+            showError("Couldn't save changes", errorText(e, 'Check your connection and try again.'));
         } finally {
             setEditSaving(false);
         }
@@ -252,7 +254,7 @@ export default function ProfileScreen() {
     const handleEditPhoto = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission required', 'Allow access to your photo library to upload an avatar.');
+            showError('Allow photo access', 'To change your photo, allow access to your photo library in Settings.');
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true });
@@ -262,7 +264,7 @@ export default function ProfileScreen() {
             await api.updateAvatar(result.assets[0].base64);
             loadProfile();
         } catch (e: any) {
-            Alert.alert('Upload failed', e?.message ?? 'Unknown error');
+            showError("Couldn't upload photo", errorText(e, 'Try a smaller photo, or try again in a moment.'));
         } finally {
             setAvatarUploading(false);
         }
@@ -277,39 +279,28 @@ export default function ProfileScreen() {
             setDeleteModal(false);
             nav.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
         } catch (e: any) {
-            Alert.alert('Could not delete account', e?.message ?? 'Unknown error');
+            showError("Couldn't delete account", errorText(e, 'Try again in a moment.'));
         } finally {
             setDeleting(false);
         }
     };
 
-    const handleRevokeLocation = () => {
-        const doRevoke = async () => {
-            setRevoking(true);
-            try {
-                await api.revokeLocation();
-                await loadProfile();
-            } catch (e: any) {
-                Alert.alert('Error', e?.message ?? 'Could not revoke location');
-            } finally {
-                setRevoking(false);
-            }
-        };
-
-        if (Platform.OS === 'web') {
-            const confirmed = window.confirm(
-                'Revoke location access?\n\nYour saved location will be cleared. Features that require location (like starting a party) will be unavailable until you grant access again.'
-            );
-            if (confirmed) doRevoke();
-        } else {
-            Alert.alert(
-                'Revoke location access?',
-                'Your saved location will be cleared. Features that require location (like starting a party) will be unavailable until you grant access again.',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Revoke', style: 'destructive', onPress: doRevoke },
-                ]
-            );
+    const handleRevokeLocation = async () => {
+        const ok = await confirm({
+            title: 'Revoke location access?',
+            message: "We'll clear your saved location. Features that need it, like starting a party, won't work until you allow location again.",
+            confirmLabel: 'Revoke',
+            destructive: true,
+        });
+        if (!ok) return;
+        setRevoking(true);
+        try {
+            await api.revokeLocation();
+            await loadProfile();
+        } catch (e: any) {
+            showError("Couldn't revoke location access", errorText(e, 'Try again in a moment.'));
+        } finally {
+            setRevoking(false);
         }
     };
 
@@ -677,6 +668,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     </View>
                 </KeyboardAvoidingView>
+                <DialogHost />
             </Modal>
 
             {/* ── Birthday picker ── */}
@@ -750,6 +742,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     </View>
                 </KeyboardAvoidingView>
+                <DialogHost />
             </Modal>
 
             <AnchoredHint screenKey="profile_tour_replay" title="Forgot something?" body="Tap 'Take the tour again' below to replay the welcome tour anytime." targetRef={tourRowRef} placement="top" scrollViewRef={scrollRef} />

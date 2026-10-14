@@ -17,6 +17,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { HintsProvider } from './src/context/HintsContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import DialogHost from './src/components/DialogHost';
 import { darkColors } from './src/theme';
 
 const linking: LinkingOptions<any> = {
@@ -77,6 +78,7 @@ export default function App() {
                     <AuthProvider>
                         <HintsProvider>
                             <AppInner />
+                            <DialogHost />
                         </HintsProvider>
                     </AuthProvider>
                 </SafeAreaProvider>

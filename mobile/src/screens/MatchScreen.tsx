@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import GradientButton from '../components/GradientButton';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { api, photoUri } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -199,7 +200,7 @@ export default function MatchScreen() {
             await api.resetParty(partyId);
             nav.replace('Swipe', { partyId });
         } catch (e: any) {
-            Alert.alert('Could not reset', e?.message ?? 'Unknown error');
+            showError("Couldn't keep swiping", errorText(e, 'Your Link is still here. Try again in a moment.'));
         } finally {
             setKeepLoading(false);
         }

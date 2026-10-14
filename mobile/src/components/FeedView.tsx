@@ -1,13 +1,14 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     View, Text, FlatList, TouchableOpacity, ActivityIndicator,
-    StyleSheet, useWindowDimensions, Share, Alert, Modal, Platform,
+    StyleSheet, useWindowDimensions, Share, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Plus, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
+import { confirm, errorText } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -112,23 +113,12 @@ export default function FeedView({ onBack }: Props) {
                 setPosts((prev) => prev.filter((p) => p.id !== post.id));
                 showToast('Post deleted');
             } catch (e: any) {
-                showToast(e?.message ?? 'Could not delete post');
+                showToast(errorText(e, "Couldn't delete post. Try again."));
             }
         };
 
-        if (Platform.OS === 'web') {
-            if ((window as any).confirm('Delete this post?\n\nThis will permanently remove your post.')) {
-                await doDelete();
-            }
-        } else {
-            Alert.alert(
-                'Delete Post',
-                'This will permanently remove your post. Continue?',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Delete', style: 'destructive', onPress: doDelete },
-                ]
-            );
+        if (await confirm({ title: 'Delete post?', message: "It'll be removed for everyone. This can't be undone.", confirmLabel: 'Delete', destructive: true })) {
+            await doDelete();
         }
     }, [showToast]);
 
@@ -146,7 +136,7 @@ export default function FeedView({ onBack }: Props) {
             }
         } catch (e: any) {
             updatePost(post.id, { follows_creator: wasFollowing });
-            showToast(e?.message ?? 'Could not update follow');
+            showToast(errorText(e, "Couldn't update follow. Try again."));
         }
     }, [currentUserId, updatePost, showToast]);
 
@@ -193,7 +183,7 @@ export default function FeedView({ onBack }: Props) {
             setParties(eligible);
             setPartyChooserPostId(post.id);
         } catch (e: any) {
-            showToast(e?.message ?? 'Could not load parties');
+            showToast(errorText(e, "Couldn't load your parties. Try again."));
         }
     }, [showToast]);
 
@@ -204,7 +194,7 @@ export default function FeedView({ onBack }: Props) {
             await api.addPostVenueToParty(partyChooserPostId, partyId);
             showToast(`Added to ${partyName}!`);
         } catch (e: any) {
-            showToast(e?.message ?? 'Could not add venue');
+            showToast(errorText(e, "Couldn't add this spot. Try again."));
         }
     }, [partyChooserPostId, showToast]);
 

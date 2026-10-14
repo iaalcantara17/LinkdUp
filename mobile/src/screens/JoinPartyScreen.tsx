@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -20,7 +21,7 @@ export default function JoinPartyScreen() {
 
     const handleJoin = async () => {
         if (code.length !== 6) {
-            Alert.alert('Invalid code', 'Codes are 6 characters.');
+            showError('Check the invite code', 'Invite codes are 6 characters.');
             return;
         }
         setLoading(true);
@@ -28,7 +29,7 @@ export default function JoinPartyScreen() {
             const r = await api.joinParty(code);
             nav.replace('PartyLobby', { partyId: r.party_id });
         } catch (e: any) {
-            Alert.alert('Could not join', e?.message ?? 'unknown');
+            showError("Couldn't join party", errorText(e, 'Check the invite code and try again.'));
         } finally {
             setLoading(false);
         }

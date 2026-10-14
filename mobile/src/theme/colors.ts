@@ -24,6 +24,7 @@ export const darkColors = {
     success: '#22C55E',
     successDim: 'rgba(34,197,94,0.18)',
     danger: '#EF4444',
+    dangerStrong: '#B91C1C',
     dangerDim: 'rgba(239,68,68,0.18)',
     warning: '#FACC15',
 
@@ -58,6 +59,7 @@ export const lightColors = {
     success: '#10B981',
     successDim: 'rgba(16,185,129,0.18)',
     danger: '#EF4444',
+    dangerStrong: '#B91C1C',
     dangerDim: 'rgba(239,68,68,0.18)',
     warning: '#F59E0B',
 

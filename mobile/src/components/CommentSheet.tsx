@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View, Text, Modal, TouchableOpacity, StyleSheet,
-    TextInput, ScrollView, Image, Alert, ActivityIndicator,
+    TextInput, ScrollView, Image, ActivityIndicator,
     KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Trash2, Send } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
+import DialogHost from './DialogHost';
+import { confirm, errorText, showError } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -95,31 +97,23 @@ export default function CommentSheet({
         } catch (e: any) {
             setComments((prev) => prev.filter((c) => c.id !== optimistic.id));
             onCommentCountChange(-1);
-            Alert.alert('Error', e?.message ?? 'Could not post comment');
+            showError("Couldn't post comment", errorText(e, 'Check your connection and try again.'));
         } finally {
             setPosting(false);
         }
     };
 
-    const handleDelete = (comment: Comment) => {
-        Alert.alert('Delete comment?', 'This cannot be undone.', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                    setComments((prev) => prev.filter((c) => c.id !== comment.id));
-                    onCommentCountChange(-1);
-                    try {
-                        await api.deleteFeedComment(comment.id);
-                    } catch (e: any) {
-                        setComments((prev) => [comment, ...prev]);
-                        onCommentCountChange(1);
-                        Alert.alert('Error', e?.message ?? 'Could not delete comment');
-                    }
-                },
-            },
-        ]);
+    const handleDelete = async (comment: Comment) => {
+        if (!(await confirm({ title: 'Delete comment?', message: "This can't be undone.", confirmLabel: 'Delete', destructive: true }))) return;
+        setComments((prev) => prev.filter((c) => c.id !== comment.id));
+        onCommentCountChange(-1);
+        try {
+            await api.deleteFeedComment(comment.id);
+        } catch (e: any) {
+            setComments((prev) => [comment, ...prev]);
+            onCommentCountChange(1);
+            showError("Couldn't delete comment", errorText(e, 'Try again in a moment.'));
+        }
     };
 
     const commentCount = comments.length;
@@ -241,6 +235,7 @@ export default function CommentSheet({
                     </View>
                 </SafeAreaView>
             </KeyboardAvoidingView>
+            <DialogHost />
         </Modal>
     );
 }

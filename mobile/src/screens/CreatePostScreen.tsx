@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, TextInput,
-    Image, ScrollView, ActivityIndicator, Alert, Platform,
+    Image, ScrollView, ActivityIndicator, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { X, MapPin, ImagePlus } from 'lucide-react-native';
 import { api } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -43,7 +44,7 @@ export default function CreatePostScreen() {
     const pickPhoto = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission needed', 'Allow photo library access to pick a photo.');
+            showError('Allow photo access', 'To pick a photo, allow access to your photo library in Settings.');
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -115,7 +116,7 @@ export default function CreatePostScreen() {
             showToast('Posted!');
             setTimeout(() => nav.goBack(), 600);
         } catch (e: any) {
-            Alert.alert('Post failed', e?.message ?? 'Something went wrong');
+            showError("Couldn't post", errorText(e, 'Check your connection and try again.'));
         } finally {
             setPosting(false);
         }
