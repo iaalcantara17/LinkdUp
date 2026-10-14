@@ -16,6 +16,7 @@ import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import AnchoredHint from '../components/AnchoredHint';
 import { api } from '../services/api';
+import { latestOnly } from '../hooks/latestOnly';
 import DialogHost from '../components/DialogHost';
 import { confirm, errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
@@ -234,8 +235,10 @@ export default function HomeScreen() {
     const [profileUserId, setProfileUserId] = useState<string | null>(null);
     const walkthroughCheckedRef = useRef(false);
     const friendsCardRef = useRef<View>(null);
+    const [latestLoad] = useState(() => latestOnly());
 
     const load = useCallback(async () => {
+        const isLatest = latestLoad();
         try {
             const [myProfile, myParties, pendingReqs, friends] = await Promise.all([
                 api.me().catch(() => null),
@@ -243,6 +246,7 @@ export default function HomeScreen() {
                 api.getPendingRequests().catch(() => []),
                 api.getFriends().catch(() => []),
             ]);
+            if (!isLatest()) return;
             if (myProfile) {
                 setMe(myProfile);
                 if (myProfile.theme_preference) {
@@ -264,7 +268,7 @@ export default function HomeScreen() {
             setPendingCount((pendingReqs ?? []).length);
             setOnlineFriends((friends ?? []).filter((f: any) => f.is_online).slice(0, 5));
         } catch {}
-    }, [syncFromProfile]);
+    }, [syncFromProfile, latestLoad]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -296,6 +300,7 @@ export default function HomeScreen() {
         try {
             await api.deleteParty(party.id);
             setParties(ps => ps.filter(p => p.id !== party.id));
+            load();
         } catch (e: any) {
             showError("Couldn't delete party", errorText(e, 'Try again in a moment.'));
         }
@@ -313,6 +318,7 @@ export default function HomeScreen() {
         try {
             await api.leaveParty(party.id);
             setParties(ps => ps.filter(p => p.id !== party.id));
+            load();
         } catch (e: any) {
             showError("Couldn't leave party", errorText(e, 'Try again in a moment.'));
         }
