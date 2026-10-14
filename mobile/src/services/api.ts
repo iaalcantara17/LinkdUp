@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL!;
 
+export type MyLocation = { mode: 'live' | 'custom'; custom_label: string | null; live_fresh: boolean };
+
 export const VENUE_LIMIT_MESSAGE = 'Venue lookups are paused for today, try again tomorrow';
 
 export function photoUri(url: string | null | undefined): string | undefined {
@@ -80,6 +82,12 @@ export const api = {
         request<any>('PUT', '/api/user/location', { latitude: lat, longitude: lng }),
     updateLocationManual: (city: string, country?: string) =>
         request<any>('PUT', '/api/user/location/manual', { city, country }),
+    searchPlace: (q: string) =>
+        request<{ latitude: number; longitude: number; label: string }>('GET', `/api/user/location/search?q=${encodeURIComponent(q)}`),
+    setPartyLocation: (
+        partyId: string,
+        body: { mode: 'live'; latitude: number; longitude: number } | { mode: 'custom'; latitude: number; longitude: number; label: string },
+    ) => request<MyLocation>('PUT', `/api/party/${partyId}/location`, body),
 
     createParty: (name?: string, isPublic?: boolean) =>
         request<{ party_id: string; code: string }>('POST', '/api/party', { name, is_public: isPublic ?? false }),

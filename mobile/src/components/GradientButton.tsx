@@ -57,6 +57,8 @@ export default function GradientButton({
             <TouchableOpacity
                 onPress={onPress}
                 disabled={isDisabled}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
                 activeOpacity={0.8}
                 style={[styles.base, styles.ghost, { paddingVertical: padV }, isDisabled && { opacity: 0.5 }, style]}
             >
@@ -70,6 +72,8 @@ export default function GradientButton({
             <TouchableOpacity
                 onPress={onPress}
                 disabled={isDisabled}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
                 activeOpacity={0.85}
                 style={[styles.base, styles.white, { paddingVertical: padV }, isDisabled && { opacity: 0.5 }, style]}
             >
@@ -79,7 +83,7 @@ export default function GradientButton({
     }
 
     return (
-        <TouchableOpacity onPress={onPress} disabled={isDisabled} activeOpacity={0.85} style={style}>
+        <TouchableOpacity onPress={onPress} disabled={isDisabled} accessibilityRole="button" accessibilityState={{ disabled: !!isDisabled, busy: !!loading }} activeOpacity={0.85} style={style}>
             <LinearGradient
                 colors={isDisabled ? ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.10)'] : (colors.gradient as any)}
                 start={{ x: 0, y: 0 }}

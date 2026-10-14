@@ -25,7 +25,16 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
     { title: 'Join a nearby party', description: 'Scroll down to see public parties you can ask to join.' },
 ];
 import { api, photoUri, VENUE_LIMIT_MESSAGE } from '../services/api';
+import { getLiveLocation } from '../services/liveLocation';
+import type { AskReason } from '../services/locationChoice';
 import { colors, radii } from '../theme';
+
+const DISCOVER_LOCATION_COPY: Record<AskReason, string> = {
+    prompt: 'LinkdUp uses where you are right now to show trending spots and parties near you.',
+    denied: 'Location is off for LinkdUp. Turn it on in your browser or phone settings, then try again.',
+    unavailable: "We couldn't find where you are. Check your connection and try again.",
+    timeout: 'Finding your location took too long. Try again.',
+};
 
 interface DiscoverVenue {
     google_place_id: string;
@@ -380,6 +389,7 @@ export default function DiscoverScreen() {
     const [userLat, setUserLat] = useState<number | null>(null);
     const [userLng, setUserLng] = useState<number | null>(null);
     const [noLocation, setNoLocation] = useState(false);
+    const [locationIssue, setLocationIssue] = useState<AskReason | null>(null);
     const [loadingVenues, setLoadingVenues] = useState(false);
     const [venueLimited, setVenueLimited] = useState(false);
     const [loadingParties, setLoadingParties] = useState(false);
@@ -415,19 +425,20 @@ export default function DiscoverScreen() {
         }
     }, []);
 
-    const load = useCallback(async (force = false) => {
+    const load = useCallback(async (force = false, prompt = false) => {
         try {
-            const me = await api.me().catch(() => null);
-            const lat: number | null = me?.latitude ?? null;
-            const lng: number | null = me?.longitude ?? null;
-
-            if (lat === null || lng === null) {
+            const reading = await getLiveLocation({ prompt });
+            if (!reading.ok) {
+                if (_venueCache && (reading.reason === 'timeout' || reading.reason === 'unavailable')) return;
+                setLocationIssue(reading.reason);
                 setNoLocation(true);
                 return;
             }
+            const { latitude: lat, longitude: lng } = reading.coords;
             setUserLat(lat);
             setUserLng(lng);
             setNoLocation(false);
+            setLocationIssue(null);
 
             if (!force && !isCacheStale(lat, lng)) {
                 setVenues(_venueCache!);
@@ -435,6 +446,7 @@ export default function DiscoverScreen() {
                 return;
             }
 
+            api.updateLocation(lat, lng).catch(() => {});
             setLoadingVenues(true);
             setLoadingParties(true);
 
@@ -671,14 +683,14 @@ export default function DiscoverScreen() {
                             {noLocation && (
                                 <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.emptyCard}>
                                     <Text style={styles.emptyIcon}>📍</Text>
-                                    <Text style={styles.emptyTitle}>Set your location first</Text>
-                                    <Text style={styles.emptyBody}>
-                                        We need your location to show trending spots and parties near you.
+                                    <Text style={styles.emptyTitle}>See spots near you</Text>
+                                    <Text style={styles.emptyBody} accessibilityLiveRegion="polite">
+                                        {DISCOVER_LOCATION_COPY[locationIssue ?? 'prompt']}
                                     </Text>
                                     <View style={{ marginTop: 20, alignSelf: 'stretch' }}>
                                         <GradientButton
-                                            title="Set Location"
-                                            onPress={() => nav.navigate('LocationPermission')}
+                                            title={!locationIssue || locationIssue === 'prompt' ? 'Use my live location' : 'Try again'}
+                                            onPress={() => load(true, true)}
                                         />
                                     </View>
                                 </Animated.View>

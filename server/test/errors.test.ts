@@ -61,8 +61,7 @@ test('4xx HttpError still returns its message', async () => {
 const partyDb = (c: Call) => {
     if (c.method !== 'GET') return [];
     if (c.table === 'parties') return [{ host_user_id: 'host-id', status: 'waiting' }];
-    if (c.table === 'party_members') return [{ user_id: 'host-id' }];
-    if (c.table === 'users') return [{ id: 'host-id', latitude: 40.7, longitude: -74 }];
+    if (c.table === 'party_members') return [{ user_id: 'host-id', live_latitude: 40.7, live_longitude: -74, live_at: new Date().toISOString() }];
     return [];
 };
 

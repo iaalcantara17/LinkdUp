@@ -274,7 +274,7 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
 export const getNearbyVenues = getVenuesWithRotation;
 
 // Forward geocoding for the manual city fallback
-export async function geocodeCity(city: string, country?: string): Promise<LatLng | null> {
+export async function geocodeCity(city: string, country?: string): Promise<(LatLng & { label: string }) | null> {
     const q = country ? `${city}, ${country}` : city;
     const url = 'https://maps.googleapis.com/maps/api/geocode/json';
     const res = await axios.get(url, {
@@ -285,6 +285,6 @@ export async function geocodeCity(city: string, country?: string): Promise<LatLn
     const result = res.data?.results?.[0];
     if (!result) return null;
     const loc = result.geometry?.location;
-    if (!loc) return null;
-    return { latitude: loc.lat, longitude: loc.lng };
+    if (typeof loc?.lat !== 'number' || typeof loc?.lng !== 'number') return null;
+    return { latitude: loc.lat, longitude: loc.lng, label: String(result.formatted_address || q).slice(0, 120) };
 }

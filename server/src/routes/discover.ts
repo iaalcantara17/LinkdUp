@@ -6,7 +6,7 @@ import { supabaseAdmin } from '../db';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { generateVenuePitch } from '../services/aiPitch';
 import { distanceMiles, LatLng } from '../services/midpoint';
-import { fuzzCoords } from '../services/locationFuzz';
+import { fuzzedLocation, MEMBER_LOCATION_COLUMNS } from '../services/memberLocation';
 import { config } from '../config';
 
 const router = Router();
@@ -118,7 +118,7 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
 
         const { data: memberships } = await supabaseAdmin
             .from('party_members')
-            .select('party_id, user_id')
+            .select(`party_id, user_id, ${MEMBER_LOCATION_COLUMNS}`)
             .in('party_id', openPartyIds);
 
         const memberUserIds = [...new Set((memberships ?? []).map((m: any) => m.user_id as string))];
@@ -126,30 +126,30 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
 
         const { data: users } = await supabaseAdmin
             .from('users')
-            .select('id, display_name, latitude, longitude')
+            .select('id, display_name')
             .in('id', memberUserIds);
 
-        const userMap = new Map<string, { display_name: string; latitude: number | null; longitude: number | null }>();
+        const userMap = new Map<string, { display_name: string }>();
         for (const u of users ?? []) {
-            userMap.set(u.id, { display_name: u.display_name, latitude: u.latitude, longitude: u.longitude });
+            userMap.set(u.id, { display_name: u.display_name });
         }
 
-        const partyMembersMap = new Map<string, string[]>();
+        const partyMembersMap = new Map<string, any[]>();
         for (const m of memberships ?? []) {
             const arr = partyMembersMap.get(m.party_id) ?? [];
-            arr.push(m.user_id);
+            arr.push(m);
             partyMembersMap.set(m.party_id, arr);
         }
 
         const result: any[] = [];
         for (const party of openParties) {
-            const memberIds = partyMembersMap.get(party.id) ?? [];
+            const memberRows = partyMembersMap.get(party.id) ?? [];
+            const memberIds: string[] = memberRows.map((m: any) => m.user_id);
             let closestMiles = Infinity;
-            for (const uid of memberIds) {
-                const u = userMap.get(uid);
-                if (u?.latitude != null && u?.longitude != null) {
-                    const f = fuzzCoords(u.latitude, u.longitude, uid);
-                    const d = distanceMiles(callerLoc, { latitude: f.lat, longitude: f.lng });
+            for (const m of memberRows) {
+                const f = fuzzedLocation(m, m.user_id, Infinity);
+                if (f) {
+                    const d = distanceMiles(callerLoc, f);
                     if (d < closestMiles) closestMiles = d;
                 }
             }

@@ -139,6 +139,19 @@ router.put('/location', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
+export const PLACE_SEARCH_LIMIT = 10;
+
+const placeSearchSchema = z.object({ q: z.string().trim().min(2).max(120) });
+
+router.get('/location/search', rateLimit(PLACE_SEARCH_LIMIT, 60_000), requireAuth, async (req: AuthedRequest, res, next) => {
+    try {
+        const { q } = placeSearchSchema.parse(req.query);
+        const place = await geocodeCity(q);
+        if (!place) throw new HttpError(404, 'place_not_found');
+        res.json(place);
+    } catch (e) { next(e); }
+});
+
 const manualSchema = z.object({ city: z.string().min(1), country: z.string().optional() });
 
 router.put('/location/manual', requireAuth, async (req: AuthedRequest, res, next) => {
