@@ -7,7 +7,7 @@ export type Dialog = {
     message?: string;
     buttons: DialogButton[];
 };
-export type ToastTone = 'success' | 'info' | 'error';
+export type ToastTone = 'success' | 'info';
 export type Toast = { id: number; message: string; tone: ToastTone };
 export type MenuAction = { label: string; destructive?: boolean; onPress: () => void };
 
