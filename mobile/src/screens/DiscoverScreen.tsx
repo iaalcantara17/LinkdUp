@@ -454,7 +454,7 @@ export default function DiscoverScreen() {
             v = v.filter((venue: DiscoverVenue) => !likedIds.has(venue.google_place_id));
             const p = partyData.status === 'fulfilled' ? partyData.value : [];
 
-            _venueCache = v;
+            _venueCache = venueData.status === 'fulfilled' ? v : null;
             _partyCache = p;
             _cacheLat = lat;
             _cacheLng = lng;
