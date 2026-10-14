@@ -6,15 +6,6 @@ import { HttpError } from '../middleware/error';
 
 const router = Router();
 
-async function publicUserFields(userId: string) {
-    const { data } = await supabaseAdmin
-        .from('users')
-        .select('id, display_name, username, avatar_url, avatar_color, pronouns, school_id, graduation_year')
-        .eq('id', userId)
-        .single();
-    return data;
-}
-
 router.get('/', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
