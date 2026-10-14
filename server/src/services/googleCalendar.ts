@@ -1,6 +1,27 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { google } from 'googleapis';
 import { config } from '../config';
 import { supabaseAdmin } from '../db';
+
+const STATE_TTL_MS = 10 * 60 * 1000;
+
+function stateSig(payload: string) {
+    return createHmac('sha256', config.supabase.serviceRoleKey).update(`gcal-state:${payload}`).digest('base64url');
+}
+
+export function signState(userId: string, now = Date.now()) {
+    const payload = `${userId}.${now + STATE_TTL_MS}`;
+    return `${payload}.${stateSig(payload)}`;
+}
+
+export function verifyState(state: string, now = Date.now()): string | null {
+    const [userId, expires, sig, ...rest] = state.split('.');
+    if (!userId || !expires || !sig || rest.length) return null;
+    const expected = Buffer.from(stateSig(`${userId}.${expires}`));
+    const given = Buffer.from(sig);
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+    return Number(expires) > now ? userId : null;
+}
 
 export function makeOAuthClient() {
     return new google.auth.OAuth2(
