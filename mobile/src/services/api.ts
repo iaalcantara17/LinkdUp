@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL!;
 
+export const VENUE_LIMIT_MESSAGE = 'Venue lookups are paused for today, try again tomorrow';
+
 export function photoUri(url: string | null | undefined): string | undefined {
     if (!url) return undefined;
     return url.startsWith('/') ? `${BASE}${url}` : url;
@@ -26,7 +28,9 @@ async function request<T>(method: string, path: string, body?: any): Promise<T> 
     let data: any;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
     if (!res.ok) {
-        const msg = data?.error || data?.message || `HTTP ${res.status}`;
+        const msg = data?.error === 'venue_limit_reached'
+            ? VENUE_LIMIT_MESSAGE
+            : data?.error || data?.message || `HTTP ${res.status}`;
         throw new Error(msg);
     }
     return data as T;

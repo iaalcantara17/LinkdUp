@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { config } from '../config';
 import { LatLng } from './midpoint';
+import { isGoogleQuotaError, venueLimitReached } from '../middleware/error';
 
 export interface PlaceCandidate {
     google_place_id: string;
@@ -170,6 +171,7 @@ export interface VenueRotationResult {
     nextPageToken: string | null;
     newSeed: number;
     exhausted: boolean;
+    limited?: boolean;
 }
 
 export async function getVenuesWithRotation(params: VenueRotationParams): Promise<VenueRotationResult> {
@@ -226,6 +228,7 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
         console.log('[venues-rotation] places returned:', rawPlaces.length);
     } catch (e: any) {
         console.error('[venues-rotation] Places API error:', e?.response?.data ?? e?.message);
+        if (isGoogleQuotaError(e)) return { venues: [], nextPageToken: null, newSeed: rotationSeed, exhausted: false, limited: true };
         return { venues: [], nextPageToken: null, newSeed: rotationSeed + 1, exhausted: rotationSeed + 1 >= ROTATION_COUNT };
     }
 
@@ -278,6 +281,7 @@ export async function geocodeCity(city: string, country?: string): Promise<LatLn
         params: { address: q, key: config.google.mapsApiKey },
         timeout: 10_000,
     });
+    if (['OVER_QUERY_LIMIT', 'OVER_DAILY_LIMIT'].includes(res.data?.status)) throw venueLimitReached();
     const result = res.data?.results?.[0];
     if (!result) return null;
     const loc = result.geometry?.location;

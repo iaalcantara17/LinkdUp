@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import axios from 'axios';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
-import { HttpError } from '../middleware/error';
+import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
 import { supabaseAdmin } from '../db';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { generateVenuePitch } from '../services/aiPitch';
@@ -55,11 +55,12 @@ router.get('/venues/more', requireAuth, async (req: AuthedRequest, res, next) =>
             excludeParam.split(',').map((s) => s.trim()).filter(Boolean),
         );
 
-        const { venues, nextPageToken, newSeed, exhausted } = await getVenuesWithRotation({
+        const { venues, nextPageToken, newSeed, exhausted, limited } = await getVenuesWithRotation({
             center,
             rotationSeed,
             excludeIds: excludeFromClient,
         });
+        if (limited) throw venueLimitReached();
 
         discoverRotationSeeds.set(userId, newSeed);
 
@@ -292,7 +293,7 @@ router.get('/places/search', requireAuth, async (req: AuthedRequest, res, next) 
 
         res.json(places);
     } catch (e: any) {
-        if (e instanceof HttpError) return next(e);
+        if (e instanceof HttpError || isGoogleQuotaError(e)) return next(e);
         next(new HttpError(500, 'places_search_failed', e?.message));
     }
 });

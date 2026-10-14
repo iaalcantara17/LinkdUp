@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
-import { HttpError } from '../middleware/error';
+import { HttpError, venueLimitReached } from '../middleware/error';
 import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoint';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
@@ -390,11 +390,12 @@ router.get('/:id/more-venues', requireAuth, async (req: AuthedRequest, res, next
             .eq('party_id', partyId);
         const existingIds = new Set((existing ?? []).map((r: any) => r.google_place_id));
 
-        const { venues, nextPageToken, newSeed, exhausted } = await getVenuesWithRotation({
+        const { venues, nextPageToken, newSeed, exhausted, limited } = await getVenuesWithRotation({
             center,
             rotationSeed,
             excludeIds: existingIds,
         });
+        if (limited) throw venueLimitReached();
 
         await supabaseAdmin
             .from('parties')

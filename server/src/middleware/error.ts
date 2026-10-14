@@ -11,6 +11,13 @@ export class HttpError extends Error {
     }
 }
 
+export const venueLimitReached = () => new HttpError(503, 'venue_limit_reached');
+
+export function isGoogleQuotaError(err: any): boolean {
+    const r = err?.response;
+    return r?.status === 429 || r?.data?.error?.status === 'RESOURCE_EXHAUSTED';
+}
+
 export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
     console.error('\n[error]', err?.message || err);
     if (err?.stack) console.error(err.stack);
@@ -22,9 +29,11 @@ export function errorHandler(err: any, _req: Request, res: Response, _next: Next
     if (err instanceof ZodError) {
         return res.status(400).json({ error: 'validation_error', issues: err.issues });
     }
-    if (err instanceof HttpError) {
-        return res.status(err.status).json({ error: err.code, message: err.message });
+    if (isGoogleQuotaError(err)) {
+        return res.status(503).json({ error: 'venue_limit_reached' });
     }
-    console.error('[unhandled]', err);
-    res.status(500).json({ error: 'server_error', message: err?.message ?? 'unknown' });
+    if (err instanceof HttpError) {
+        return res.status(err.status).json(err.status >= 500 ? { error: err.code } : { error: err.code, message: err.message });
+    }
+    res.status(500).json({ error: 'server_error' });
 }
