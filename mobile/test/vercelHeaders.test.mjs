@@ -22,3 +22,9 @@ test('index.html, app routes and other unhashed files always revalidate', () => 
         assert.equal(cacheFor(p), 'no-cache');
     }
 });
+
+test('a missing hashed bundle is a 404, not index.html cached for a year', () => {
+    const spa = config.rewrites.find((r) => r.destination === '/index.html');
+    assert.equal(new RegExp(`^${spa.source}$`).test('/_expo/static/js/web/AppEntry-old.js'), false);
+    assert.equal(new RegExp(`^${spa.source}$`).test('/party/abc'), true);
+});

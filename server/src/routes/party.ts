@@ -319,6 +319,7 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
             .from('locations')
             .select('*')
             .eq('party_id', partyId)
+            .order('created_at', { ascending: true })
             .order('is_priority', { ascending: false })
             .order('rating', { ascending: false, nullsFirst: false })
             .order('id', { ascending: true });

@@ -269,6 +269,7 @@ export async function tryAdvanceCard(partyId: string): Promise<AdvanceResult> {
         .from('locations')
         .select('id')
         .eq('party_id', partyId)
+        .order('created_at', { ascending: true })
         .order('is_priority', { ascending: false })
         .order('rating', { ascending: false, nullsFirst: false })
         .order('id', { ascending: true });

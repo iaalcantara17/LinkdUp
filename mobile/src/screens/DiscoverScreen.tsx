@@ -432,7 +432,7 @@ export default function DiscoverScreen() {
 
     const load = useCallback(async (force = false, prompt = false) => {
         try {
-            const reading = await getLiveLocation({ prompt });
+            const reading = picked.current && !prompt ? ({ ok: false, reason: 'prompt' } as const) : await getLiveLocation({ prompt });
             if (!reading.ok && _venueCache && (reading.reason === 'timeout' || reading.reason === 'unavailable')) return;
             const origin = discoverOrigin(reading, picked.current);
             if (!origin) {
@@ -690,6 +690,15 @@ export default function DiscoverScreen() {
                                 <Text style={styles.subtitle}>
                                     {pickedLabel ? `Trending spots and parties near ${pickedLabel}` : 'Trending spots and parties near you'}
                                 </Text>
+                                {pickedLabel && (
+                                    <TouchableOpacity
+                                        onPress={() => load(true, true)}
+                                        accessibilityRole="button"
+                                        style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
+                                    >
+                                        <Text style={[styles.subtitle, { color: colors.primary }]}>Use my live location instead</Text>
+                                    </TouchableOpacity>
+                                )}
                             </Animated.View>
 
                             {noLocation && (

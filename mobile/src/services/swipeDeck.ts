@@ -15,3 +15,16 @@ export function turnLabel({ solo, locked, flash, waitingNames }: {
     if (solo) return 'Vote saved. Loading the next card…';
     return `Voted ✓ - waiting for ${waitingNames.length > 0 ? waitingNames.join(', ') : 'everyone'}…`;
 }
+
+export function sortDeck<T extends { id: string; rating?: number | null; is_priority?: boolean | null; created_at?: string | null }>(items: T[]): T[] {
+    return [...items].sort((a, b) => {
+        const aRound = a.created_at ?? '';
+        const bRound = b.created_at ?? '';
+        if (aRound !== bRound) return aRound < bRound ? -1 : 1;
+        if (!!a.is_priority !== !!b.is_priority) return a.is_priority ? -1 : 1;
+        const aRating = a.rating ?? -1;
+        const bRating = b.rating ?? -1;
+        if (aRating !== bRating) return bRating - aRating;
+        return a.id.localeCompare(b.id);
+    });
+}

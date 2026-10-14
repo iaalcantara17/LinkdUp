@@ -9,7 +9,6 @@ import { useTheme } from '../context/ThemeContext';
 import type { AppColors } from '../theme';
 import { api, MyLocation } from '../services/api';
 import { chooseLocation, choiceLabel, pendingAction, AskReason } from '../services/locationChoice';
-import { useAuth } from '../context/AuthContext';
 import { getLiveLocation } from '../services/liveLocation';
 
 const ASK_COPY: Record<AskReason, string> = {
@@ -30,9 +29,7 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
     const [error, setError] = useState<string | null>(null);
     const tried = useRef(false);
     const nav = useNavigation<any>();
-    const { userProfile } = useAuth();
     const [afterAllow] = useState(() => pendingAction());
-    const granted = userProfile?.location_permission_status === 'granted';
 
     const custom = myLocation?.custom_label ? { label: myLocation.custom_label } : null;
     const live = myLocation?.live_fresh ? { ok: true as const } : liveIssue ? { ok: false as const, reason: liveIssue } : null;
@@ -67,11 +64,11 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
     }, [myLocation, takeLive]);
 
     useFocusEffect(useCallback(() => {
-        afterAllow.resume(granted);
-    }, [afterAllow, granted]));
+        afterAllow.resume(true);
+    }, [afterAllow]));
 
     const chooseLive = () => {
-        if (!granted && liveIssue !== 'denied') {
+        if (liveIssue === 'prompt') {
             afterAllow.arm(() => takeLive(false));
             nav.navigate('LocationPermission');
             return;

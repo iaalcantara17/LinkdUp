@@ -17,7 +17,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from 'lucide-react-native';
 import { api, photoUri } from '../services/api';
 import { errorText } from '../components/dialogs';
-import { deckProgress, turnLabel } from '../services/swipeDeck';
+import { deckProgress, sortDeck, turnLabel } from '../services/swipeDeck';
 import { supabase } from '../services/supabase';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
@@ -47,6 +47,7 @@ interface Venue {
     photo_url: string | null;
     rating: number | null;
     is_priority?: boolean | null;
+    created_at?: string | null;
     user_ratings_total?: number | null;
     google_place_id?: string | null;
     distances?: Array<{ user_id: string; display_name: string; miles: number }>;
@@ -90,14 +91,6 @@ const DEMO_VENUES: Venue[] = [
     },
 ];
 
-const sortLockedStepVenues = (items: Venue[]) => [...items].sort((a, b) => {
-    if (!!a.is_priority !== !!b.is_priority) return a.is_priority ? -1 : 1;
-    const aRating = a.rating ?? -1;
-    const bRating = b.rating ?? -1;
-    if (aRating !== bRating) return bRating - aRating;
-    return a.id.localeCompare(b.id);
-});
-
 export default function SwipeScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
@@ -129,7 +122,6 @@ export default function SwipeScreen() {
     const serverIndexRef = useRef(0);
     const myVotedIdsRef = useRef<Set<string>>(new Set());
     const votedCardIndexRef = useRef<number | null>(null);
-    const votingRoundRef = useRef(1);
     const advancedFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [toast, setToast] = useState<string | null>(null);
@@ -180,7 +172,7 @@ export default function SwipeScreen() {
         try {
             const [locs, members, me, myVotes, partyData] = await Promise.all([
                 api.getLocations(partyId).catch(() => []),
-                api.getMembers(partyId).catch(() => []),
+                api.getMembers(partyId).catch(() => null),
                 api.me().catch(() => null),
                 isDemo ? Promise.resolve([]) : api.getMyVotes(partyId).catch(() => []),
                 isDemo ? Promise.resolve(null) : api.getParty(partyId).catch(() => null),
@@ -189,7 +181,7 @@ export default function SwipeScreen() {
             myUserIdRef.current = me?.id ?? null;
 
             const nextVenues = Array.isArray(locs) && locs.length > 0
-                ? sortLockedStepVenues(locs)
+                ? sortDeck(locs as Venue[])
                 : isDemo ? DEMO_VENUES : [];
             setVenues(nextVenues);
             venuesRef.current = nextVenues;
@@ -203,7 +195,6 @@ export default function SwipeScreen() {
                 const round = p.voting_round ?? 1;
 
                 serverIndexRef.current = sIdx;
-                votingRoundRef.current = round;
                 setServerIndex(sIdx);
                 setVotingRound(round);
 
@@ -236,7 +227,7 @@ export default function SwipeScreen() {
                 }));
                 setCrew(realCrew);
                 crewRef.current = realCrew;
-            } else {
+            } else if (members !== null) {
                 const fallback: CrewMember[] = [{ user_id: me?.id ?? 'you', display_name: 'You', status: 'active' }];
                 setCrew(fallback);
                 crewRef.current = fallback;
@@ -244,7 +235,6 @@ export default function SwipeScreen() {
         } catch {
             setVenues(DEMO_VENUES);
             venuesRef.current = DEMO_VENUES;
-            setCrew([{ user_id: 'you', display_name: 'You', status: 'active' }]);
         } finally {
             setLoading(false);
         }
@@ -281,9 +271,6 @@ export default function SwipeScreen() {
                     const voted = newVenue ? myVotedIdsRef.current.has(newVenue.id) : false;
                     setCurrentVoteState(voted, sIdx);
                     setCurrentCardVoterIds(new Set());
-                }
-                if (round !== votingRoundRef.current) {
-                    votingRoundRef.current = round;
                 }
                 setServerIndex(sIdx);
                 setVotingRound(round);
@@ -327,11 +314,6 @@ export default function SwipeScreen() {
                         return updated;
                     });
                     showAdvancedFlash();
-                    translateX.value = 0;
-                    translateY.value = 0;
-                }
-                if (newRound !== votingRoundRef.current) {
-                    votingRoundRef.current = newRound;
                 }
 
                 setServerIndex(newIdx);
@@ -504,7 +486,10 @@ export default function SwipeScreen() {
                     load();
                     return;
                 }
+                if (crewRef.current.length === 1) load();
             } catch (err: any) {
+                translateX.value = withSpring(0);
+                translateY.value = withSpring(0);
                 console.warn('[swipe] vote failed', err?.message);
                 if (!isDemo) {
                     setCurrentVoteState(false, serverIndexRef.current);
@@ -532,8 +517,6 @@ export default function SwipeScreen() {
                 }
             }
             setLocalIndex(prev => prev + 1);
-            translateX.value = 0;
-            translateY.value = 0;
         }
         // For group parties: DO NOT advance local index — wait for server push
     };

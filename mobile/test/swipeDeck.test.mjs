@@ -27,3 +27,24 @@ test('swipe screen uses the real deck size, never shows a swiped-off card, and r
     assert.match(src, /useEffect\(\(\) => \{\s*translateX\.value = 0;\s*translateY\.value = 0;\s*\}, \[index/);
     assert.match(src, /serverIndex >= venues\.length\) load\(\)/);
 });
+
+test('the client deck uses the same round-first order as the server', async () => {
+    const { sortDeck } = await import('../src/services/swipeDeck.ts');
+    const round1 = { created_at: '2026-10-14T10:00:00Z' };
+    const round2 = { created_at: '2026-10-14T11:00:00Z' };
+    const deck = sortDeck([
+        { id: 'c', rating: 4.9, ...round2 },
+        { id: 'a', rating: 4.0, ...round1 },
+        { id: 'b', rating: 4.5, ...round1 },
+        { id: 'p', rating: 3.0, is_priority: true, ...round1 },
+    ]);
+    assert.deepEqual(deck.map((v) => v.id), ['p', 'b', 'a', 'c']);
+});
+
+test('a failed vote brings the card back and a solo vote resyncs without realtime', () => {
+    const advance = src.slice(src.indexOf('const advance = async'), src.indexOf('const swipeOff'));
+    assert.match(advance, /catch \(err: any\) \{[\s\S]*translateX\.value = withSpring\(0\)/);
+    assert.match(advance, /if \(crewRef\.current\.length === 1\) load\(\)/);
+    assert.doesNotMatch(src, /votingRoundRef/);
+    assert.doesNotMatch(src, /setCrew\(\[\{ user_id: 'you'/);
+});

@@ -20,3 +20,9 @@ test('discover offers Pick a city with the same place search as the lobby', () =
     assert.match(discover, /if \(origin\.live\) api\.updateLocation/);
     assert.match(read('components/LocationSourceCard.tsx'), /<PlaceSearch/);
 });
+
+test('a picked city is used right away and live location can be restored', () => {
+    const discover = read('screens/DiscoverScreen.tsx');
+    assert.match(discover, /picked\.current && !prompt/);
+    assert.match(discover, /Use my live location instead/);
+});

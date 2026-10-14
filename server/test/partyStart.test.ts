@@ -50,3 +50,14 @@ test('nobody with a location cannot start', async () => {
     assert.equal(res.status, 400);
     assert.equal((await res.json()).error, 'no_member_locations');
 });
+
+test('cards are ordered by round first so new rounds come after old cards', async () => {
+    const calls = mockSupabase(USERS, (c) => {
+        if (c.table === 'party_members') return [{ user_id: 'alice-id' }];
+        return [];
+    });
+    const res = await realFetch(`${party.base}/api/party/p1/locations`, { headers: auth('tok-alice') });
+    assert.equal(res.status, 200);
+    const order = calls.find((c) => c.table === 'locations' && c.method === 'GET')?.url.searchParams.get('order') ?? '';
+    assert.match(order, /^created_at\.asc,is_priority\.desc/);
+});

@@ -50,12 +50,12 @@ export default function PartyLobbyScreen() {
         try {
             const [p, ms, sess] = await Promise.all([
                 api.getParty(partyId).catch(() => null),
-                api.getMembers(partyId).catch(() => []),
+                api.getMembers(partyId).catch(() => null),
                 supabase.auth.getUser(),
             ]);
             if (p?.party) setParty(p.party);
             if (p?.my_location) setMyLocation(p.my_location);
-            setMembers(ms);
+            if (ms) setMembers(ms);
             setMe(sess.data.user?.id ?? null);
         } catch {}
     }, [partyId, nav]);

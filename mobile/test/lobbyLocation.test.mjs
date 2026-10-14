@@ -58,3 +58,15 @@ test('the lobby card resumes live location after the explainer and gates start',
     assert.match(lobby, /startGate\(members\)/);
     assert.match(lobby, /disabled=\{!gate\.canStart\}/);
 });
+
+test('a failed member fetch never disables start or flips a group to solo', () => {
+    assert.match(read('screens/PartyLobbyScreen.tsx'), /getMembers\(partyId\)\.catch\(\(\) => null\)/);
+    assert.match(read('screens/SwipeScreen.tsx'), /getMembers\(partyId\)\.catch\(\(\) => null\)/);
+});
+
+test('the live button only opens the explainer when the browser has not been asked yet', () => {
+    const card = read('components/LocationSourceCard.tsx');
+    assert.match(card, /if \(liveIssue === 'prompt'\)/);
+    assert.match(card, /afterAllow\.resume\(true\)/);
+    assert.doesNotMatch(card, /useAuth/);
+});
