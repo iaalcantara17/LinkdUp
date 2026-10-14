@@ -1,0 +1,29 @@
+{
+    "pending_migrations_from": 34,
+    "users_columns": [
+        "avatar_color",
+        "avatar_url",
+        "bio",
+        "birthday",
+        "created_at",
+        "display_name",
+        "email",
+        "google_access_token",
+        "google_calendar_refresh",
+        "google_calendar_token",
+        "google_refresh_token",
+        "google_token_expires_at",
+        "graduation_year",
+        "has_seen_walkthrough",
+        "id",
+        "last_location_at",
+        "last_seen_at",
+        "latitude",
+        "location_permission_status",
+        "longitude",
+        "pronouns",
+        "school_id",
+        "updated_at",
+        "username"
+    ]
+}
