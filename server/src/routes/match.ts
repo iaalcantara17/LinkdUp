@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
+import { assertMember } from '../services/membership';
 
 const router = Router();
 
 router.get('/:id/match', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
+        await assertMember(partyId, req.user!.id);
 
         const { data: party } = await supabaseAdmin
             .from('parties')

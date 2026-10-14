@@ -3,6 +3,7 @@ import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { supabaseAdmin } from '../db';
 import { distanceMiles } from '../services/midpoint';
+import { assertMember } from '../services/membership';
 import { config } from '../config';
 
 const router = Router();
@@ -605,14 +606,7 @@ router.post('/feed/posts/:id/add-to-party', requireAuth, async (req: AuthedReque
         const me = req.user!.id;
         const { party_id } = req.body;
         if (!party_id) throw new HttpError(400, 'missing_party_id');
-
-        const { data: membership } = await supabaseAdmin
-            .from('party_members')
-            .select('user_id')
-            .eq('party_id', party_id)
-            .eq('user_id', me)
-            .maybeSingle();
-        if (!membership) throw new HttpError(403, 'not_a_member');
+        await assertMember(party_id, me);
 
         const { data: post } = await supabaseAdmin
             .from('feed_posts')

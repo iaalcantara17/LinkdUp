@@ -9,6 +9,7 @@ import { deleteCalendarEventForUser } from '../services/googleCalendar';
 import { fuzzCoords } from '../services/locationFuzz';
 import { generateVenuePitch } from '../services/aiPitch';
 import { evaluateProposal } from '../services/matchEngine';
+import { assertMember, assertHost } from '../services/membership';
 
 const router = Router();
 
@@ -26,22 +27,6 @@ async function generateUniqueCode(): Promise<string> {
         if (!data) return code;
     }
     throw new HttpError(500, 'code_collision');
-}
-
-async function assertMember(partyId: string, userId: string) {
-    const { data } = await supabaseAdmin
-        .from('party_members')
-        .select('user_id')
-        .eq('party_id', partyId)
-        .eq('user_id', userId)
-        .maybeSingle();
-    if (!data) throw new HttpError(403, 'not_a_member');
-}
-
-async function assertHost(partyId: string, userId: string) {
-    const { data } = await supabaseAdmin.from('parties').select('host_user_id').eq('id', partyId).single();
-    if (!data) throw new HttpError(404, 'party_not_found');
-    if (data.host_user_id !== userId) throw new HttpError(403, 'not_host');
 }
 
 const createSchema = z.object({

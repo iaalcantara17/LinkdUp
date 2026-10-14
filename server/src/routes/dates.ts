@@ -4,28 +4,9 @@ import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { createCalendarEventForUser } from '../services/googleCalendar';
+import { assertMember, assertHost } from '../services/membership';
 
 const router = Router();
-
-async function assertMember(partyId: string, userId: string) {
-    const { data } = await supabaseAdmin
-        .from('party_members')
-        .select('user_id')
-        .eq('party_id', partyId)
-        .eq('user_id', userId)
-        .maybeSingle();
-    if (!data) throw new HttpError(403, 'not_a_member');
-}
-
-async function assertHost(partyId: string, userId: string) {
-    const { data } = await supabaseAdmin
-        .from('parties')
-        .select('host_user_id')
-        .eq('id', partyId)
-        .single();
-    if (!data) throw new HttpError(404, 'party_not_found');
-    if (data.host_user_id !== userId) throw new HttpError(403, 'not_host');
-}
 
 function isProposedBySchemaError(err: unknown) {
     const message = typeof err === 'object' && err && 'message' in err
@@ -368,6 +349,7 @@ const dateVoteSchema = z.object({
 router.post('/:id/dates/vote', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
+        await assertMember(partyId, req.user!.id);
         const body = dateVoteSchema.parse(req.body);
 
         const { data: existingDates } = await supabaseAdmin
@@ -375,6 +357,7 @@ router.post('/:id/dates/vote', requireAuth, async (req: AuthedRequest, res, next
             .select('id')
             .eq('party_id', partyId);
         const existingIds = (existingDates ?? []).map((d) => d.id);
+        if (body.date_slot_ids.some((id) => !existingIds.includes(id))) throw new HttpError(400, 'date_not_in_party');
 
         if (existingIds.length > 0) {
             await supabaseAdmin
@@ -403,14 +386,7 @@ const customDateSchema = z.object({ datetime: z.string().min(1) });
 router.post('/:id/dates/custom', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const partyId = req.params.id;
-
-        const { data: membership } = await supabaseAdmin
-            .from('party_members')
-            .select('user_id')
-            .eq('party_id', partyId)
-            .eq('user_id', req.user!.id)
-            .maybeSingle();
-        if (!membership) throw new HttpError(403, 'not_a_member');
+        await assertMember(partyId, req.user!.id);
 
         const { datetime } = customDateSchema.parse(req.body);
         const start = new Date(datetime);
@@ -448,6 +424,14 @@ router.post('/:id/dates/lock', requireAuth, async (req: AuthedRequest, res, next
         const partyId = req.params.id;
         await assertHost(partyId, req.user!.id);
         const { party_date_id } = lockSchema.parse(req.body);
+
+        const { data: dateRecord } = await supabaseAdmin
+            .from('party_dates')
+            .select('id')
+            .eq('id', party_date_id)
+            .eq('party_id', partyId)
+            .maybeSingle();
+        if (!dateRecord) throw new HttpError(404, 'date_not_found');
 
         const { error } = await supabaseAdmin
             .from('parties')
