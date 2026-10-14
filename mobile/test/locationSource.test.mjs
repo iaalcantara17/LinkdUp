@@ -26,3 +26,31 @@ test('clearing the saved location refreshes the signed-in profile so create and 
 test('home party cards show my location source', () => {
     assert.match(read('screens/HomeScreen.tsx'), /locationSourceLabel\(/);
 });
+
+test('the location guard asks but never locks people out, and resumes after they allow', () => {
+    const guard = read('hooks/useLocationGuard.tsx');
+    assert.match(guard, /Not now/);
+    assert.match(guard, /location_permission_status === 'granted' && pendingCallback\.current/);
+    const enable = guard.slice(guard.indexOf('const handleEnable'), guard.indexOf('const handleSkip'));
+    assert.doesNotMatch(enable, /pendingCallback\.current = null/);
+});
+
+test('a failed profile refresh keeps the signed-in profile', () => {
+    const auth = read('context/AuthContext.tsx');
+    const refresh = auth.slice(auth.indexOf('const refreshProfile'), auth.indexOf('}, [', auth.indexOf('const refreshProfile')));
+    assert.doesNotMatch(refresh, /setUserProfile\(null\)/);
+    assert.doesNotMatch(refresh, /fetchProfile\(\)/);
+});
+
+test('denying permission returns to the screen that asked', () => {
+    assert.doesNotMatch(read('screens/LocationPermissionScreen.tsx'), /^\s*nav\.replace\('Home'\);\s*\n\s*return;/m);
+});
+
+test('profile never says a location was cleared when none was saved', () => {
+    assert.doesNotMatch(read('screens/ProfileScreen.tsx'), /'Cleared'/);
+});
+
+test('home cards and the lobby share one source label', () => {
+    assert.match(read('components/LocationSourceCard.tsx'), /choiceLabel\(/);
+    assert.match(read('services/locationChoice.ts'), /export function locationSourceLabel[\s\S]*chooseLocation\(/);
+});

@@ -88,7 +88,8 @@ export default function LocationPermissionScreen() {
                 const { status } = await Location.requestForegroundPermissionsAsync();
                 if (status !== 'granted') {
                     await api.setLocationPermission('maybe_later');
-                    nav.replace('Home');
+                    await refreshProfile();
+                    if (nav.canGoBack()) nav.goBack(); else nav.replace('Home');
                     return;
                 }
                 const loc = await Location.getCurrentPositionAsync({});

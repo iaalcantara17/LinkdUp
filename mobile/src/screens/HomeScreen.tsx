@@ -309,7 +309,7 @@ export default function HomeScreen() {
         try {
             await api.deleteParty(party.id);
             setParties(ps => ps.filter(p => p.id !== party.id));
-            load();
+            latestLoad();
         } catch (e: any) {
             showError("Couldn't delete party", errorText(e, 'Try again in a moment.'));
         }
@@ -327,7 +327,7 @@ export default function HomeScreen() {
         try {
             await api.leaveParty(party.id);
             setParties(ps => ps.filter(p => p.id !== party.id));
-            load();
+            latestLoad();
         } catch (e: any) {
             showError("Couldn't leave party", errorText(e, 'Try again in a moment.'));
         }

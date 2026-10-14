@@ -449,7 +449,7 @@ export default function ProfileScreen() {
                                             {me?.location_permission_status === 'granted'
                                                 ? 'Saved'
                                                 : me?.location_permission_status === 'maybe_later'
-                                                ? 'Cleared'
+                                                ? 'Not saved'
                                                 : 'Not set'}
                                         </Text>
                                     </View>

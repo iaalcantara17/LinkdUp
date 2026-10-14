@@ -169,6 +169,13 @@ export default function SwipeScreen() {
         advancedFlashTimeoutRef.current = setTimeout(() => setAdvancedFlash(false), 900);
     }, []);
 
+    const handedOff = useRef(false);
+    const goToProposal = useCallback((locationId: string) => {
+        if (handedOff.current) return;
+        handedOff.current = true;
+        nav.replace('Proposal', { partyId, locationId });
+    }, [nav, partyId]);
+
     const load = useCallback(async () => {
         try {
             const [locs, members, me, myVotes, partyData] = await Promise.all([
@@ -206,7 +213,7 @@ export default function SwipeScreen() {
                 }
 
                 if (p.status === 'proposing' && p.proposal_location_id) {
-                    nav.navigate('Proposal', { partyId, locationId: p.proposal_location_id });
+                    goToProposal(p.proposal_location_id);
                     return;
                 }
                 if (p.status === 'matched') {
@@ -241,7 +248,7 @@ export default function SwipeScreen() {
         } finally {
             setLoading(false);
         }
-    }, [partyId, isDemo, nav, setCurrentVoteState]);
+    }, [partyId, isDemo, nav, setCurrentVoteState, goToProposal]);
 
     useEffect(() => { load(); }, [load]);
     useEffect(() => { venuesRef.current = venues; }, [venues]);
@@ -326,7 +333,7 @@ export default function SwipeScreen() {
                 setVotingRound(newRound);
 
                 if (p.status === 'proposing' && p.proposal_location_id) {
-                    nav.navigate('Proposal', { partyId, locationId: p.proposal_location_id });
+                    goToProposal(p.proposal_location_id);
                 } else if (p.status === 'matched') {
                     nav.replace('Match', { partyId });
                 }
@@ -334,7 +341,7 @@ export default function SwipeScreen() {
             .subscribe();
 
         return () => { supabase.removeChannel(partiesChannel); };
-    }, [partyId, isDemo, nav, setCurrentVoteState, showAdvancedFlash, translateX, translateY]);
+    }, [partyId, isDemo, nav, setCurrentVoteState, showAdvancedFlash, translateX, translateY, goToProposal]);
 
     // Votes + members realtime
     useEffect(() => {

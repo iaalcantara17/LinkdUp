@@ -36,13 +36,13 @@ test('a single load still applies', async () => {
 });
 
 for (const file of ['HomeScreen.tsx', 'HangoutsScreen.tsx']) {
-    test(`${file} drops stale loads and refetches after leave and delete`, () => {
+    test(`${file} drops loads that started before a leave or delete`, () => {
         const src = readFileSync(new URL(`../src/screens/${file}`, import.meta.url), 'utf8');
         assert.match(src, /latestOnly\(\)/);
         assert.match(src, /if \(!isLatest\(\)\) return;/);
         const after = (fn) => src.slice(src.indexOf(`const ${fn} = async`)).split('\n    };')[0];
         for (const fn of ['confirmDelete', 'confirmLeave']) {
-            assert.match(after(fn), /\.filter\([^)]*\)\);\s*\n\s*load\(\);/, `${fn} should refetch after the mutation`);
+            assert.match(after(fn), /\.filter\([^)]*\)\);\s*\n\s*latestLoad\(\);/, `${fn} should drop loads that started before the mutation`);
         }
     });
 }

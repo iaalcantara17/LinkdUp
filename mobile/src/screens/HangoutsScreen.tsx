@@ -196,7 +196,7 @@ export default function HangoutsScreen() {
         try {
             await api.deleteParty(h.id);
             setHangouts(hs => hs.filter(x => x.id !== h.id));
-            load();
+            latestLoad();
         } catch (e: any) {
             showError("Couldn't delete hangout", errorText(e, 'Try again in a moment.'));
         }
@@ -214,7 +214,7 @@ export default function HangoutsScreen() {
         try {
             await api.leaveParty(h.id);
             setHangouts(hs => hs.filter(x => x.id !== h.id));
-            load();
+            latestLoad();
         } catch (e: any) {
             showError("Couldn't leave hangout", errorText(e, 'Try again in a moment.'));
         }

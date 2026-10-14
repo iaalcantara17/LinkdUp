@@ -13,3 +13,9 @@ test('solo parties follow the server into the proposal when a round ends', () =>
 test('force match recovers when the round already ended', () => {
     assert.match(src, /party_not_swiping/);
 });
+
+test('the proposal replaces the swipe screen once so rounds do not stack swipe screens', () => {
+    assert.doesNotMatch(src, /navigate\('Proposal'/);
+    assert.match(src, /replace\('Proposal'/);
+    assert.match(src, /handedOff\.current/);
+});
