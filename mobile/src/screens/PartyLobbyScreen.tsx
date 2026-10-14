@@ -25,6 +25,7 @@ import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { useLocationGuard } from '../hooks/useLocationGuard';
+import { pollWhileVisible, LOBBY_POLL_MS } from '../hooks/pollWhileVisible';
 
 export default function PartyLobbyScreen() {
     const nav = useNavigation<any>();
@@ -53,20 +54,14 @@ export default function PartyLobbyScreen() {
             if (p?.party) setParty(p.party);
             setMembers(ms);
             setMe(sess.data.user?.id ?? null);
-            try {
-                const fr = await api.getFriends();
-                setFriendsList(fr ?? []);
-            } catch {
-                setFriendsList([]);
-            }
         } catch {}
     }, [partyId, nav]);
 
     useFocusEffect(
         useCallback(() => {
             refresh();
-            const t = setInterval(refresh, 3000);
-            return () => clearInterval(t);
+            api.getFriends().then((fr) => setFriendsList(fr ?? []), () => setFriendsList([]));
+            return pollWhileVisible(refresh, LOBBY_POLL_MS);
         }, [refresh])
     );
 

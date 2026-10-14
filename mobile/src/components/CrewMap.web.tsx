@@ -4,6 +4,8 @@ import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { colors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import { TILE_URL, TILE_ATTRIBUTION, leafletOverridesCss, mapThemeClass } from './mapTheme';
 import type { CrewMapProps } from './CrewMap';
 
 export type { CrewMapProps };
@@ -13,13 +15,7 @@ function injectLeafletOverrides() {
     if (document.getElementById('leaflet-overrides')) return;
     const style = document.createElement('style');
     style.id = 'leaflet-overrides';
-    style.textContent = `
-        .leaflet-container { background: #0A0A0F !important; }
-        @keyframes linkdup-pin-drop {
-            from { transform: translateY(-20px) scale(0.4); opacity: 0; }
-            to   { transform: translateY(0)    scale(1);   opacity: 1; }
-        }
-    `;
+    style.textContent = leafletOverridesCss;
     document.head.appendChild(style);
 }
 
@@ -72,6 +68,7 @@ export default function CrewMap({
     onMemberPress,
     scrollWheelZoom = false,
 }: CrewMapProps) {
+    const { isDark } = useTheme();
     useEffect(() => { injectLeafletOverrides(); }, []);
 
     const allCoords: [number, number][] = [
@@ -92,7 +89,7 @@ export default function CrewMap({
     const initialCenter: [number, number] = [members[0].display_lat, members[0].display_lng];
 
     return (
-        <div style={{ height, width: '100%', borderRadius: 16, overflow: 'hidden' }}>
+        <div className={mapThemeClass(isDark)} style={{ height, width: '100%', borderRadius: 16, overflow: 'hidden' }}>
             <MapContainer
                 center={initialCenter}
                 zoom={12}
@@ -101,8 +98,8 @@ export default function CrewMap({
                 zoomControl={false}
             >
                 <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                    url={TILE_URL}
+                    attribution={TILE_ATTRIBUTION}
                 />
                 <BoundsUpdater coords={allCoords} />
                 {members.map(m => (
