@@ -153,3 +153,12 @@ test('errorText hides raw server codes behind friendly text', () => {
     assert.equal(errorText(undefined, fb), fb);
     assert.equal(errorText(new Error('Email is already registered.'), fb), 'Email is already registered.');
 });
+
+test('server codes users can hit on swipe and sign-in have friendly text', () => {
+    const fb = 'fallback';
+    for (const code of ['party_not_swiping', 'invalid_credentials', 'email_taken', 'not_solo_party', 'rate_limited']) {
+        const text = errorText(new Error(code), fb);
+        assert.notEqual(text, fb, code);
+        assert.doesNotMatch(text, /_/, code);
+    }
+});

@@ -72,7 +72,7 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
         try {
             setPreview(await api.searchPlace(query.trim()));
         } catch (e: any) {
-            const msg = String(e?.message ?? '');
+            const msg = String(e?.message);
             setError(
                 msg === VENUE_LIMIT_MESSAGE ? 'Place search is paused for today. Try again tomorrow, or use your live location.'
                     : msg === 'place_not_found' ? "We couldn't find that place. Try a city name or a full address."

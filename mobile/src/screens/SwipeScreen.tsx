@@ -16,6 +16,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from 'lucide-react-native';
 import { api, photoUri } from '../services/api';
+import { errorText } from '../components/dialogs';
 import { supabase } from '../services/supabase';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
@@ -205,11 +206,8 @@ export default function SwipeScreen() {
                 }
 
                 if (p.status === 'proposing' && p.proposal_location_id) {
-                    const memberCount = (members ?? []).length;
-                    if (memberCount > 1) {
-                        nav.navigate('Proposal', { partyId, locationId: p.proposal_location_id });
-                        return;
-                    }
+                    nav.navigate('Proposal', { partyId, locationId: p.proposal_location_id });
+                    return;
                 }
                 if (p.status === 'matched') {
                     nav.replace('Match', { partyId });
@@ -328,10 +326,7 @@ export default function SwipeScreen() {
                 setVotingRound(newRound);
 
                 if (p.status === 'proposing' && p.proposal_location_id) {
-                    const isSolo = crewRef.current.length === 1;
-                    if (!isSolo) {
-                        nav.navigate('Proposal', { partyId, locationId: p.proposal_location_id });
-                    }
+                    nav.navigate('Proposal', { partyId, locationId: p.proposal_location_id });
                 } else if (p.status === 'matched') {
                     nav.replace('Match', { partyId });
                 }
@@ -454,11 +449,13 @@ export default function SwipeScreen() {
                 showToast('Swipe right on at least one spot first.');
             }
         } catch (err: any) {
-            showToast(err?.message ?? 'Something went wrong');
+            setForceMatchModal(false);
+            if (err?.message === 'party_not_swiping') load();
+            else showToast(errorText(err, "Couldn't pick right now. Try again."));
         } finally {
             setForcingMatch(false);
         }
-    }, [partyId, nav, showToast]);
+    }, [partyId, nav, showToast, load]);
 
     // Unified vote handler — does NOT advance local index for group parties
     const advance = async (liked: boolean) => {
@@ -489,6 +486,10 @@ export default function SwipeScreen() {
                 // Legacy path: if server returns a direct match, navigate
                 if (r?.match?.matched) {
                     nav.replace('Match', { partyId });
+                    return;
+                }
+                if (r?.proposing) {
+                    load();
                     return;
                 }
             } catch (err: any) {

@@ -91,7 +91,7 @@ export default function PartyLobbyScreen() {
             await api.startParty(partyId);
             nav.replace('Swipe', { partyId });
         } catch (e: any) {
-            const msg = e?.message ?? 'unknown';
+            const msg = String(e?.message);
             if (msg.includes('no_member_locations')) {
                 showError(
                     'Add a location first',

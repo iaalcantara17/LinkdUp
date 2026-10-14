@@ -25,3 +25,15 @@ test('mobile source never calls Alert.alert or window.confirm', () => {
     );
     assert.deepEqual(hits, [], `Use confirm/showError/toast from src/components/dialogs instead:\n${hits.join('\n')}`);
 });
+
+test('raw error messages never reach the UI', () => {
+    const files = [...sources(join(root, 'src')), join(root, 'App.tsx')];
+    const hits = files.flatMap((f) =>
+        readFileSync(f, 'utf8')
+            .split('\n')
+            .map((line, i) => ({ f, i: i + 1, line }))
+            .filter(({ line }) => /\.message\s*\?\?/.test(line))
+            .map(({ f, i }) => `${f}:${i}`)
+    );
+    assert.deepEqual(hits, [], `Wrap error messages in errorText(e, fallback):\n${hits.join('\n')}`);
+});
