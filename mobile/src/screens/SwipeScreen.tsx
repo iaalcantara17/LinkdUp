@@ -17,6 +17,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from 'lucide-react-native';
 import { api, photoUri } from '../services/api';
 import { errorText } from '../components/dialogs';
+import { deckProgress, turnLabel } from '../services/swipeDeck';
 import { supabase } from '../services/supabase';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
@@ -139,7 +140,6 @@ export default function SwipeScreen() {
 
     // Server-driven state
     const [votingRound, setVotingRound] = useState(1);
-    const [roundStartIndex, setRoundStartIndex] = useState(0);
     const [hasVotedCurrentCard, setHasVotedCurrentCard] = useState(false);
     const [advancedFlash, setAdvancedFlash] = useState(false);
     const [currentCardVoterIds, setCurrentCardVoterIds] = useState<Set<string>>(new Set());
@@ -251,6 +251,13 @@ export default function SwipeScreen() {
     }, [partyId, isDemo, nav, setCurrentVoteState, goToProposal]);
 
     useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        translateX.value = 0;
+        translateY.value = 0;
+    }, [index, translateX, translateY]);
+    useEffect(() => {
+        if (!isDemo && venues.length > 0 && serverIndex >= venues.length) load();
+    }, [isDemo, serverIndex, venues.length, load]);
     useEffect(() => { venuesRef.current = venues; }, [venues]);
     useEffect(() => { crewRef.current = crew; }, [crew]);
     useEffect(() => () => {
@@ -277,7 +284,6 @@ export default function SwipeScreen() {
                 }
                 if (round !== votingRoundRef.current) {
                     votingRoundRef.current = round;
-                    setRoundStartIndex(sIdx);
                 }
                 setServerIndex(sIdx);
                 setVotingRound(round);
@@ -326,7 +332,6 @@ export default function SwipeScreen() {
                 }
                 if (newRound !== votingRoundRef.current) {
                     votingRoundRef.current = newRound;
-                    setRoundStartIndex(newIdx);
                 }
 
                 setServerIndex(newIdx);
@@ -582,15 +587,7 @@ export default function SwipeScreen() {
 
     const isSolo = crew.length === 1 && partyId !== 'demo';
 
-    // Progress bar calculation
-    const roundSizeTarget = votingRound === 1 ? 10 : 5;
-    const withinRoundIdx = Math.max(0, serverIndex - roundStartIndex);
-    const progressPercent = isDemo
-        ? (localIndex + 1) / Math.max(1, venues.length)
-        : Math.min((withinRoundIdx + 1) / roundSizeTarget, 1);
-    const progressLabel = isDemo
-        ? `${localIndex + 1} / ${venues.length}`
-        : `Card ${withinRoundIdx + 1} of ${roundSizeTarget}`;
+    const { label: progressLabel, percent: progressPercent } = deckProgress(index, venues.length);
 
     if (loading) {
         return (
@@ -699,11 +696,7 @@ export default function SwipeScreen() {
     const waitingNames = crew
         .filter((member) => !votedOnCurrentCard.has(member.user_id))
         .map((member) => member.display_name);
-    const turnStatusLabel = advancedFlash
-        ? 'Everyone voted - next card!'
-        : buttonsLocked
-            ? `Voted ✓ - waiting for ${waitingNames.length > 0 ? waitingNames.join(', ') : 'everyone'}...`
-            : 'Your turn - swipe or tap to vote';
+    const turnStatusLabel = turnLabel({ solo: isSolo, locked: buttonsLocked, flash: advancedFlash, waitingNames });
 
     return (
         <View style={styles.root}>
@@ -856,7 +849,7 @@ export default function SwipeScreen() {
                             </LinearGradient>
 
                             {/* Waiting overlay */}
-                            {!isDemo && buttonsLocked && (
+                            {!isDemo && buttonsLocked && !isSolo && (
                                 <View style={styles.waitingOverlay}>
                                     <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
                                     <View style={styles.waitingContent}>
