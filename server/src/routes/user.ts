@@ -7,6 +7,7 @@ import { rateLimit } from '../middleware/rateLimit';
 import { geocodeCity } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
 import { SELF_PROFILE_SELECT, computeAge, profileDbError, toSelfProfile } from '../services/userProfile';
+import { MEMBER_LOCATION_COLUMNS, myLocationView } from '../services/memberLocation';
 
 const router = Router();
 
@@ -197,9 +198,10 @@ router.get('/me/parties', requireAuth, async (req: AuthedRequest, res, next) => 
     try {
         const { data: memberships, error: memberErr } = await supabaseAdmin
             .from('party_members')
-            .select('party_id')
+            .select(`party_id, ${MEMBER_LOCATION_COLUMNS}`)
             .eq('user_id', req.user!.id);
         if (memberErr) throw new HttpError(500, 'memberships_query_failed', memberErr.message);
+        const myRows: Record<string, any> = Object.fromEntries((memberships ?? []).map((m: any) => [m.party_id, m]));
 
         const partyIds = (memberships ?? []).map((m: any) => m.party_id).filter(Boolean);
         if (partyIds.length === 0) return res.json([]);
@@ -240,6 +242,7 @@ router.get('/me/parties', requireAuth, async (req: AuthedRequest, res, next) => 
             return {
                 ...p,
                 member_count: memberIds.length,
+                my_location: myLocationView(myRows[p.id]),
                 total_votes: voteCountMap[p.id] ?? 0,
                 venue_count: venueCountMap[p.id] ?? 0,
                 member_avatars: memberIds.slice(0, 3).map((uid: string) => {

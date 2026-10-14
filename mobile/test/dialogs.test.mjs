@@ -153,3 +153,23 @@ test('errorText hides raw server codes behind friendly text', () => {
     assert.equal(errorText(undefined, fb), fb);
     assert.equal(errorText(new Error('Email is already registered.'), fb), 'Email is already registered.');
 });
+
+test('server codes users can hit on swipe and sign-in have friendly text', () => {
+    const fb = 'fallback';
+    for (const code of ['party_not_swiping', 'invalid_credentials', 'email_taken', 'not_solo_party', 'rate_limited']) {
+        const text = errorText(new Error(code), fb);
+        assert.notEqual(text, fb, code);
+        assert.doesNotMatch(text, /_/, code);
+    }
+});
+
+test('block confirm uses the same wording everywhere', async () => {
+    const { confirmBlock } = await import('../src/components/dialogs.ts');
+    const p = confirmBlock({ username: 'sam', display_name: 'Sam' });
+    const d = current();
+    assert.equal(d.title, 'Block @sam?');
+    assert.equal(d.message, "They won't be able to follow you or see your profile.");
+    assert.deepEqual(d.buttons.map((b) => [b.label, b.style]), [['Cancel', 'cancel'], ['Block', 'destructive']]);
+    respond(1);
+    assert.equal(await p, true);
+});

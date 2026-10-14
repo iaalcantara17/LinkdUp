@@ -6,7 +6,7 @@ import GradientButton from './GradientButton';
 import { useTheme } from '../context/ThemeContext';
 import type { AppColors } from '../theme';
 import { api, MyLocation, VENUE_LIMIT_MESSAGE } from '../services/api';
-import { chooseLocation, AskReason } from '../services/locationChoice';
+import { chooseLocation, choiceLabel, AskReason } from '../services/locationChoice';
 import { getLiveLocation } from '../services/liveLocation';
 
 const ASK_COPY: Record<AskReason, string> = {
@@ -72,7 +72,7 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
         try {
             setPreview(await api.searchPlace(query.trim()));
         } catch (e: any) {
-            const msg = String(e?.message ?? '');
+            const msg = String(e?.message);
             setError(
                 msg === VENUE_LIMIT_MESSAGE ? 'Place search is paused for today. Try again tomorrow, or use your live location.'
                     : msg === 'place_not_found' ? "We couldn't find that place. Try a city name or a full address."
@@ -101,11 +101,7 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
         }
     };
 
-    const status = busy && choice.kind === 'ask'
-        ? 'Finding your location…'
-        : choice.kind === 'live' ? 'Live'
-            : choice.kind === 'custom' ? `Custom: ${choice.label}`
-                : 'Not set';
+    const status = busy && choice.kind === 'ask' ? 'Finding your location…' : choiceLabel(choice);
     const detail = choice.kind === 'live'
         ? 'Using where you are right now. Your crew sees an approximate spot.'
         : choice.kind === 'custom'

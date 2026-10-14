@@ -21,6 +21,7 @@ import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
 import { api } from '../services/api';
+import { latestOnly } from '../hooks/latestOnly';
 import DialogHost from '../components/DialogHost';
 import { confirm, errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
@@ -156,18 +157,22 @@ export default function HangoutsScreen() {
     const [menuHangout, setMenuHangout] = useState<Hangout | null>(null);
     const [displayHangout, setDisplayHangout] = useState<Hangout | null>(null);
 
+    const [latestLoad] = useState(() => latestOnly());
+
     const load = useCallback(async () => {
+        const isLatest = latestLoad();
         try {
             const [data, me] = await Promise.all([
                 api.myHangouts().catch(() => []),
                 api.me().catch(() => null),
             ]);
+            if (!isLatest()) return;
             setHangouts(Array.isArray(data) ? data : []);
             if (me?.id) setMeId(me.id);
         } catch {
-            setHangouts([]);
+            if (isLatest()) setHangouts([]);
         }
-    }, []);
+    }, [latestLoad]);
 
     const openHangoutMenu = (h: Hangout) => {
         setDisplayHangout(h);
@@ -191,6 +196,7 @@ export default function HangoutsScreen() {
         try {
             await api.deleteParty(h.id);
             setHangouts(hs => hs.filter(x => x.id !== h.id));
+            latestLoad();
         } catch (e: any) {
             showError("Couldn't delete hangout", errorText(e, 'Try again in a moment.'));
         }
@@ -208,6 +214,7 @@ export default function HangoutsScreen() {
         try {
             await api.leaveParty(h.id);
             setHangouts(hs => hs.filter(x => x.id !== h.id));
+            latestLoad();
         } catch (e: any) {
             showError("Couldn't leave hangout", errorText(e, 'Try again in a moment.'));
         }

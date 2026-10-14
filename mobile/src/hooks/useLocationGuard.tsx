@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import {
     Modal, View, Text, TouchableOpacity, StyleSheet,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Animated, {
     useSharedValue, useAnimatedStyle, withSpring, withTiming, Easing,
 } from 'react-native-reanimated';
@@ -16,10 +16,12 @@ function LocationGuardBubble({
     visible,
     onDismiss,
     onEnable,
+    onSkip,
 }: {
     visible: boolean;
     onDismiss: () => void;
     onEnable: () => void;
+    onSkip: () => void;
 }) {
     const scale   = useSharedValue(0.88);
     const opacity = useSharedValue(0);
@@ -50,7 +52,7 @@ function LocationGuardBubble({
             />
             <View style={styles.bubbleWrapper} pointerEvents="box-none">
                 <Animated.View style={[styles.bubble, animStyle]}>
-                    <TouchableOpacity style={styles.closeBtn} onPress={onDismiss} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                    <TouchableOpacity style={styles.closeBtn} onPress={onDismiss} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }} accessibilityRole="button" accessibilityLabel="Close">
                         <X size={16} color="rgba(255,255,255,0.7)" />
                     </TouchableOpacity>
 
@@ -58,13 +60,16 @@ function LocationGuardBubble({
                         <MapPin size={22} color="white" fill="white" />
                     </View>
 
-                    <Text style={styles.bubbleTitle}>Location required</Text>
+                    <Text style={styles.bubbleTitle}>Share your location?</Text>
                     <Text style={styles.bubbleBody}>
-                        This feature needs your location. Tap below to enable it.
+                        LinkdUp uses it to suggest spots that work for everyone. You can also pick a place in the party lobby.
                     </Text>
 
-                    <TouchableOpacity style={styles.enableBtn} onPress={onEnable} activeOpacity={0.85}>
-                        <Text style={styles.enableBtnText}>Enable Location</Text>
+                    <TouchableOpacity style={styles.enableBtn} onPress={onEnable} activeOpacity={0.85} accessibilityRole="button">
+                        <Text style={styles.enableBtnText}>Share location</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.skipBtn} onPress={onSkip} activeOpacity={0.85} accessibilityRole="button">
+                        <Text style={styles.skipBtnText}>Not now</Text>
                     </TouchableOpacity>
                 </Animated.View>
             </View>
@@ -94,15 +99,27 @@ export function useLocationGuard() {
 
     const handleEnable = useCallback(() => {
         setShowBubble(false);
-        pendingCallback.current = null;
         nav.navigate('LocationPermission');
     }, [nav]);
+
+    const handleSkip = useCallback(() => {
+        setShowBubble(false);
+        const run = pendingCallback.current;
+        pendingCallback.current = null;
+        run?.();
+    }, []);
+
+    useFocusEffect(useCallback(() => {
+        if (userProfile?.location_permission_status === 'granted' && pendingCallback.current) pendingCallback.current();
+        pendingCallback.current = null;
+    }, [userProfile?.location_permission_status]));
 
     const GuardBubble = (
         <LocationGuardBubble
             visible={showBubble}
             onDismiss={handleDismiss}
             onEnable={handleEnable}
+            onSkip={handleSkip}
         />
     );
 
@@ -151,6 +168,8 @@ const styles = StyleSheet.create({
         marginBottom: 18,
     },
     enableBtn: {
+        minHeight: 44,
+        justifyContent: 'center',
         backgroundColor: 'white',
         borderRadius: radii.pill,
         paddingVertical: 12,
@@ -159,6 +178,17 @@ const styles = StyleSheet.create({
     enableBtnText: {
         color: BUBBLE_BG,
         fontFamily: 'Inter_700Bold',
+        fontSize: 14,
+    },
+    skipBtn: {
+        minHeight: 44,
+        marginTop: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    skipBtnText: {
+        color: 'white',
+        fontFamily: 'Inter_600SemiBold',
         fontSize: 14,
     },
 });

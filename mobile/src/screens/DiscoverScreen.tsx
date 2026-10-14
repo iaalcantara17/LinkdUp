@@ -26,6 +26,7 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
 ];
 import { api, photoUri, VENUE_LIMIT_MESSAGE } from '../services/api';
 import { errorText, showError, toast } from '../components/dialogs';
+import { useLocationGuard } from '../hooks/useLocationGuard';
 import { getLiveLocation } from '../services/liveLocation';
 import type { AskReason } from '../services/locationChoice';
 import { colors, radii } from '../theme';
@@ -382,6 +383,7 @@ function PartyCard({ party, onJoin, joining }: { party: DiscoverParty; onJoin: (
 
 export default function DiscoverScreen() {
     const nav = useNavigation<any>();
+    const { checkLocation, GuardBubble } = useLocationGuard();
 
     const [activeTab, setActiveTab] = useState<'explore' | 'feed' | 'likes'>('explore');
 
@@ -887,7 +889,7 @@ export default function DiscoverScreen() {
                                                 <PartyCard
                                                     key={p.id}
                                                     party={p}
-                                                    onJoin={() => handleJoin(p)}
+                                                    onJoin={() => checkLocation(() => handleJoin(p))}
                                                     joining={joiningId === p.id}
                                                 />
                                             ))}
@@ -963,6 +965,7 @@ export default function DiscoverScreen() {
                 venue={selectedVenue}
                 onClose={() => setSelectedVenue(null)}
             />
+            {GuardBubble}
         </View>
     );
 }

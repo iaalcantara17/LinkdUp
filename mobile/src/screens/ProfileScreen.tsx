@@ -19,7 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { api } from '../services/api';
 import DialogHost from '../components/DialogHost';
-import { confirm, errorText, showError } from '../components/dialogs';
+import { confirm, errorText, showError, toast } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -76,8 +76,12 @@ const THEME_OPTIONS: { mode: ThemeMode; label: string; desc: string }[] = [
     { mode: 'system', label: 'Match system', desc: 'Follows your device' },
 ];
 
+const LOCATION_PERMISSION_NOTE = Platform.OS === 'web'
+    ? "To stop this browser from sharing your location, change it in your browser's site settings."
+    : "To stop this device from sharing your location, change it in your device's Settings app.";
+
 export default function ProfileScreen() {
-    const { signOut } = useAuth();
+    const { signOut, refreshProfile } = useAuth();
     const nav = useNavigation<any>();
     const { colors, isDark, mode: themeMode, setMode: setThemeMode } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -287,18 +291,19 @@ export default function ProfileScreen() {
 
     const handleRevokeLocation = async () => {
         const ok = await confirm({
-            title: 'Revoke location access?',
-            message: "We'll clear your saved location. Features that need it, like starting a party, won't work until you allow location again.",
-            confirmLabel: 'Revoke',
+            title: 'Clear saved location?',
+            message: `This removes the location saved to your profile. We'll ask for your location again the next time you create or join a party. Parties you're already in keep their own Live or Custom location, which you can change in each party's lobby. ${LOCATION_PERMISSION_NOTE}`,
+            confirmLabel: 'Clear',
             destructive: true,
         });
         if (!ok) return;
         setRevoking(true);
         try {
             await api.revokeLocation();
-            await loadProfile();
+            await Promise.all([loadProfile(), refreshProfile()]);
+            toast('Saved location cleared');
         } catch (e: any) {
-            showError("Couldn't revoke location access", errorText(e, 'Try again in a moment.'));
+            showError("Couldn't clear saved location", errorText(e, 'Try again in a moment.'));
         } finally {
             setRevoking(false);
         }
@@ -436,15 +441,15 @@ export default function ProfileScreen() {
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                     <MapPin size={18} color={colors.text60} />
                                     <View>
-                                        <Text style={styles.settingsRowTitle}>Location access</Text>
+                                        <Text style={styles.settingsRowTitle}>Saved location</Text>
                                         <Text style={[
                                             styles.settingsRowSub,
                                             me?.location_permission_status === 'granted' && { color: colors.success },
                                         ]}>
                                             {me?.location_permission_status === 'granted'
-                                                ? 'Granted'
+                                                ? 'Saved'
                                                 : me?.location_permission_status === 'maybe_later'
-                                                ? 'Not granted'
+                                                ? 'Not saved'
                                                 : 'Not set'}
                                         </Text>
                                     </View>
@@ -462,13 +467,16 @@ export default function ProfileScreen() {
                                         <MapPin size={18} color={colors.danger} />
                                         <View>
                                             <Text style={[styles.settingsRowTitle, { color: colors.danger }]}>
-                                                {revoking ? 'Revoking…' : 'Revoke location access'}
+                                                {revoking ? 'Clearing…' : 'Clear saved location'}
                                             </Text>
-                                            <Text style={styles.settingsRowSub}>Clear your saved location and deny access</Text>
+                                            <Text style={styles.settingsRowSub}>Removes the location saved to your profile</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
                             )}
+                            <Text style={[styles.settingsRowSub, { paddingHorizontal: 16, paddingBottom: 8 }]}>
+                                {LOCATION_PERMISSION_NOTE}
+                            </Text>
 
                             <View style={styles.settingsDivider} />
 

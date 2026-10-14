@@ -40,7 +40,7 @@ router.post('/:id/vote', requireAuth, async (req: AuthedRequest, res, next) => {
 
         const result = await tryAdvanceCard(partyId);
 
-        res.json({ ok: true, match: result.matchResult });
+        res.json({ ok: true, match: result.matchResult, proposing: result.proposing });
     } catch (e) { next(e); }
 });
 
