@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable,
-    Modal, Image, RefreshControl, Alert, Platform,
+    Modal, Image, RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -16,6 +16,8 @@ import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import AnchoredHint from '../components/AnchoredHint';
 import { api } from '../services/api';
+import DialogHost from '../components/DialogHost';
+import { confirm, errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -283,46 +285,36 @@ export default function HomeScreen() {
     };
 
     const confirmDelete = async (party: PartyRow) => {
+        const ok = await confirm({
+            title: `Delete "${party.name}"?`,
+            message: "This can't be undone.",
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
         setMenuParty(null);
-        let ok: boolean;
-        if (Platform.OS === 'web') {
-            ok = (window as any).confirm(`Delete "${party.name}"? This cannot be undone.`);
-        } else {
-            ok = await new Promise<boolean>(resolve => {
-                Alert.alert('Delete party', 'This cannot be undone.', [
-                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-                ]);
-            });
-        }
         if (!ok) return;
         try {
             await api.deleteParty(party.id);
             setParties(ps => ps.filter(p => p.id !== party.id));
         } catch (e: any) {
-            Alert.alert('Could not delete', e?.message ?? 'unknown');
+            showError("Couldn't delete party", errorText(e, 'Try again in a moment.'));
         }
     };
 
     const confirmLeave = async (party: PartyRow) => {
+        const ok = await confirm({
+            title: `Leave "${party.name}"?`,
+            message: "You'll be removed from this party.",
+            confirmLabel: 'Leave',
+            destructive: true,
+        });
         setMenuParty(null);
-        let ok: boolean;
-        if (Platform.OS === 'web') {
-            ok = (window as any).confirm(`Leave "${party.name}"?`);
-        } else {
-            ok = await new Promise<boolean>(resolve => {
-                Alert.alert('Leave party', 'You will be removed from this party.', [
-                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                    { text: 'Leave', style: 'destructive', onPress: () => resolve(true) },
-                ]);
-            });
-        }
         if (!ok) return;
         try {
             await api.leaveParty(party.id);
             setParties(ps => ps.filter(p => p.id !== party.id));
         } catch (e: any) {
-            Alert.alert('Could not leave', e?.message ?? 'unknown');
+            showError("Couldn't leave party", errorText(e, 'Try again in a moment.'));
         }
     };
 
@@ -487,6 +479,7 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     </View>
                 </Pressable>
+                <DialogHost />
             </Modal>
         </View>
     );

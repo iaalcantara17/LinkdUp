@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,7 @@ import { MapPin, Navigation } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import IconBadge from '../components/IconBadge';
 import { api } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import { typography, spacing, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -91,7 +92,7 @@ export default function LocationPermissionScreen() {
             }
             if (nav.canGoBack()) nav.goBack(); else nav.replace('Home');
         } catch (e: any) {
-            Alert.alert('Location error', e.message ?? 'Could not get location');
+            showError("Couldn't get your location", errorText(e, 'Check that location is turned on and try again.'));
             setLoading(false);
         } finally {
             setLoading(false);

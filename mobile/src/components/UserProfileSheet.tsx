@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     View, Text, StyleSheet, Modal, TouchableOpacity,
-    ActivityIndicator, ScrollView, Alert,
+    ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { X, GraduationCap, UserPlus, UserCheck, Clock, MoreHorizontal } from 'lucide-react-native';
 import AvatarBubble from './AvatarBubble';
 import { api } from '../services/api';
+import DialogHost from './DialogHost';
+import { confirm, errorText, showError, showMenu, toast } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -103,47 +105,32 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
 
     const isSelf = friendUi === 'self';
 
-    const handleBlock = () => {
+    const handleBlock = async () => {
         if (!userId || !profile) return;
-        Alert.alert(
-            'Block user?',
-            `Block @${profile.username ?? profile.display_name}? They won't be able to follow you or see your profile.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Block',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setBlockBusy(true);
-                        try {
-                            await api.blockUser(userId);
-                            onClose();
-                        } catch (e: any) {
-                            Alert.alert('Error', e?.message ?? 'Try again');
-                        } finally {
-                            setBlockBusy(false);
-                        }
-                    },
-                },
-            ]
-        );
+        const ok = await confirm({
+            title: `Block @${profile.username ?? profile.display_name}?`,
+            message: "They won't be able to follow you or see your profile.",
+            confirmLabel: 'Block',
+            destructive: true,
+        });
+        if (!ok) return;
+        setBlockBusy(true);
+        try {
+            await api.blockUser(userId);
+            onClose();
+        } catch (e: any) {
+            showError("Couldn't block this person", errorText(e, 'Try again in a moment.'));
+        } finally {
+            setBlockBusy(false);
+        }
     };
 
     const handleKebab = () => {
         if (!profile) return;
-        const options: any[] = [
-            {
-                text: 'Block user',
-                style: 'destructive',
-                onPress: handleBlock,
-            },
-            {
-                text: 'Report user',
-                onPress: () => Alert.alert('Thanks', "We'll review this report."),
-            },
-            { text: 'Cancel', style: 'cancel' },
-        ];
-        Alert.alert(profile.display_name ?? 'User', undefined, options);
+        showMenu(profile.display_name ?? 'Profile options', [
+            { label: 'Block', destructive: true, onPress: handleBlock },
+            { label: 'Report', onPress: () => toast("Thanks. We'll review your report.", 'info') },
+        ]);
     };
 
     const navigateToFollowList = (tab: 'followers' | 'following') => {
@@ -272,7 +259,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                                         await api.sendFriendRequest(userId);
                                                         setFriendUi('pending_out');
                                                     } catch (e: any) {
-                                                        Alert.alert('Request failed', e?.message ?? 'Try again');
+                                                        showError("Couldn't send friend request", errorText(e, 'Try again in a moment.'));
                                                     } finally {
                                                         setFriendBusy(false);
                                                     }
@@ -298,7 +285,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                                         await api.acceptFriendRequest(friendshipId);
                                                         setFriendUi('accepted');
                                                     } catch (e: any) {
-                                                        Alert.alert('Could not accept', e?.message ?? '');
+                                                        showError("Couldn't accept request", errorText(e, 'Try again in a moment.'));
                                                     } finally {
                                                         setFriendBusy(false);
                                                     }
@@ -321,6 +308,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                     </ScrollView>
                 </SafeAreaView>
             </View>
+            <DialogHost />
         </Modal>
     );
 }

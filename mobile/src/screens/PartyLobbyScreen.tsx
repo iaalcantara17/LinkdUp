@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -20,6 +20,7 @@ const LOBBY_HELP: { title: string; description: string }[] = [
     { title: 'Locked-step voting', description: 'Swipe together — 10 spots, then pick the winner.' },
 ];
 import { api, MyLocation } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import LocationSourceCard from '../components/LocationSourceCard';
 import { supabase } from '../services/supabase';
 import { typography, radii } from '../theme';
@@ -92,14 +93,14 @@ export default function PartyLobbyScreen() {
         } catch (e: any) {
             const msg = e?.message ?? 'unknown';
             if (msg.includes('no_member_locations')) {
-                Alert.alert(
-                    'Location needed',
-                    'Nobody has a location for this party yet. Use your live location or pick a place under Your location, then start again.'
+                showError(
+                    'Add a location first',
+                    'No one in this party has a location yet. Turn on live location or pick a place under Your location, then start again.'
                 );
             } else if (msg.includes('party_already_started')) {
                 nav.replace('Swipe', { partyId });
             } else {
-                Alert.alert('Could not start', msg);
+                showError("Couldn't start the party", errorText(e, 'Try again in a moment.'));
             }
         } finally {
             setLoading(false);
@@ -116,7 +117,7 @@ export default function PartyLobbyScreen() {
             await refresh();
             nav.replace('Swipe', { partyId });
         } catch (e: any) {
-            Alert.alert('Could not reset', e?.message ?? 'unknown');
+            showError("Couldn't restart swiping", errorText(e, 'Try again in a moment.'));
         } finally {
             setLoading(false);
         }

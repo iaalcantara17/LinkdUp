@@ -1,13 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    ActivityIndicator, Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft } from 'lucide-react-native';
 import AvatarBubble from '../components/AvatarBubble';
 import { api } from '../services/api';
+import { confirm, errorText, showError } from '../components/dialogs';
 import { useTheme } from '../context/ThemeContext';
 import type { AppColors } from '../theme';
 import { radii } from '../theme';
@@ -27,7 +28,7 @@ export default function BlockedUsersScreen() {
             const data = await api.getBlockedUsers();
             setItems(data ?? []);
         } catch (e: any) {
-            Alert.alert('Error', e?.message ?? 'Could not load blocked users');
+            showError("Couldn't load blocked accounts", errorText(e, 'Check your connection and try again.'));
         } finally {
             setLoading(false);
         }
@@ -35,28 +36,22 @@ export default function BlockedUsersScreen() {
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
-    const handleUnblock = (item: any) => {
-        Alert.alert(
-            'Unblock user?',
-            `Unblock @${item.username ?? item.display_name}? They'll be able to follow you and see your profile again.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Unblock',
-                    onPress: async () => {
-                        setUnblockBusy((b) => ({ ...b, [item.id]: true }));
-                        try {
-                            await api.unblockUser(item.id);
-                            setItems((prev) => prev.filter((u) => u.id !== item.id));
-                        } catch (e: any) {
-                            Alert.alert('Error', e?.message ?? 'Try again');
-                        } finally {
-                            setUnblockBusy((b) => ({ ...b, [item.id]: false }));
-                        }
-                    },
-                },
-            ]
-        );
+    const handleUnblock = async (item: any) => {
+        const ok = await confirm({
+            title: `Unblock @${item.username ?? item.display_name}?`,
+            message: "They'll be able to follow you and see your profile again.",
+            confirmLabel: 'Unblock',
+        });
+        if (!ok) return;
+        setUnblockBusy((b) => ({ ...b, [item.id]: true }));
+        try {
+            await api.unblockUser(item.id);
+            setItems((prev) => prev.filter((u) => u.id !== item.id));
+        } catch (e: any) {
+            showError("Couldn't unblock", errorText(e, 'Try again in a moment.'));
+        } finally {
+            setUnblockBusy((b) => ({ ...b, [item.id]: false }));
+        }
     };
 
     const renderItem = ({ item }: { item: any }) => (

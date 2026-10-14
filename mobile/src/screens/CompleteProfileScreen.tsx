@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import {
-    View, Text, TextInput, StyleSheet, Alert, ScrollView,
+    View, Text, TextInput, StyleSheet, ScrollView,
     KeyboardAvoidingView, Platform, ActivityIndicator,
     TouchableOpacity, FlatList, Keyboard,
 } from 'react-native';
@@ -11,6 +11,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowRight, Check, X, AlertTriangle } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -207,7 +208,7 @@ export default function CompleteProfileScreen() {
                 setUsernameStatus('unavailable');
                 setUsernameReason('Already taken');
             } else {
-                Alert.alert('Could not save', e?.message ?? 'Unknown error');
+                showError("Couldn't save your profile", errorText(e, 'Check your connection and try again.'));
             }
         } finally {
             setLoading(false);

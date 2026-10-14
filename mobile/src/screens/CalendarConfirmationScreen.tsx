@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -16,9 +16,12 @@ import { Calendar as CalendarIcon, Clock, MapPin, Users, ArrowLeft } from 'lucid
 import IconBadge from '../components/IconBadge';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
+import { errorText, showError, showInfo, toast } from '../components/dialogs';
 import { typography, spacing, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+
+const CONNECT_HINT = "Allow calendar access in the window that opened. We'll add your hangout once you're connected. If it doesn't show up, tap Add to Google Calendar again.";
 
 type Attendee = { id: string; name: string; color?: string; avatarUrl?: string };
 
@@ -144,10 +147,10 @@ export default function CalendarConfirmationScreen() {
                     setGoogleConnected(true);
                     try {
                         await api.calendarExport(party);
-                        Alert.alert('Added to Google Calendar ✓');
+                        toast('Added to Google Calendar');
                     } catch (e: any) {
                         console.error('[gcal]', e);
-                        Alert.alert('Could not export', e?.message ?? 'unknown');
+                        showError("Couldn't add to Google Calendar", errorText(e, 'Try again in a moment.'));
                     }
                 } else if (tries >= 10) {
                     if (pollRef.current) {
@@ -194,7 +197,7 @@ export default function CalendarConfirmationScreen() {
                     await (navigator as any).share({ title, text: message });
                 } else {
                     await navigator.clipboard.writeText(message);
-                    Alert.alert('Copied to clipboard — paste it anywhere to share');
+                    toast('Copied. Paste it anywhere to share.', 'info');
                 }
             } catch (e: any) {
                 if ((e as any)?.name !== 'AbortError') console.error('[share]', e);
@@ -232,13 +235,13 @@ export default function CalendarConfirmationScreen() {
                     await WebBrowser.openBrowserAsync(url);
                 }
 
-                Alert.alert('Almost there', "After you grant permission, tap 'Add to Google Calendar' again.");
+                showInfo('Almost there', CONNECT_HINT);
                 startPollingForGoogleConnect(partyId);
                 return;
             }
 
             await api.calendarExport(partyId);
-            Alert.alert('Added to Google Calendar ✓');
+            toast('Added to Google Calendar');
         } catch (e: any) {
             console.error('[gcal]', e);
             if (e?.message?.includes('user_not_connected_to_google') || e?.message?.includes('user_not_connected')) {
@@ -268,14 +271,14 @@ export default function CalendarConfirmationScreen() {
                     } else {
                         await WebBrowser.openBrowserAsync(url);
                     }
-                    Alert.alert('Almost there', "After you grant permission, tap 'Add to Google Calendar' again.");
+                    showInfo('Almost there', CONNECT_HINT);
                     startPollingForGoogleConnect(partyId);
                 } catch (inner: any) {
                     console.error('[gcal]', inner);
-                    Alert.alert('Could not connect', inner?.message ?? 'unknown');
+                    showError("Couldn't connect Google Calendar", errorText(inner, 'Try again in a moment.'));
                 }
             } else {
-                Alert.alert('Could not export', e?.message ?? 'unknown');
+                showError("Couldn't add to Google Calendar", errorText(e, 'Try again in a moment.'));
             }
         } finally {
             setLoading(false);

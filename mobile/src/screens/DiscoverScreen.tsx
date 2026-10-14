@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    Image, Modal, RefreshControl, ActivityIndicator, Alert, Platform,
+    Image, Modal, RefreshControl, ActivityIndicator, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -25,6 +25,7 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
     { title: 'Join a nearby party', description: 'Scroll down to see public parties you can ask to join.' },
 ];
 import { api, photoUri, VENUE_LIMIT_MESSAGE } from '../services/api';
+import { errorText, showError, toast } from '../components/dialogs';
 import { getLiveLocation } from '../services/liveLocation';
 import type { AskReason } from '../services/locationChoice';
 import { colors, radii } from '../theme';
@@ -585,7 +586,7 @@ export default function DiscoverScreen() {
             setHasMoreVenues(result?.hasMore ?? false);
         } catch (e: any) {
             console.error('[discover] load more venues', e);
-            if (e?.message === VENUE_LIMIT_MESSAGE) Alert.alert(VENUE_LIMIT_MESSAGE);
+            if (e?.message === VENUE_LIMIT_MESSAGE) toast(VENUE_LIMIT_MESSAGE, 'info');
         } finally {
             setLoadingMoreVenues(false);
         }
@@ -597,7 +598,7 @@ export default function DiscoverScreen() {
             const result = await api.joinParty(party.code);
             nav.navigate('PartyLobby', { partyId: result.party_id });
         } catch (e: any) {
-            Alert.alert('Could not join', e?.message ?? 'Unknown error');
+            showError("Couldn't join party", errorText(e, 'Try again in a moment.'));
         } finally {
             setJoiningId(null);
         }

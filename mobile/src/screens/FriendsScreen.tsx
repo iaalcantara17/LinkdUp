@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    TextInput, ActivityIndicator, Image, RefreshControl, Alert,
+    TextInput, ActivityIndicator, Image, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { ArrowLeft, UserPlus, UserCheck, UserX, Search, Users } from 'lucide-rea
 import HelpButton from '../components/HelpButton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
+import { confirm, errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -97,26 +98,28 @@ export default function FriendsScreen() {
             await api.acceptFriendRequest(friendshipId);
             setPending((prev) => prev.filter((r) => r.friendship_id !== friendshipId));
             await loadFriends();
-        } catch (e: any) { Alert.alert('Error', e.message); }
+        } catch (e: any) { showError("Couldn't accept request", errorText(e, 'Try again in a moment.')); }
     };
 
     const handleDecline = async (friendshipId: string) => {
         try {
             await api.declineFriendRequest(friendshipId);
             setPending((prev) => prev.filter((r) => r.friendship_id !== friendshipId));
-        } catch (e: any) { Alert.alert('Error', e.message); }
+        } catch (e: any) { showError("Couldn't decline request", errorText(e, 'Try again in a moment.')); }
     };
 
     const handleRemoveFriend = async (userId: string, name: string) => {
-        Alert.alert('Remove Friend', `Remove ${name}?`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Remove', style: 'destructive', onPress: async () => {
-                try {
-                    await api.removeFriend(userId);
-                    setFriends((prev) => prev.filter((f) => f.id !== userId));
-                } catch (e: any) { Alert.alert('Error', e.message); }
-            }},
-        ]);
+        const ok = await confirm({
+            title: `Remove ${name}?`,
+            message: "They'll be removed from your friends.",
+            confirmLabel: 'Remove',
+            destructive: true,
+        });
+        if (!ok) return;
+        try {
+            await api.removeFriend(userId);
+            setFriends((prev) => prev.filter((f) => f.id !== userId));
+        } catch (e: any) { showError("Couldn't remove friend", errorText(e, 'Try again in a moment.')); }
     };
 
     const handleSendRequest = async (userId: string) => {
@@ -128,7 +131,7 @@ export default function FriendsScreen() {
                     : u
                 )
             );
-        } catch (e: any) { Alert.alert('Error', e.message); }
+        } catch (e: any) { showError("Couldn't send friend request", errorText(e, 'Try again in a moment.')); }
     };
 
     return (

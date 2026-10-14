@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    Alert, Modal, ActivityIndicator,
+    Modal, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import GradientButton from '../components/GradientButton';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
+import { errorText, showError } from '../components/dialogs';
 import { supabase } from '../services/supabase';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
@@ -400,7 +401,7 @@ export default function DateTimeSetupScreen() {
             await refreshDates();
         } catch (e: any) {
             setDates(prev => prev.filter(d => d.id !== tempId));
-            Alert.alert('Could not propose date', e?.message ?? 'unknown');
+            showError("Couldn't propose date", errorText(e, 'Try again in a moment.'));
         } finally {
             setProposing(false);
         }
@@ -428,7 +429,7 @@ export default function DateTimeSetupScreen() {
             await api.voteOnDate(partyId, dateId, available);
             await refreshDates();
         } catch (e: any) {
-            Alert.alert('Could not update vote', e?.message ?? 'unknown');
+            showError("Couldn't update your vote", errorText(e, 'Try again in a moment.'));
             await refreshDates().catch(() => {});
         } finally {
             setBusyDateId(null);
@@ -442,7 +443,7 @@ export default function DateTimeSetupScreen() {
             showToast('Date confirmed!');
             await refreshDates();
         } catch (e: any) {
-            Alert.alert('Could not lock date', e?.message ?? 'unknown');
+            showError("Couldn't lock in date", errorText(e, 'Try again in a moment.'));
         } finally {
             setBusyDateId(null);
         }
@@ -458,7 +459,7 @@ export default function DateTimeSetupScreen() {
             await refreshDates();
         } catch (e: any) {
             setDates(previous);
-            Alert.alert('Could not delete date', e?.message ?? 'unknown');
+            showError("Couldn't delete date", errorText(e, 'Try again in a moment.'));
         } finally {
             setBusyDateId(null);
         }
