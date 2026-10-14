@@ -52,7 +52,7 @@ function LocationGuardBubble({
             />
             <View style={styles.bubbleWrapper} pointerEvents="box-none">
                 <Animated.View style={[styles.bubble, animStyle]}>
-                    <TouchableOpacity style={styles.closeBtn} onPress={onDismiss} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                    <TouchableOpacity style={styles.closeBtn} onPress={onDismiss} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }} accessibilityRole="button" accessibilityLabel="Close">
                         <X size={16} color="rgba(255,255,255,0.7)" />
                     </TouchableOpacity>
 
@@ -168,6 +168,8 @@ const styles = StyleSheet.create({
         marginBottom: 18,
     },
     enableBtn: {
+        minHeight: 44,
+        justifyContent: 'center',
         backgroundColor: 'white',
         borderRadius: radii.pill,
         paddingVertical: 12,
