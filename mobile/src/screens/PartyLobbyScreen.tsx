@@ -22,11 +22,11 @@ const LOBBY_HELP: { title: string; description: string }[] = [
 import { api, MyLocation } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
 import LocationSourceCard from '../components/LocationSourceCard';
+import { startGate } from '../services/locationChoice';
 import { supabase } from '../services/supabase';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
-import { useLocationGuard } from '../hooks/useLocationGuard';
 import { pollWhileVisible, LOBBY_POLL_MS } from '../hooks/pollWhileVisible';
 
 export default function PartyLobbyScreen() {
@@ -35,7 +35,6 @@ export default function PartyLobbyScreen() {
     const partyId: string = route.params.partyId;
     const { colors } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
-    const { checkLocation, GuardBubble } = useLocationGuard();
 
     const [party, setParty] = useState<any>(null);
     const codeCardRef = useRef<View>(null);
@@ -84,6 +83,7 @@ export default function PartyLobbyScreen() {
     const isHost = party?.host_user_id === me;
     const isMatched = party?.status === 'matched';
     const isSwiping = party?.status === 'swiping';
+    const gate = startGate(members);
 
     const handleStart = async () => {
         setLoading(true);
@@ -236,7 +236,7 @@ export default function PartyLobbyScreen() {
                                     <Text style={[styles.crewLabel, { marginBottom: 4 }]}>Where everyone's at</Text>
                                     <Text style={styles.mapPrivacyNote}>Locations are approximate for privacy.</Text>
                                     <TouchableOpacity
-                                        onPress={() => checkLocation(() => nav.navigate('CrewMapFullscreen', { partyId }))}
+                                        onPress={() => nav.navigate('CrewMapFullscreen', { partyId })}
                                         activeOpacity={0.92}
                                     >
                                         <View style={{ position: 'relative' }}>
@@ -276,7 +276,12 @@ export default function PartyLobbyScreen() {
                         ) : isSwiping ? (
                             <GradientButton title="Jump into swiping" onPress={handleJumpIntoSwipe} />
                         ) : isHost ? (
-                            <GradientButton title="Start swiping" onPress={handleStart} loading={loading} />
+                            <>
+                                <GradientButton title="Start swiping" onPress={handleStart} loading={loading} disabled={!gate.canStart} />
+                                {!gate.canStart && (
+                                    <Text style={[styles.waiting, { marginTop: 12 }]} accessibilityLiveRegion="polite">{gate.reason}</Text>
+                                )}
+                            </>
                         ) : (
                             <Text style={styles.waiting}>Waiting for the host to start...</Text>
                         )}
@@ -298,7 +303,6 @@ export default function PartyLobbyScreen() {
                 targetRef={codeCardRef}
                 placement="bottom"
             />
-            {GuardBubble}
         </View>
     );
 }

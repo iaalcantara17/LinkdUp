@@ -24,7 +24,6 @@ import MyPostsScreen from '../screens/MyPostsScreen';
 import SavedScreen from '../screens/SavedScreen';
 import FollowListScreen from '../screens/FollowListScreen';
 import BlockedUsersScreen from '../screens/BlockedUsersScreen';
-import LocationBanner from '../components/LocationBanner';
 import { colors } from '../theme';
 
 export type MainStackParamList = {
@@ -62,7 +61,6 @@ interface MainStackProps {
 export default function MainStack({ startScreen = 'Home' }: MainStackProps) {
     return (
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
-            <LocationBanner />
             <Stack.Navigator
                 screenOptions={{
                     headerShown: false,

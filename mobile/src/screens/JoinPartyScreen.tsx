@@ -7,7 +7,6 @@ import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
-import { useLocationGuard } from '../hooks/useLocationGuard';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -19,14 +18,13 @@ export default function JoinPartyScreen() {
 
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
-    const { checkLocation, GuardBubble } = useLocationGuard();
 
     const handleJoin = () => {
         if (code.length !== 6) {
             showError('Check the invite code', 'Invite codes are 6 characters.');
             return;
         }
-        checkLocation(doJoin);
+        doJoin();
     };
 
     const doJoin = async () => {
@@ -75,7 +73,6 @@ export default function JoinPartyScreen() {
                     />
                 </Animated.View>
             </SafeAreaView>
-            {GuardBubble}
         </View>
     );
 }

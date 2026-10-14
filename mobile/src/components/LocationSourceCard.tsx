@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MapPin, Search } from 'lucide-react-native';
 import GlassCard from './GlassCard';
 import GradientButton from './GradientButton';
 import { useTheme } from '../context/ThemeContext';
 import type { AppColors } from '../theme';
 import { api, MyLocation, VENUE_LIMIT_MESSAGE } from '../services/api';
-import { chooseLocation, choiceLabel, AskReason } from '../services/locationChoice';
+import { chooseLocation, choiceLabel, pendingAction, AskReason } from '../services/locationChoice';
+import { useAuth } from '../context/AuthContext';
 import { getLiveLocation } from '../services/liveLocation';
 
 const ASK_COPY: Record<AskReason, string> = {
@@ -28,6 +30,10 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
     const [preview, setPreview] = useState<{ latitude: number; longitude: number; label: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const tried = useRef(false);
+    const nav = useNavigation<any>();
+    const { userProfile } = useAuth();
+    const [afterAllow] = useState(() => pendingAction());
+    const granted = userProfile?.location_permission_status === 'granted';
 
     const custom = myLocation?.custom_label ? { label: myLocation.custom_label } : null;
     const live = myLocation?.live_fresh ? { ok: true as const } : liveIssue ? { ok: false as const, reason: liveIssue } : null;
@@ -60,6 +66,19 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
         if (myLocation.mode === 'custom' && myLocation.custom_label) return;
         takeLive(false);
     }, [myLocation, takeLive]);
+
+    useFocusEffect(useCallback(() => {
+        afterAllow.resume(granted);
+    }, [afterAllow, granted]));
+
+    const chooseLive = () => {
+        if (!granted && liveIssue !== 'denied') {
+            afterAllow.arm(() => takeLive(false));
+            nav.navigate('LocationPermission');
+            return;
+        }
+        takeLive(true);
+    };
 
     const search = async () => {
         if (query.trim().length < 2) {
@@ -135,12 +154,12 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
                     <GradientButton
                         size="md"
                         title={choice.reason === 'prompt' ? 'Use my live location' : 'Try again'}
-                        onPress={() => takeLive(true)}
+                        onPress={chooseLive}
                         loading={busy}
                     />
                 )}
                 {choice.kind === 'custom' && (
-                    <GradientButton size="md" variant="ghost" title="Switch to live location" onPress={() => takeLive(true)} loading={busy} />
+                    <GradientButton size="md" variant="ghost" title="Use my live location" onPress={chooseLive} loading={busy} />
                 )}
                 {!searchOpen && (
                     <GradientButton size="md" variant="ghost" title="Use a different location" onPress={() => setSearchOpen(true)} disabled={busy} />

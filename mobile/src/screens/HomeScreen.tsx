@@ -267,10 +267,6 @@ export default function HomeScreen() {
                         nav.replace('Walkthrough', { fromSignup: true });
                         return;
                     }
-                    if (myProfile.location_permission_status === 'unset' || !myProfile.location_permission_status) {
-                        nav.replace('LocationPermission');
-                        return;
-                    }
                 }
             }
             setParties(myParties ?? []);
