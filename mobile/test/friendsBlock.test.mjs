@@ -16,3 +16,9 @@ test('every block flow uses the shared confirm', () => {
         assert.match(read(f), /confirmBlock\(/, f);
     }
 });
+
+test('report does not promise a review that never happens', () => {
+    const src = read('components/UserProfileSheet.tsx');
+    assert.doesNotMatch(src, /review/i);
+    assert.match(src, /Reporting isn't available yet/);
+});

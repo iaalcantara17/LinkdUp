@@ -124,7 +124,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
         if (!profile) return;
         showMenu(profile.display_name ?? 'Profile options', [
             { label: 'Block', destructive: true, onPress: handleBlock },
-            { label: 'Report', onPress: () => toast("Thanks. We'll review your report.", 'info') },
+            { label: 'Report', onPress: () => toast("Reporting isn't available yet. You can block this person for now.", 'info') },
         ]);
     };
 
