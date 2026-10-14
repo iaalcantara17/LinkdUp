@@ -6,6 +6,7 @@ import { HttpError } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
 import { geocodeCity } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
+import { SELF_PROFILE_SELECT, computeAge, toSelfProfile } from '../services/userProfile';
 
 const router = Router();
 
@@ -24,15 +25,6 @@ function validateUsername(u: string): { valid: boolean; reason?: string } {
     return { valid: true };
 }
 
-function computeAge(birthday: string | null | undefined): number | null {
-    if (!birthday) return null;
-    const today = new Date();
-    const bday = new Date(birthday);
-    if (isNaN(bday.getTime())) return null;
-    const age = Math.floor((today.getTime() - bday.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-    return age >= 0 ? age : null;
-}
-
 async function isEitherBlocked(a: string, b: string): Promise<boolean> {
     const { data } = await supabaseAdmin
         .from('user_blocks')
@@ -46,11 +38,11 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('users')
-            .select('id, email, display_name, username, school_id, graduation_year, avatar_color, avatar_url, latitude, longitude, last_location_at, pronouns, birthday, bio, theme_preference')
+            .select(SELF_PROFILE_SELECT)
             .eq('id', req.user!.id)
             .single();
         if (error) throw new HttpError(404, 'profile_not_found');
-        res.json({ ...data, age: computeAge(data.birthday) });
+        res.json(toSelfProfile(data));
     } catch (e) { next(e); }
 });
 
@@ -98,13 +90,13 @@ router.patch('/me', requireAuth, async (req: AuthedRequest, res, next) => {
             .from('users')
             .update(updateObj)
             .eq('id', req.user!.id)
-            .select()
+            .select(SELF_PROFILE_SELECT)
             .single();
         if (error) {
             if (error.code === '23505') throw new HttpError(409, 'username_taken');
             throw new HttpError(500, 'update_failed', error.message);
         }
-        res.json({ ...data, age: computeAge(data.birthday) });
+        res.json(toSelfProfile(data));
     } catch (e) { next(e); }
 });
 

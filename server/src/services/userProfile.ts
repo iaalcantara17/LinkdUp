@@ -1,0 +1,21 @@
+export const SELF_PROFILE_FIELDS = [
+    'id', 'email', 'display_name', 'username', 'school_id', 'graduation_year', 'avatar_color', 'avatar_url',
+    'latitude', 'longitude', 'last_location_at', 'pronouns', 'birthday', 'bio', 'theme_preference',
+    'has_seen_walkthrough', 'location_permission_status',
+] as const;
+
+export const SELF_PROFILE_SELECT = SELF_PROFILE_FIELDS.join(', ');
+
+export function computeAge(birthday: string | null | undefined): number | null {
+    if (!birthday) return null;
+    const bday = new Date(birthday);
+    if (isNaN(bday.getTime())) return null;
+    const age = Math.floor((Date.now() - bday.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    return age >= 0 ? age : null;
+}
+
+export function toSelfProfile(row: Record<string, any>) {
+    const profile: Record<string, unknown> = {};
+    for (const field of SELF_PROFILE_FIELDS) profile[field] = row[field] ?? null;
+    return { ...profile, age: computeAge(row.birthday) };
+}

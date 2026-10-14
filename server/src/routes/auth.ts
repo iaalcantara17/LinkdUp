@@ -4,6 +4,7 @@ import { supabaseAdmin, supabaseSignIn } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
+import { SELF_PROFILE_SELECT, toSelfProfile } from '../services/userProfile';
 
 const router = Router();
 
@@ -144,13 +145,13 @@ router.post('/ensure-profile', authLimit, requireAuth, async (req: AuthedRequest
                 },
                 { onConflict: 'id', ignoreDuplicates: false }
             )
-            .select('id, email, display_name, graduation_year, school_id, avatar_color')
+            .select(SELF_PROFILE_SELECT)
             .single();
         if (error) {
             console.error('[ensure-profile] FAILED uid=%s email=%s error=%s', req.user!.id, body.email, error.message);
             throw new HttpError(500, 'ensure_profile_failed', error.message);
         }
-        res.json(data);
+        res.json(toSelfProfile(data));
     } catch (e) { next(e); }
 });
 
@@ -158,20 +159,13 @@ router.get('/me', authLimit, requireAuth, async (req: AuthedRequest, res, next) 
     try {
         const { data, error } = await supabaseAdmin
             .from('users')
-            .select('id, email, display_name, username, school_id, graduation_year, avatar_color, avatar_url, latitude, longitude, google_calendar_refresh, pronouns, birthday, bio, has_seen_walkthrough, location_permission_status')
+            .select(`${SELF_PROFILE_SELECT}, google_calendar_refresh`)
             .eq('id', req.user!.id)
             .single();
         if (error) throw new HttpError(404, 'profile_not_found');
         const token = (data as any)?.google_calendar_refresh;
         const google_calendar_connected = token !== null && token !== undefined && String(token).trim() !== '';
-        const { google_calendar_refresh: _omit, ...rest } = data as any;
-        const age = (() => {
-            if (!rest.birthday) return null;
-            const d = new Date(rest.birthday);
-            if (isNaN(d.getTime())) return null;
-            return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-        })();
-        res.json({ ...rest, google_calendar_connected, age });
+        res.json({ ...toSelfProfile(data), google_calendar_connected });
     } catch (e) {
         next(e);
     }
