@@ -20,6 +20,7 @@ import { errorText, showError } from '../components/dialogs';
 import { typography, spacing, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function LocationPermissionScreen() {
     const nav = useNavigation<any>();
@@ -53,9 +54,12 @@ export default function LocationPermissionScreen() {
         opacity: ringOpacity.value,
     }));
 
+    const { refreshProfile } = useAuth();
+
     const saveLocation = async (lat: number, lng: number) => {
         await api.updateLocation(lat, lng);
         await api.setLocationPermission('granted');
+        await refreshProfile();
     };
 
     const handleAllow = async () => {

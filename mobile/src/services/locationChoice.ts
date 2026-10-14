@@ -6,6 +6,11 @@ export type LocationChoice =
     | { kind: 'custom'; label: string }
     | { kind: 'ask'; reason: AskReason };
 
+export function locationSourceLabel(my?: { mode: string; custom_label: string | null; live_fresh: boolean } | null): string {
+    if (my?.custom_label && (my.mode === 'custom' || !my.live_fresh)) return `Custom: ${my.custom_label}`;
+    return my?.live_fresh ? 'Live' : 'Not set';
+}
+
 export function chooseLocation({ preferCustom, live, custom }: {
     preferCustom: boolean;
     live: { ok: true } | { ok: false; reason: AskReason } | null;

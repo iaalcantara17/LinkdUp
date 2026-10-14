@@ -15,8 +15,9 @@ import { Plus, MoreVertical, Users, ChevronRight } from 'lucide-react-native';
 import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import AnchoredHint from '../components/AnchoredHint';
-import { api } from '../services/api';
+import { api, MyLocation } from '../services/api';
 import { latestOnly } from '../hooks/latestOnly';
+import { locationSourceLabel } from '../services/locationChoice';
 import DialogHost from '../components/DialogHost';
 import { confirm, errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
@@ -46,6 +47,7 @@ interface PartyRow {
     total_votes: number;
     venue_count: number;
     member_avatars: MemberAvatar[];
+    my_location?: MyLocation;
 }
 
 function StackedAvatars({ avatars, colors }: { avatars: MemberAvatar[]; colors: AppColors }) {
@@ -132,6 +134,13 @@ function PartyCard({ party, onPress, onMenuPress, colors }: { party: PartyRow; o
                     <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 2 }} numberOfLines={1}>{party.name}</Text>
                     <Text style={{ color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
                         {party.member_count} {party.member_count === 1 ? 'member' : 'members'}
+                    </Text>
+                    <Text
+                        style={{ color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}
+                        numberOfLines={1}
+                        accessibilityLabel={`Your location for this party: ${locationSourceLabel(party.my_location).replace('Custom: ', 'Custom, ')}`}
+                    >
+                        Your location: {locationSourceLabel(party.my_location)}
                     </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
