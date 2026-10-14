@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { supabaseAdmin } from '../db';
+import { supabaseAdmin, supabaseSignIn } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
@@ -42,10 +42,7 @@ router.post('/signup', rateLimit(LOGIN_LIMIT, 15 * 60_000), async (req, res, nex
             }
 
             // Prove ownership of the existing auth user before recovering the profile row.
-            const { data: signInData, error: signInErr } = await supabaseAdmin.auth.signInWithPassword({
-                email: body.email,
-                password: body.password,
-            });
+            const { data: signInData, error: signInErr } = await supabaseSignIn(body.email, body.password);
             if (signInErr || !signInData?.user) {
                 throw new HttpError(409, 'email_taken', 'Email is already registered. Use a different email or log in.');
             }
@@ -75,10 +72,7 @@ router.post('/signup', rateLimit(LOGIN_LIMIT, 15 * 60_000), async (req, res, nex
             throw new HttpError(500, 'profile_create_failed', upsertErr.message);
         }
 
-        const { data: sessionData, error: sessionErr } = await supabaseAdmin.auth.signInWithPassword({
-            email: body.email,
-            password: body.password,
-        });
+        const { data: sessionData, error: sessionErr } = await supabaseSignIn(body.email, body.password);
         if (sessionErr || !sessionData?.session) {
             throw new HttpError(500, 'signin_after_signup_failed', sessionErr?.message);
         }
@@ -104,10 +98,7 @@ const loginSchema = z.object({
 router.post('/login', rateLimit(LOGIN_LIMIT, 15 * 60_000), async (req, res, next) => {
     try {
         const body = loginSchema.parse(req.body);
-        const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-            email: body.email,
-            password: body.password,
-        });
+        const { data, error } = await supabaseSignIn(body.email, body.password);
         if (error || !data.session) {
             throw new HttpError(401, 'invalid_credentials');
         }
