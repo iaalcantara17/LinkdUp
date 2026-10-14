@@ -245,7 +245,10 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
 
         const points: LatLng[] = (startUsers ?? [])
             .filter((u: any) => u.latitude != null && u.longitude != null)
-            .map((u: any) => ({ latitude: u.latitude, longitude: u.longitude }));
+            .map((u: any) => {
+                const f = fuzzCoords(u.latitude, u.longitude, u.id);
+                return { latitude: f.lat, longitude: f.lng };
+            });
 
         if (points.length === 0) throw new HttpError(400, 'no_member_locations');
 

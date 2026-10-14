@@ -6,6 +6,7 @@ import { supabaseAdmin } from '../db';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { generateVenuePitch } from '../services/aiPitch';
 import { distanceMiles, LatLng } from '../services/midpoint';
+import { fuzzCoords } from '../services/locationFuzz';
 import { config } from '../config';
 
 const router = Router();
@@ -146,7 +147,8 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
             for (const uid of memberIds) {
                 const u = userMap.get(uid);
                 if (u?.latitude != null && u?.longitude != null) {
-                    const d = distanceMiles(callerLoc, { latitude: u.latitude, longitude: u.longitude });
+                    const f = fuzzCoords(u.latitude, u.longitude, uid);
+                    const d = distanceMiles(callerLoc, { latitude: f.lat, longitude: f.lng });
                     if (d < closestMiles) closestMiles = d;
                 }
             }
@@ -162,7 +164,7 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
                     status: party.status,
                     member_count: memberIds.length,
                     host_display_name: host?.display_name ?? 'Unknown',
-                    miles_away: parseFloat(closestMiles.toFixed(1)),
+                    miles_away: Math.max(1, Math.round(closestMiles)),
                     friends_inside: friendsInside,
                 });
             }
