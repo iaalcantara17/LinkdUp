@@ -728,7 +728,7 @@ export default function SwipeScreen() {
 
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <View style={styles.topBar}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={styles.topIconBtn}>
+                    <TouchableOpacity onPress={() => nav.goBack()} style={styles.topIconBtn} accessibilityRole="button" accessibilityLabel="Back">
                         <ArrowLeft size={22} color="white" />
                     </TouchableOpacity>
                     <BlurView intensity={40} tint="dark" style={styles.midpointPill}>
@@ -928,6 +928,9 @@ export default function SwipeScreen() {
                     <View style={styles.actions}>
                         <TouchableOpacity
                             onPress={() => { if (!buttonsLocked) swipeOff('left'); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Skip ${current?.name ?? 'this spot'}`}
+                            accessibilityState={{ disabled: buttonsLocked }}
                             activeOpacity={buttonsLocked ? 1 : 0.85}
                             style={{ opacity: buttonsLocked ? 0.3 : 1 }}
                         >
@@ -937,6 +940,9 @@ export default function SwipeScreen() {
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => { if (!buttonsLocked) swipeOff('right'); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Like ${current?.name ?? 'this spot'}`}
+                            accessibilityState={{ disabled: buttonsLocked }}
                             activeOpacity={buttonsLocked ? 1 : 0.85}
                             style={{ opacity: buttonsLocked ? 0.3 : 1 }}
                         >
@@ -954,6 +960,9 @@ export default function SwipeScreen() {
                     <View style={styles.webActions}>
                         <TouchableOpacity
                             onPress={() => { if (!buttonsLocked) swipeOff('left'); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Skip ${current?.name ?? 'this spot'}`}
+                            accessibilityState={{ disabled: buttonsLocked }}
                             activeOpacity={buttonsLocked ? 1 : 0.85}
                             style={[styles.webPassBtn, buttonsLocked && { opacity: 0.3 }]}
                         >
@@ -961,6 +970,9 @@ export default function SwipeScreen() {
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => { if (!buttonsLocked) swipeOff('right'); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Like ${current?.name ?? 'this spot'}`}
+                            accessibilityState={{ disabled: buttonsLocked }}
                             activeOpacity={buttonsLocked ? 1 : 0.85}
                             style={[{ opacity: buttonsLocked ? 0.3 : 1 }]}
                         >

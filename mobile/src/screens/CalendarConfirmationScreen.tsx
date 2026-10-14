@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -11,10 +10,9 @@ import Animated, {
     withRepeat,
     withSequence,
     withTiming,
-    withSpring,
     FadeInDown,
 } from 'react-native-reanimated';
-import { Calendar as CalendarIcon, Clock, MapPin, Users, ArrowLeft, Bell } from 'lucide-react-native';
+import { Calendar as CalendarIcon, Clock, MapPin, Users, ArrowLeft } from 'lucide-react-native';
 import IconBadge from '../components/IconBadge';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
@@ -40,7 +38,6 @@ export default function CalendarConfirmationScreen() {
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [loading, setLoading] = useState(false);
-    const [reminderOn, setReminderOn] = useState(true);
     const [googleConnected, setGoogleConnected] = useState(false);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -60,12 +57,6 @@ export default function CalendarConfirmationScreen() {
         );
     }, []);
     const badgeStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-
-    const knobX = useSharedValue(reminderOn ? 24 : 0);
-    useEffect(() => {
-        knobX.value = withSpring(reminderOn ? 24 : 0, { damping: 15, stiffness: 300 });
-    }, [reminderOn]);
-    const knobStyle = useAnimatedStyle(() => ({ transform: [{ translateX: knobX.value }] }));
 
     useEffect(() => {
         api.me().then((me: any) => {
@@ -386,31 +377,6 @@ export default function CalendarConfirmationScreen() {
                             leftIcon={<GoogleCalIcon />}
                         />
 
-                        <TouchableOpacity
-                            onPress={() => setReminderOn(!reminderOn)}
-                            activeOpacity={0.85}
-                            style={styles.reminderRow}
-                        >
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                                <Bell size={22} color={colors.primary} />
-                                <View>
-                                    <Text style={styles.reminderTitle}>Reminder</Text>
-                                    <Text style={styles.reminderSub}>1 hour before event</Text>
-                                </View>
-                            </View>
-                            <View style={[styles.toggleTrack, reminderOn && styles.toggleTrackOn]}>
-                                {reminderOn ? (
-                                    <LinearGradient
-                                        colors={colors.gradient as any}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={StyleSheet.absoluteFill}
-                                    />
-                                ) : null}
-                                <Animated.View style={[styles.toggleKnob, knobStyle]} />
-                            </View>
-                        </TouchableOpacity>
-
                         <View style={styles.bottomButtons}>
                             <View style={{ flex: 1 }}>
                                 <GradientButton
@@ -425,10 +391,6 @@ export default function CalendarConfirmationScreen() {
                                     onPress={handleShare}
                                 />
                             </View>
-                        </View>
-
-                        <View style={styles.infoBox}>
-                            <Text style={styles.infoText}>💡 You'll receive a notification when it's time to head out</Text>
                         </View>
                     </Animated.View>
                 </ScrollView>
@@ -464,43 +426,6 @@ function makeStyles(c: AppColors) {
         rowValue: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
         attendeeAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: c.bg },
 
-        reminderRow: {
-            marginTop: 16,
-            padding: 20,
-            borderRadius: radii.lg,
-            backgroundColor: c.glass,
-            borderWidth: 1,
-            borderColor: c.glassBorder,
-            flexDirection: 'row',
-            alignItems: 'center',
-        },
-        reminderTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
-        reminderSub: { color: c.text60, fontSize: 12, fontFamily: 'Inter_400Regular' },
-        toggleTrack: {
-            width: 52,
-            height: 30,
-            borderRadius: 15,
-            backgroundColor: c.glassStrong,
-            padding: 3,
-            overflow: 'hidden',
-        },
-        toggleTrackOn: {},
-        toggleKnob: {
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: 'white',
-        },
-
         bottomButtons: { flexDirection: 'row', gap: 12, marginTop: 16 },
-        infoBox: {
-            marginTop: 16,
-            padding: 16,
-            borderRadius: radii.lg,
-            backgroundColor: 'rgba(108,62,244,0.10)',
-            borderWidth: 1,
-            borderColor: 'rgba(108,62,244,0.20)',
-        },
-        infoText: { color: c.text60, fontSize: 13, textAlign: 'center', fontFamily: 'Inter_400Regular' },
     });
 }
