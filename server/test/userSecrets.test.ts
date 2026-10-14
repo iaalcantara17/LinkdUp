@@ -121,8 +121,10 @@ test('no code selects users rows with a wildcard, and only server-side code read
     const tokenReaders: string[] = [];
     for (const file of files) {
         const text = readFileSync(join(src, file), 'utf8');
-        for (const m of text.matchAll(/from\('users'\)([\s\S]{0,200}?)\.(select|eq|in|or|single)\(/g)) {
-            const chain = text.slice(m.index, m.index + 400);
+        for (const m of text.matchAll(/from\('users'\)/g)) {
+            const rest = text.slice(m.index + m[0].length);
+            const ends = [rest.indexOf(';'), rest.indexOf('.from(')].filter((i) => i >= 0);
+            const chain = rest.slice(0, Math.min(...ends, rest.length));
             const sel = chain.match(/\.select\(([^)]*)\)/);
             if (!sel) continue;
             assert.notEqual(sel[1].trim(), '', `${file}: users .select() with no column list`);

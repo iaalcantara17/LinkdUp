@@ -10,7 +10,11 @@ export function computeAge(birthday: string | null | undefined): number | null {
     if (!birthday) return null;
     const bday = new Date(birthday);
     if (isNaN(bday.getTime())) return null;
-    const age = Math.floor((Date.now() - bday.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    const now = new Date();
+    const beforeBirthday =
+        now.getUTCMonth() < bday.getUTCMonth() ||
+        (now.getUTCMonth() === bday.getUTCMonth() && now.getUTCDate() < bday.getUTCDate());
+    const age = now.getUTCFullYear() - bday.getUTCFullYear() - (beforeBirthday ? 1 : 0);
     return age >= 0 ? age : null;
 }
 
