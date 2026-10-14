@@ -44,3 +44,9 @@ test('home cards and the lobby share one source label', () => {
     assert.match(read('components/LocationSourceCard.tsx'), /choiceLabel\(/);
     assert.match(read('services/locationChoice.ts'), /export function locationSourceLabel[\s\S]*chooseLocation\(/);
 });
+
+test('clear saved location says what it does not change', () => {
+    const profile = read('screens/ProfileScreen.tsx');
+    assert.doesNotMatch(profile, /next time you create or join/);
+    assert.match(profile, /Doesn't change your browser's location permission or locations already set in your parties/);
+});

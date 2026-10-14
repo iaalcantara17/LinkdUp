@@ -79,6 +79,9 @@ const THEME_OPTIONS: { mode: ThemeMode; label: string; desc: string }[] = [
 const LOCATION_PERMISSION_NOTE = Platform.OS === 'web'
     ? "To stop this browser from sharing your location, change it in your browser's site settings."
     : "To stop this device from sharing your location, change it in your device's Settings app.";
+const CLEAR_SCOPE_NOTE = Platform.OS === 'web'
+    ? "Doesn't change your browser's location permission or locations already set in your parties."
+    : "Doesn't change your device's location permission or locations already set in your parties.";
 
 export default function ProfileScreen() {
     const { signOut, refreshProfile } = useAuth();
@@ -292,7 +295,7 @@ export default function ProfileScreen() {
     const handleRevokeLocation = async () => {
         const ok = await confirm({
             title: 'Clear saved location?',
-            message: `This removes the location saved to your profile. We'll ask for your location again the next time you create or join a party. Parties you're already in keep their own Live or Custom location, which you can change in each party's lobby. ${LOCATION_PERMISSION_NOTE}`,
+            message: `This removes the location saved to your profile. ${CLEAR_SCOPE_NOTE} You can change a party's Live or Custom location in its lobby. ${LOCATION_PERMISSION_NOTE}`,
             confirmLabel: 'Clear',
             destructive: true,
         });
@@ -465,11 +468,11 @@ export default function ProfileScreen() {
                                 >
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                         <MapPin size={18} color={colors.danger} />
-                                        <View>
+                                        <View style={{ flex: 1 }}>
                                             <Text style={[styles.settingsRowTitle, { color: colors.danger }]}>
                                                 {revoking ? 'Clearing…' : 'Clear saved location'}
                                             </Text>
-                                            <Text style={styles.settingsRowSub}>Removes the location saved to your profile</Text>
+                                            <Text style={styles.settingsRowSub}>Removes the location saved to your profile. {CLEAR_SCOPE_NOTE}</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
