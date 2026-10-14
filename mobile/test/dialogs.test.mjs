@@ -146,6 +146,9 @@ test('errorText hides raw server codes behind friendly text', () => {
     assert.equal(errorText(new Error('some_new_code'), fb), fb);
     assert.equal(errorText(new Error('HTTP 500'), fb), fb);
     assert.equal(errorText(new Error('Upload failed: 413'), fb), fb);
+    for (const offline of ['Failed to fetch', 'Load failed', 'NetworkError when attempting to fetch resource.', 'Network request failed']) {
+        assert.match(errorText(new Error(offline), fb), /Check your connection/);
+    }
     assert.equal(errorText(new Error('unknown'), fb), fb);
     assert.equal(errorText(undefined, fb), fb);
     assert.equal(errorText(new Error('Email is already registered.'), fb), 'Email is already registered.');

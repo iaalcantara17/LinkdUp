@@ -21,6 +21,8 @@ import { typography, spacing, radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
+const CONNECT_HINT = "Allow calendar access in the window that opened. We'll add your hangout once you're connected. If it doesn't show up, tap Add to Google Calendar again.";
+
 type Attendee = { id: string; name: string; color?: string; avatarUrl?: string };
 
 function GoogleCalIcon() {
@@ -233,7 +235,7 @@ export default function CalendarConfirmationScreen() {
                     await WebBrowser.openBrowserAsync(url);
                 }
 
-                showInfo('Almost there', "Allow calendar access in the window that opened. We'll add your hangout once you're connected. If it doesn't show up, tap Add to Google Calendar again.");
+                showInfo('Almost there', CONNECT_HINT);
                 startPollingForGoogleConnect(partyId);
                 return;
             }
@@ -269,7 +271,7 @@ export default function CalendarConfirmationScreen() {
                     } else {
                         await WebBrowser.openBrowserAsync(url);
                     }
-                    showInfo('Almost there', "Allow calendar access in the window that opened. We'll add your hangout once you're connected. If it doesn't show up, tap Add to Google Calendar again.");
+                    showInfo('Almost there', CONNECT_HINT);
                     startPollingForGoogleConnect(partyId);
                 } catch (inner: any) {
                     console.error('[gcal]', inner);

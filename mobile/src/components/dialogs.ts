@@ -123,13 +123,14 @@ const FRIENDLY: Record<string, string> = {
     party_already_started: 'This party has already started.',
     party_already_closed: 'This party has ended.',
     cannot_delete_locked_date: "This date is locked in, so it can't be deleted.",
-    no_member_locations: "No one in the party has shared a location yet.",
     username_taken: 'That username is taken. Try another one.',
     caption_too_long: "That's too long. Shorten it and try again.",
     body_too_long: "That's too long. Shorten it and try again.",
     empty_body: 'Write something first.',
     'Failed to fetch': "We couldn't reach the server. Check your connection and try again.",
     'Network request failed': "We couldn't reach the server. Check your connection and try again.",
+    'Load failed': "We couldn't reach the server. Check your connection and try again.",
+    'NetworkError when attempting to fetch resource.': "We couldn't reach the server. Check your connection and try again.",
 };
 
 export function errorText(e: unknown, fallback: string): string {

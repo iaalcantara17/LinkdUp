@@ -5,6 +5,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MapPin, Heart, MessageCircle, Share2, Bookmark, Plus, Check, MoreVertical, Trash2 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
+import DialogHost from './DialogHost';
 
 export interface FeedPost {
     id: string;
@@ -265,6 +266,7 @@ export default function FeedCard({
                         <Text style={[cardStyles.menuRowText, { color: '#FF3B5C' }]}>Delete post</Text>
                     </TouchableOpacity>
                 </View>
+                <DialogHost />
             </Modal>
         </View>
     );

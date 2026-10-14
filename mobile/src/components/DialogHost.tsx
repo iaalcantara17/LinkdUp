@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -6,6 +6,7 @@ import { AppColors, radii, spacing, typography } from '../theme';
 import { claimHost, dismiss, dismissToast, getSnapshot, respond, subscribe } from './dialogs';
 
 let hostSeq = 0;
+const PRESS_GUARD_MS = 250;
 
 export default function DialogHost() {
     const { colors } = useTheme();
@@ -24,77 +25,87 @@ export default function DialogHost() {
         if (latest && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(latest.message);
     }, [latest?.id]);
 
+    const shownAt = useRef(0);
+    useEffect(() => {
+        shownAt.current = Date.now();
+    }, [dialog?.id]);
+    const press = (i: number) => {
+        if (Date.now() - shownAt.current >= PRESS_GUARD_MS) respond(i);
+    };
+
     const stacked = (dialog?.buttons.length ?? 0) !== 2;
     const titleId = dialog ? `dialog-title-${dialog.id}` : undefined;
     const messageId = dialog?.message ? `dialog-message-${dialog.id}` : undefined;
 
+    const toastLayer = (
+        <View
+            pointerEvents="box-none"
+            style={[styles.toastLayer, { bottom: insets.bottom + 96 }]}
+            role="status"
+            aria-live="polite"
+            accessibilityLiveRegion="polite"
+        >
+            {toasts.map((t) => (
+                <Pressable
+                    key={t.id}
+                    onPress={() => dismissToast(t.id)}
+                    accessibilityHint="Dismisses this message"
+                    style={styles.toast}
+                >
+                    <View style={[styles.dot, { backgroundColor: t.tone === 'success' ? colors.success : colors.primary }]} />
+                    <Text style={styles.toastText}>{t.message}</Text>
+                </Pressable>
+            ))}
+        </View>
+    );
+
+    if (!dialog) return toastLayer;
+
     return (
-        <>
-            <Modal
-                visible={!!dialog}
-                transparent
-                animationType={Platform.OS === 'ios' ? 'none' : 'fade'}
-                onRequestClose={dismiss}
-            >
-                <View style={styles.backdrop}>
-                    {dialog?.role === 'dialog' && (
-                        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} accessible={false} tabIndex={-1} />
-                    )}
-                    {dialog && (
-                        <View
-                            key={dialog.id}
-                            style={styles.card}
-                            role={dialog.role}
-                            aria-modal
-                            aria-labelledby={titleId}
-                            aria-describedby={messageId}
-                            accessibilityViewIsModal
-                        >
-                            <Text nativeID={titleId} role="heading" style={styles.title}>{dialog.title}</Text>
-                            {!!dialog.message && <Text nativeID={messageId} style={styles.message}>{dialog.message}</Text>}
-                            <View style={stacked ? styles.stack : styles.row}>
-                                {dialog.buttons.map((b, i) => (
-                                    <Pressable
-                                        key={`${i}-${b.label}`}
-                                        role="button"
-                                        accessibilityLabel={b.label}
-                                        onPress={() => respond(i)}
-                                        style={({ pressed }) => [
-                                            styles.button,
-                                            !stacked && styles.rowButton,
-                                            b.style === 'cancel' && styles.cancel,
-                                            b.style === 'destructive' && styles.destructive,
-                                            pressed && styles.pressed,
-                                        ]}
-                                    >
-                                        <Text style={[styles.buttonText, b.style === 'cancel' && styles.cancelText]}>{b.label}</Text>
-                                    </Pressable>
-                                ))}
-                            </View>
-                        </View>
-                    )}
+        <Modal
+            visible
+            transparent
+            animationType={Platform.OS === 'ios' ? 'none' : 'fade'}
+            onRequestClose={dismiss}
+        >
+            <View style={styles.backdrop}>
+                {dialog.role === 'dialog' && (
+                    <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} accessible={false} tabIndex={-1} />
+                )}
+                <View
+                    key={dialog.id}
+                    style={styles.card}
+                    role={dialog.role}
+                    aria-modal
+                    aria-labelledby={titleId}
+                    aria-describedby={messageId}
+                    accessibilityViewIsModal
+                >
+                    <Text nativeID={titleId} role="heading" style={styles.title}>{dialog.title}</Text>
+                    {!!dialog.message && <Text nativeID={messageId} style={styles.message}>{dialog.message}</Text>}
+                    <View style={stacked ? styles.stack : styles.row}>
+                        {dialog.buttons.map((b, i) => (
+                            <Pressable
+                                key={`${i}-${b.label}`}
+                                role="button"
+                                accessibilityLabel={b.label}
+                                onPress={() => press(i)}
+                                style={({ pressed }) => [
+                                    styles.button,
+                                    !stacked && styles.rowButton,
+                                    b.style === 'cancel' && styles.cancel,
+                                    b.style === 'destructive' && styles.destructive,
+                                    pressed && styles.pressed,
+                                ]}
+                            >
+                                <Text style={[styles.buttonText, b.style === 'cancel' && styles.cancelText]}>{b.label}</Text>
+                            </Pressable>
+                        ))}
+                    </View>
                 </View>
-            </Modal>
-            <View
-                pointerEvents="box-none"
-                style={[styles.toastLayer, { bottom: insets.bottom + 96 }]}
-                role="status"
-                aria-live="polite"
-                accessibilityLiveRegion="polite"
-            >
-                {toasts.map((t) => (
-                    <Pressable
-                        key={t.id}
-                        onPress={() => dismissToast(t.id)}
-                        accessibilityHint="Dismisses this message"
-                        style={styles.toast}
-                    >
-                        <View style={[styles.dot, { backgroundColor: t.tone === 'success' ? colors.success : colors.primary }]} />
-                        <Text style={styles.toastText}>{t.message}</Text>
-                    </Pressable>
-                ))}
             </View>
-        </>
+            {toastLayer}
+        </Modal>
     );
 }
 
