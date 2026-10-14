@@ -101,6 +101,18 @@ for (const [name, run] of selfEndpoints) {
     });
 }
 
+for (const [name, run] of selfEndpoints) {
+    test(`${name} returns profile_schema_mismatch on a missing column and logs the real error server side`, async () => {
+        const dbMessage = 'column users.theme_preference does not exist';
+        mockSupabase(USERS, () => Response.json({ code: '42703', message: dbMessage }, { status: 400 }));
+        const logged = mock.method(console, 'error', () => {});
+        const { status, text } = await run();
+        assert.equal(status, 503, text);
+        assert.deepEqual(JSON.parse(text), { error: 'profile_schema_mismatch' });
+        assert.ok(logged.mock.calls.some((c) => c.arguments.join(' ').includes(dbMessage)));
+    });
+}
+
 test('GET /api/auth/me still reports calendar connection as a boolean', async () => {
     dbWithSecrets();
     const { text } = await call(authBase, 'GET', '/api/auth/me');

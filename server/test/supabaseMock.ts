@@ -8,7 +8,7 @@ import { errorHandler } from '../src/middleware/error';
 export const realFetch = globalThis.fetch;
 
 export type Call = { method: string; table: string; url: URL; body: any };
-export type Rows = (call: Call) => unknown[] | undefined;
+export type Rows = (call: Call) => unknown[] | Response | undefined;
 
 export function mockSupabase(users: Record<string, string>, rows: Rows = () => []) {
     const calls: Call[] = [];
@@ -26,6 +26,7 @@ export function mockSupabase(users: Record<string, string>, rows: Rows = () => [
         const call = { method: init.method ?? 'GET', table, url, body: init.body ? JSON.parse(String(init.body)) : undefined };
         calls.push(call);
         const data = rows(call) ?? [];
+        if (data instanceof Response) return data;
         if ((headers.get('accept') ?? '').includes('vnd.pgrst.object')) {
             return data.length
                 ? Response.json(data[0])

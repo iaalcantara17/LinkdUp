@@ -6,7 +6,7 @@ import { HttpError } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
 import { geocodeCity } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
-import { SELF_PROFILE_SELECT, computeAge, toSelfProfile } from '../services/userProfile';
+import { SELF_PROFILE_SELECT, computeAge, profileDbError, toSelfProfile } from '../services/userProfile';
 
 const router = Router();
 
@@ -41,7 +41,7 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
             .select(SELF_PROFILE_SELECT)
             .eq('id', req.user!.id)
             .single();
-        if (error) throw new HttpError(404, 'profile_not_found');
+        if (error) throw profileDbError(error, new HttpError(404, 'profile_not_found'));
         res.json(toSelfProfile(data));
     } catch (e) { next(e); }
 });
@@ -94,7 +94,7 @@ router.patch('/me', requireAuth, async (req: AuthedRequest, res, next) => {
             .single();
         if (error) {
             if (error.code === '23505') throw new HttpError(409, 'username_taken');
-            throw new HttpError(500, 'update_failed', error.message);
+            throw profileDbError(error, new HttpError(500, 'update_failed', error.message));
         }
         res.json(toSelfProfile(data));
     } catch (e) { next(e); }
