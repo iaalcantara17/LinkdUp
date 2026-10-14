@@ -1,16 +1,24 @@
-import React, { useEffect, useMemo, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { AppColors, radii, spacing, typography } from '../theme';
-import { dismiss, dismissToast, getSnapshot, respond, subscribe } from './dialogs';
+import { claimHost, dismiss, dismissToast, getSnapshot, respond, subscribe } from './dialogs';
+
+let hostSeq = 0;
 
 export default function DialogHost() {
     const { colors } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
-    const { dialog, toasts } = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    const [hostId] = useState(() => ++hostSeq);
+    const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    const active = snap.host === hostId;
+    const dialog = active ? snap.dialog : null;
+    const toasts = active ? snap.toasts : [];
     const latest = toasts[toasts.length - 1];
+
+    useEffect(() => claimHost(hostId), [hostId]);
 
     useEffect(() => {
         if (latest && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(latest.message);

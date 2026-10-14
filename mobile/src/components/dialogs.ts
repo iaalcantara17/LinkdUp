@@ -17,12 +17,22 @@ type Pending = { dialog: Dialog; resolve: (index: number) => void };
 
 let nextId = 1;
 let queue: Pending[] = [];
-let snapshot: { dialog: Dialog | null; toasts: Toast[] } = { dialog: null, toasts: [] };
+let hosts: number[] = [];
+let snapshot: { dialog: Dialog | null; toasts: Toast[]; host: number | null } = { dialog: null, toasts: [], host: null };
 const listeners = new Set<() => void>();
 
 function emit(toasts = snapshot.toasts) {
-    snapshot = { dialog: queue[0]?.dialog ?? null, toasts };
+    snapshot = { dialog: queue[0]?.dialog ?? null, toasts, host: hosts[hosts.length - 1] ?? null };
     listeners.forEach((l) => l());
+}
+
+export function claimHost(id: number) {
+    hosts = [...hosts, id];
+    emit();
+    return () => {
+        hosts = hosts.filter((h) => h !== id);
+        emit();
+    };
 }
 
 function open(d: Omit<Dialog, 'id'>): Promise<number> {

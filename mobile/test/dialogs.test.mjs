@@ -12,6 +12,7 @@ import {
     getSnapshot,
     subscribe,
     errorText,
+    claimHost,
     TOAST_MS,
 } from '../src/components/dialogs.ts';
 
@@ -105,6 +106,18 @@ test('subscribers hear changes until they unsubscribe', async () => {
     respond(0);
     await q;
     assert.equal(calls, 2);
+});
+
+test('only the most recently mounted host renders, so dialogs show above open sheets', () => {
+    assert.equal(getSnapshot().host, null);
+    const releaseRoot = claimHost(101);
+    assert.equal(getSnapshot().host, 101);
+    const releaseSheet = claimHost(202);
+    assert.equal(getSnapshot().host, 202);
+    releaseSheet();
+    assert.equal(getSnapshot().host, 101);
+    releaseRoot();
+    assert.equal(getSnapshot().host, null);
 });
 
 test('toasts show without blocking dialogs and expire on their own', () => {

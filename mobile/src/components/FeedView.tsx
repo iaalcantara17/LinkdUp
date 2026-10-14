@@ -1,13 +1,14 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     View, Text, FlatList, TouchableOpacity, ActivityIndicator,
-    StyleSheet, useWindowDimensions, Share, Alert, Modal, Platform,
+    StyleSheet, useWindowDimensions, Share, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Plus, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
+import { confirm } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -116,19 +117,8 @@ export default function FeedView({ onBack }: Props) {
             }
         };
 
-        if (Platform.OS === 'web') {
-            if ((window as any).confirm('Delete this post?\n\nThis will permanently remove your post.')) {
-                await doDelete();
-            }
-        } else {
-            Alert.alert(
-                'Delete Post',
-                'This will permanently remove your post. Continue?',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Delete', style: 'destructive', onPress: doDelete },
-                ]
-            );
+        if (await confirm({ title: 'Delete post?', message: "It'll be removed for everyone. This can't be undone.", confirmLabel: 'Delete', destructive: true })) {
+            await doDelete();
         }
     }, [showToast]);
 
