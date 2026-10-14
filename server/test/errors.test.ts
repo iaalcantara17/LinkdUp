@@ -15,6 +15,7 @@ const SECRET = 'relation "users" password=hunter2 at 10.0.0.5';
 const quota = (status: number, gStatus = 'RESOURCE_EXHAUSTED') =>
     Object.assign(new Error(`Request failed with status code ${status}`), {
         isAxiosError: true,
+        config: { url: 'https://places.googleapis.com/v1/places:searchNearby' },
         response: { status, data: { error: { code: status, status: gStatus, message: 'Quota exceeded for quota metric' } } },
     });
 
@@ -23,6 +24,7 @@ before(async () => {
     const router = express.Router();
     router.get('/boom', () => { throw new Error(SECRET); });
     router.get('/boom-http', () => { throw new HttpError(500, 'insert_failed', SECRET); });
+    router.get('/calendar-429', () => { throw Object.assign(new Error('Rate Limit Exceeded'), { config: { url: 'https://www.googleapis.com/calendar/v3/calendars/primary/events' }, response: { status: 429, data: { error: { status: 'RESOURCE_EXHAUSTED' } } } }); });
     router.get('/bad', () => { throw new HttpError(400, 'invalid_thing', 'Pick another thing'); });
     router.use('/party', partyRoutes);
     router.use('/discover', discoverRoutes);
@@ -74,6 +76,13 @@ for (const [name, err] of [['429', quota(429)], ['403 RESOURCE_EXHAUSTED', quota
         assert.deepEqual(await res.json(), { error: 'venue_limit_reached' });
     });
 }
+
+test('a non-venue Google 429 is not reported as venue_limit_reached', async () => {
+    mock.method(console, 'error', () => {});
+    const res = await get('/calendar-429');
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: 'server_error' });
+});
 
 test('discover venues maps quota to venue_limit_reached', async () => {
     mock.method(console, 'error', () => {});
