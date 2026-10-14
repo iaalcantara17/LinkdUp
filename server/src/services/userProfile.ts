@@ -1,3 +1,5 @@
+import { HttpError } from '../middleware/error';
+
 export const SELF_PROFILE_FIELDS = [
     'id', 'email', 'display_name', 'username', 'school_id', 'graduation_year', 'avatar_color', 'avatar_url',
     'latitude', 'longitude', 'last_location_at', 'pronouns', 'birthday', 'bio', 'theme_preference',
@@ -5,6 +7,14 @@ export const SELF_PROFILE_FIELDS = [
 ] as const;
 
 export const SELF_PROFILE_SELECT = SELF_PROFILE_FIELDS.join(', ');
+
+const MISSING_COLUMN_CODES = ['42703', 'PGRST204'];
+
+export function profileDbError(error: { code?: string; message: string }, fallback: HttpError) {
+    return MISSING_COLUMN_CODES.includes(error.code ?? '')
+        ? new HttpError(503, 'profile_schema_mismatch', error.message)
+        : fallback;
+}
 
 export function computeAge(birthday: string | null | undefined): number | null {
     if (!birthday) return null;

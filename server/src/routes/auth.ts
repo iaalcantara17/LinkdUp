@@ -4,7 +4,7 @@ import { supabaseAdmin, supabaseSignIn } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
-import { SELF_PROFILE_SELECT, toSelfProfile } from '../services/userProfile';
+import { SELF_PROFILE_SELECT, profileDbError, toSelfProfile } from '../services/userProfile';
 
 const router = Router();
 
@@ -149,7 +149,7 @@ router.post('/ensure-profile', authLimit, requireAuth, async (req: AuthedRequest
             .single();
         if (error) {
             console.error('[ensure-profile] FAILED uid=%s email=%s error=%s', req.user!.id, body.email, error.message);
-            throw new HttpError(500, 'ensure_profile_failed', error.message);
+            throw profileDbError(error, new HttpError(500, 'ensure_profile_failed', error.message));
         }
         res.json(toSelfProfile(data));
     } catch (e) { next(e); }
@@ -162,7 +162,7 @@ router.get('/me', authLimit, requireAuth, async (req: AuthedRequest, res, next) 
             .select(`${SELF_PROFILE_SELECT}, google_calendar_refresh`)
             .eq('id', req.user!.id)
             .single();
-        if (error) throw new HttpError(404, 'profile_not_found');
+        if (error) throw profileDbError(error, new HttpError(404, 'profile_not_found'));
         const token = (data as any)?.google_calendar_refresh;
         const google_calendar_connected = token !== null && token !== undefined && String(token).trim() !== '';
         res.json({ ...toSelfProfile(data), google_calendar_connected });
