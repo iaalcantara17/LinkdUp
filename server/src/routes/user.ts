@@ -8,6 +8,8 @@ import { deleteCalendarEventForUser } from '../services/googleCalendar';
 
 const router = Router();
 
+router.param('id', (_req, _res, next, id) => next(z.string().uuid().safeParse(id).success ? undefined : new HttpError(400, 'invalid_id')));
+
 const RESERVED_USERNAMES = ['admin', 'support', 'linkdup', 'system', 'root', 'help', 'api'];
 
 function validateUsername(u: string): { valid: boolean; reason?: string } {

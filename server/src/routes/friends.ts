@@ -6,6 +6,8 @@ import { HttpError } from '../middleware/error';
 
 const router = Router();
 
+router.param('user_id', (_req, _res, next, id) => next(z.string().uuid().safeParse(id).success ? undefined : new HttpError(400, 'invalid_id')));
+
 async function publicUserFields(userId: string) {
     const { data } = await supabaseAdmin
         .from('users')
@@ -197,7 +199,7 @@ router.get('/search', requireAuth, async (req: AuthedRequest, res, next) => {
         const me = req.user!.id;
         const isUsernameSearch = q.startsWith('@');
         const searchTerm = isUsernameSearch ? q.slice(1) : q;
-        const safe = searchTerm.replace(/%/g, '').slice(0, 64);
+        const safe = searchTerm.replace(/[^A-Za-z0-9 _.@+-]/g, '').trim().slice(0, 64);
         if (!safe) return res.json([]);
 
         const orCondition = isUsernameSearch
