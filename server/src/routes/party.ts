@@ -300,12 +300,10 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
             ? await supabaseAdmin.from('users').select('id, display_name, latitude, longitude').in('id', locUserIds)
             : { data: [] as any[] };
 
-        const memberCoords = (locUsers ?? []).map((u: any) => ({
-            user_id: u.id,
-            display_name: u.display_name,
-            latitude: u.latitude,
-            longitude: u.longitude,
-        }));
+        const memberCoords = (locUsers ?? []).map((u: any) => {
+            const f = u.latitude != null && u.longitude != null ? fuzzCoords(u.latitude, u.longitude, u.id) : null;
+            return { user_id: u.id, display_name: u.display_name, latitude: f?.lat, longitude: f?.lng };
+        });
 
         const enriched = (locations ?? []).map((loc) => ({
             ...loc,
@@ -314,10 +312,10 @@ router.get('/:id/locations', requireAuth, async (req: AuthedRequest, res, next) 
                 .map((u) => ({
                     user_id: u.user_id,
                     display_name: u.display_name,
-                    miles: distanceMiles(
+                    miles: Math.round(distanceMiles(
                         { latitude: u.latitude!, longitude: u.longitude! },
                         { latitude: loc.latitude, longitude: loc.longitude }
-                    ),
+                    ) * 10) / 10,
                 })),
         }));
 
