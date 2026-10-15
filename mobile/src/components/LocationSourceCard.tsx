@@ -8,8 +8,8 @@ import PlaceSearch, { Place } from './PlaceSearch';
 import { useTheme } from '../context/ThemeContext';
 import type { AppColors } from '../theme';
 import { api, MyLocation } from '../services/api';
-import { chooseLocation, choiceLabel, pendingAction, AskReason } from '../services/locationChoice';
-import { getLiveLocation } from '../services/liveLocation';
+import { chooseLocation, choiceLabel, pendingAction, permissionLabel, AskReason } from '../services/locationChoice';
+import { getLiveLocation, useLocationPermission } from '../services/liveLocation';
 
 const ASK_COPY: Record<AskReason, string> = {
     prompt: 'LinkdUp uses where you are right now to find a fair midpoint. Your crew only sees an approximate spot.',
@@ -31,8 +31,13 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
     const nav = useNavigation<any>();
     const [afterAllow] = useState(() => pendingAction());
 
+    const permission = useLocationPermission();
+    const seenPermission = useRef(permission);
     const custom = myLocation?.custom_label ? { label: myLocation.custom_label } : null;
-    const live = myLocation?.live_fresh ? { ok: true as const } : liveIssue ? { ok: false as const, reason: liveIssue } : null;
+    const live = myLocation?.live_fresh && permission !== 'denied'
+        ? { ok: true as const }
+        : liveIssue ? { ok: false as const, reason: liveIssue }
+            : permission === 'denied' ? { ok: false as const, reason: 'denied' as const } : null;
     const choice = chooseLocation({ preferCustom: myLocation?.mode === 'custom', live, custom });
 
     const takeLive = useCallback(async (prompt: boolean) => {
@@ -66,6 +71,16 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
     useFocusEffect(useCallback(() => {
         afterAllow.resume(true);
     }, [afterAllow]));
+
+    useEffect(() => {
+        const prev = seenPermission.current;
+        seenPermission.current = permission;
+        if (prev === permission || prev === 'unknown' || busy) return;
+        setError(null);
+        if (permission !== 'granted') return setLiveIssue(permission === 'denied' ? 'denied' : 'prompt');
+        setLiveIssue(null);
+        if (myLocation?.mode !== 'custom') takeLive(false);
+    }, [permission]);
 
     const chooseLive = () => {
         if (liveIssue === 'prompt') {
@@ -110,6 +125,9 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
                 </Text>
             </View>
             <Text style={styles.detail}>{detail}</Text>
+            {permissionLabel(permission) && (
+                <Text style={styles.detail} accessibilityLiveRegion="polite">{permissionLabel(permission)}</Text>
+            )}
 
             <View style={styles.actions}>
                 {choice.kind === 'ask' && (

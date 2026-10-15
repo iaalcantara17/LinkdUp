@@ -29,8 +29,16 @@ export function chooseLocation({ preferCustom, live, custom }: {
     return { kind: 'ask', reason: live && !live.ok ? live.reason : 'prompt' };
 }
 
+export type PermissionState = 'granted' | 'denied' | 'prompt' | 'unknown';
+
+type WebPermissionStatus = {
+    state: string;
+    addEventListener?(type: 'change', fn: () => void): void;
+    removeEventListener?(type: 'change', fn: () => void): void;
+};
+
 type WebNavigator = {
-    permissions?: { query(d: { name: 'geolocation' }): Promise<{ state: string }> };
+    permissions?: { query(d: { name: 'geolocation' }): Promise<WebPermissionStatus> };
     geolocation?: {
         getCurrentPosition(
             ok: (p: { coords: Coords }) => void,
@@ -41,6 +49,35 @@ type WebNavigator = {
 };
 
 const ERROR_REASONS: Record<number, AskReason> = { 1: 'denied', 2: 'unavailable', 3: 'timeout' };
+
+export function watchWebPermission(nav: WebNavigator | undefined, onChange: (s: PermissionState) => void): () => void {
+    let status: WebPermissionStatus | null = null;
+    let stopped = false;
+    const emit = () => onChange(status?.state as PermissionState);
+    const query = nav?.permissions?.query({ name: 'geolocation' });
+    if (!query) onChange('unknown');
+    query?.then((s) => {
+        if (stopped) return;
+        status = s;
+        emit();
+        s.addEventListener?.('change', emit);
+    }, () => { if (!stopped) onChange('unknown'); });
+    return () => {
+        stopped = true;
+        status?.removeEventListener?.('change', emit);
+    };
+}
+
+const PERMISSION_WORDS: Record<PermissionState, string | null> = {
+    granted: 'Browser location: Allowed',
+    denied: 'Browser location: Blocked',
+    prompt: 'Browser location: Not asked yet',
+    unknown: null,
+};
+
+export function permissionLabel(state: PermissionState): string | null {
+    return PERMISSION_WORDS[state];
+}
 
 export async function readWebLocation(
     nav: WebNavigator | undefined,

@@ -26,8 +26,8 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
 ];
 import { api, photoUri, VENUE_LIMIT_MESSAGE } from '../services/api';
 import { errorText, showError, toast } from '../components/dialogs';
-import { getLiveLocation } from '../services/liveLocation';
-import { discoverStep, type AskReason } from '../services/locationChoice';
+import { getLiveLocation, useLocationPermission } from '../services/liveLocation';
+import { discoverStep, permissionLabel, type AskReason } from '../services/locationChoice';
 import PlaceSearch, { Place } from '../components/PlaceSearch';
 import { colors, radii } from '../theme';
 
@@ -396,6 +396,9 @@ export default function DiscoverScreen() {
     const [cityOpen, setCityOpen] = useState(false);
     const [locationIssue, setLocationIssue] = useState<AskReason | null>(null);
     const [locating, setLocating] = useState(false);
+    const locatingRef = useRef(false);
+    const permission = useLocationPermission();
+    const seenPermission = useRef(permission);
     const [loadingVenues, setLoadingVenues] = useState(false);
     const [venueLimited, setVenueLimited] = useState(false);
     const [loadingParties, setLoadingParties] = useState(false);
@@ -432,7 +435,10 @@ export default function DiscoverScreen() {
     }, []);
 
     const load = useCallback(async (force = false, prompt = false) => {
-        if (prompt) setLocating(true);
+        if (prompt) {
+            setLocating(true);
+            locatingRef.current = true;
+        }
         try {
             const reading = picked.current && !prompt ? ({ ok: false, reason: 'prompt' } as const) : await getLiveLocation({ prompt });
             if (!reading.ok && !prompt && _venueCache && (reading.reason === 'timeout' || reading.reason === 'unavailable')) return;
@@ -504,6 +510,7 @@ export default function DiscoverScreen() {
         } catch (e: any) {
             console.error('[discover]', e);
         } finally {
+            if (prompt) locatingRef.current = false;
             setLocating(false);
             setLoadingVenues(false);
             setLoadingParties(false);
@@ -514,6 +521,14 @@ export default function DiscoverScreen() {
         load();
         fetchLikes(!likesLoadedRef.current);
     }, [load, fetchLikes]));
+
+    useEffect(() => {
+        const prev = seenPermission.current;
+        seenPermission.current = permission;
+        if (prev === permission || prev === 'unknown' || locatingRef.current) return;
+        if (picked.current) setLocationIssue(null);
+        else load();
+    }, [permission, load]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -707,6 +722,9 @@ export default function DiscoverScreen() {
                                 <Text style={styles.subtitle}>
                                     {pickedLabel ? `Trending spots and parties near ${pickedLabel}` : 'Trending spots and parties near you'}
                                 </Text>
+                                {permissionLabel(permission) && (
+                                    <Text style={styles.sourceLine} accessibilityLiveRegion="polite">{permissionLabel(permission)}</Text>
+                                )}
                                 {pickedLabel && !noLocation && (
                                     <View style={styles.linkRow}>
                                         <TouchableOpacity
@@ -1066,6 +1084,7 @@ const styles = StyleSheet.create({
     header: { paddingTop: 8, paddingBottom: 24 },
     title: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 4 },
     subtitle: { color: colors.text60, fontSize: 14, fontFamily: 'Inter_400Regular' },
+    sourceLine: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 6 },
     linkRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 },
     link: { minHeight: 44, justifyContent: 'center' },
     linkText: { color: colors.primary, fontSize: 14, fontFamily: 'Inter_600SemiBold' },

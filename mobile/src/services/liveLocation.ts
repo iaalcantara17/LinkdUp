@@ -1,8 +1,18 @@
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Location from 'expo-location';
-import { readWebLocation, LiveResult } from './locationChoice';
+import { readWebLocation, watchWebPermission, LiveResult, PermissionState } from './locationChoice';
 
 const TIMEOUT_MS = 10_000;
+
+export function useLocationPermission(): PermissionState {
+    const [state, setState] = useState<PermissionState>('unknown');
+    useEffect(() => {
+        if (Platform.OS !== 'web' || typeof navigator === 'undefined') return;
+        return watchWebPermission(navigator as any, setState);
+    }, []);
+    return state;
+}
 
 export async function getLiveLocation({ prompt }: { prompt: boolean }): Promise<LiveResult> {
     if (Platform.OS === 'web') {
