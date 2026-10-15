@@ -49,4 +49,11 @@ test('clear saved location says what it does not change', () => {
     const profile = read('screens/ProfileScreen.tsx');
     assert.doesNotMatch(profile, /next time you create or join/);
     assert.match(profile, /Doesn't change your browser's location permission or locations already set in your parties/);
+    assert.match(profile, /Doesn't affect Discover, which uses your live location or a city you choose there\./);
+});
+
+test('Discover says whether it is using live location or a chosen city', () => {
+    const discover = read('screens/DiscoverScreen.tsx');
+    assert.match(discover, /`Using: Chosen city, \$\{pickedLabel\}`/);
+    assert.match(discover, /'Using: Live location'/);
 });

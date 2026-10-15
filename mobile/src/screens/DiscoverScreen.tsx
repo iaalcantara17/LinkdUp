@@ -722,6 +722,11 @@ export default function DiscoverScreen() {
                                 <Text style={styles.subtitle}>
                                     {pickedLabel ? `Trending spots and parties near ${pickedLabel}` : 'Trending spots and parties near you'}
                                 </Text>
+                                {userLat !== null && !noLocation && (
+                                    <Text style={styles.sourceLine}>
+                                        {pickedLabel ? `Using: Chosen city, ${pickedLabel}` : 'Using: Live location'}
+                                    </Text>
+                                )}
                                 {permissionLabel(permission) && (
                                     <Text style={styles.sourceLine} accessibilityLiveRegion="polite">{permissionLabel(permission)}</Text>
                                 )}

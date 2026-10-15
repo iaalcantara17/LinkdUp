@@ -79,9 +79,10 @@ const THEME_OPTIONS: { mode: ThemeMode; label: string; desc: string }[] = [
 const LOCATION_PERMISSION_NOTE = Platform.OS === 'web'
     ? "To stop this browser from sharing your location, change it in your browser's site settings."
     : "To stop this device from sharing your location, change it in your device's Settings app.";
-const CLEAR_SCOPE_NOTE = Platform.OS === 'web'
+const CLEAR_SCOPE_NOTE = (Platform.OS === 'web'
     ? "Doesn't change your browser's location permission or locations already set in your parties."
-    : "Doesn't change your device's location permission or locations already set in your parties.";
+    : "Doesn't change your device's location permission or locations already set in your parties.")
+    + " Doesn't affect Discover, which uses your live location or a city you choose there.";
 
 export default function ProfileScreen() {
     const { signOut, refreshProfile } = useAuth();
