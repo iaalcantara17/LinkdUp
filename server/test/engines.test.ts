@@ -13,6 +13,7 @@ function minMajor(range: string): number {
 
 test('every locked dependency runs on the Node major the server deploys with', () => {
     const runtime = Number(String(read('package.json').engines.node).match(/\d+/)![0]);
+    assert.equal(runtime, 22);
     const lock = read('package-lock.json');
     const tooNew = Object.entries<any>(lock.packages)
         .filter(([name, p]) => name && p.engines?.node && minMajor(String(p.engines.node)) > runtime)
