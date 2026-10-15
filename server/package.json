@@ -12,7 +12,7 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0",
+    "@anthropic-ai/sdk": "^0.134.0",
     "@supabase/supabase-js": "^2.45.0",
     "axios": "^1.7.7",
     "cors": "^2.8.5",
