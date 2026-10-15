@@ -630,6 +630,20 @@ export default function DiscoverScreen() {
         trendingScrollRef.current?.scrollTo({ x: trendingScrollX + 320, animated: true });
     };
 
+    const citySearch = cityOpen ? (
+        <PlaceSearch
+            confirmLabel="Show spots here"
+            onPick={async (place) => {
+                picked.current = place;
+                setPickedLabel(place.label);
+                setLocationIssue(null);
+                setCityOpen(false);
+                await load(true);
+            }}
+            onCancel={() => setCityOpen(false)}
+        />
+    ) : null;
+
     return (
         <View style={styles.root}>
             {activeTab === 'feed' ? (
@@ -693,19 +707,30 @@ export default function DiscoverScreen() {
                                 <Text style={styles.subtitle}>
                                     {pickedLabel ? `Trending spots and parties near ${pickedLabel}` : 'Trending spots and parties near you'}
                                 </Text>
-                                {pickedLabel && (
-                                    <TouchableOpacity
-                                        onPress={() => load(true, true)}
-                                        disabled={locating}
-                                        accessibilityRole="button"
-                                        accessibilityState={{ busy: locating, disabled: locating }}
-                                        style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
-                                    >
-                                        <Text style={[styles.subtitle, { color: colors.primary }]}>
-                                            {locating ? 'Finding your location…' : 'Use my live location instead'}
-                                        </Text>
-                                    </TouchableOpacity>
+                                {pickedLabel && !noLocation && (
+                                    <View style={styles.linkRow}>
+                                        <TouchableOpacity
+                                            onPress={() => setCityOpen(true)}
+                                            disabled={cityOpen}
+                                            accessibilityRole="button"
+                                            style={styles.link}
+                                        >
+                                            <Text style={styles.linkText}>Change city</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => load(true, true)}
+                                            disabled={locating}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ busy: locating, disabled: locating }}
+                                            style={styles.link}
+                                        >
+                                            <Text style={styles.linkText}>
+                                                {locating ? 'Finding your location…' : 'Use my live location instead'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 )}
+                                {pickedLabel && !noLocation && citySearch}
                                 {pickedLabel && locationIssue && (
                                     <Text style={styles.issue} accessibilityRole="alert">
                                         {`${DISCOVER_LOCATION_COPY[locationIssue]} Still showing spots near ${pickedLabel}.`}
@@ -726,18 +751,7 @@ export default function DiscoverScreen() {
                                             onPress={() => load(true, true)}
                                             loading={locating}
                                         />
-                                        {cityOpen ? (
-                                            <PlaceSearch
-                                                confirmLabel="Show spots here"
-                                                onPick={async (place) => {
-                                                    picked.current = place;
-                                                    setPickedLabel(place.label);
-                                                    setCityOpen(false);
-                                                    await load(true);
-                                                }}
-                                                onCancel={() => setCityOpen(false)}
-                                            />
-                                        ) : (
+                                        {cityOpen ? citySearch : (
                                             <View style={{ marginTop: 10 }}>
                                                 <GradientButton variant="ghost" title="Pick a city" onPress={() => setCityOpen(true)} />
                                             </View>
@@ -1052,6 +1066,9 @@ const styles = StyleSheet.create({
     header: { paddingTop: 8, paddingBottom: 24 },
     title: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 4 },
     subtitle: { color: colors.text60, fontSize: 14, fontFamily: 'Inter_400Regular' },
+    linkRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 },
+    link: { minHeight: 44, justifyContent: 'center' },
+    linkText: { color: colors.primary, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
     issue: {
         color: 'white',
         fontFamily: 'Inter_500Medium',

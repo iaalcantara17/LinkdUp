@@ -20,6 +20,14 @@ test('asking for live location with a city picked reports why it failed and keep
     }
 });
 
+test('a chosen city can be changed again and live location stays available', () => {
+    const discover = read('screens/DiscoverScreen.tsx');
+    assert.match(discover, />Change city</);
+    assert.equal(discover.match(/<PlaceSearch/g).length, 1);
+    assert.match(discover, /pickedLabel && !noLocation && citySearch/);
+    assert.match(discover, /Use my live location instead/);
+});
+
 test('Use my live location instead asks for live location and shows the failure next to the city', () => {
     const discover = read('screens/DiscoverScreen.tsx');
     assert.match(discover, /discoverStep\(reading, picked\.current, prompt\)/);
