@@ -21,7 +21,7 @@ interface AnchoredHintProps {
     targetRef: React.RefObject<any>;
     placement?: 'top' | 'bottom';
     offset?: number;
-    scrollViewRef?: React.RefObject<ScrollView>;
+    scrollViewRef?: React.RefObject<ScrollView | null>;
 }
 
 const CARD_MAX_WIDTH = 260;
