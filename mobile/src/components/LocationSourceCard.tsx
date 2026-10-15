@@ -13,7 +13,7 @@ import { getLiveLocation, useLocationPermission } from '../services/liveLocation
 
 const ASK_COPY: Record<AskReason, string> = {
     prompt: 'LinkdUp uses where you are right now to find a fair midpoint. Your crew only sees an approximate spot.',
-    denied: 'Location is off for LinkdUp. Turn it on in your browser or phone settings, or pick a place instead.',
+    denied: 'Location is blocked for LinkdUp. Allow it in your browser or phone settings, or pick a place instead.',
     unavailable: "We couldn't find where you are. Try again, or pick a place instead.",
     timeout: 'Finding your location took too long. Try again, or pick a place instead.',
 };

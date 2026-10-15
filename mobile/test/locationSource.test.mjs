@@ -54,6 +54,8 @@ test('clear saved location says what it does not change', () => {
 
 test('Discover says whether it is using live location or a chosen city', () => {
     const discover = read('screens/DiscoverScreen.tsx');
-    assert.match(discover, /`Using: Chosen city, \$\{pickedLabel\}`/);
-    assert.match(discover, /'Using: Live location'/);
+    assert.match(discover, /pickedLabel \? 'Using: Chosen city' : 'Using: Live location'/);
+    for (const file of ['screens/DiscoverScreen.tsx', 'components/LocationSourceCard.tsx']) {
+        assert.match(read(file), /denied: 'Location is blocked for LinkdUp\. Allow it in your browser or phone settings, /, file);
+    }
 });

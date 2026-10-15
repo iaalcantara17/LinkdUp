@@ -34,7 +34,7 @@ import { listView } from '../hooks/listView';
 
 const DISCOVER_LOCATION_COPY: Record<AskReason, string> = {
     prompt: 'LinkdUp uses where you are right now to show trending spots and parties near you.',
-    denied: 'Location is off for LinkdUp. Turn it on in your browser or phone settings, then try again.',
+    denied: 'Location is blocked for LinkdUp. Allow it in your browser or phone settings, then try again.',
     unavailable: "We couldn't find where you are. Check your connection and try again.",
     timeout: 'Finding your location took too long. Try again.',
 };
@@ -729,7 +729,7 @@ export default function DiscoverScreen() {
                                 </Text>
                                 {userLat !== null && !noLocation && (
                                     <Text style={styles.sourceLine}>
-                                        {pickedLabel ? `Using: Chosen city, ${pickedLabel}` : 'Using: Live location'}
+                                        {pickedLabel ? 'Using: Chosen city' : 'Using: Live location'}
                                     </Text>
                                 )}
                                 {permissionLabel(permission) && (
@@ -741,6 +741,7 @@ export default function DiscoverScreen() {
                                             onPress={() => setCityOpen(true)}
                                             disabled={cityOpen}
                                             accessibilityRole="button"
+                                            accessibilityState={{ disabled: cityOpen }}
                                             style={styles.link}
                                         >
                                             <Text style={styles.linkText}>Change city</Text>
@@ -1097,7 +1098,7 @@ const styles = StyleSheet.create({
     sourceLine: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 6 },
     linkRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 },
     link: { minHeight: 44, justifyContent: 'center' },
-    linkText: { color: colors.primary, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+    linkText: { color: colors.primaryAlt, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
     issue: {
         color: 'white',
         fontFamily: 'Inter_500Medium',
