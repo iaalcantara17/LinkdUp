@@ -26,14 +26,15 @@ const DISCOVER_HELP: { title: string; description: string }[] = [
 ];
 import { api, photoUri, VENUE_LIMIT_MESSAGE } from '../services/api';
 import { errorText, showError, toast } from '../components/dialogs';
-import { getLiveLocation } from '../services/liveLocation';
-import { discoverOrigin, type AskReason } from '../services/locationChoice';
+import { getLiveLocation, useLocationPermission } from '../services/liveLocation';
+import { discoverStep, permissionLabel, type AskReason } from '../services/locationChoice';
 import PlaceSearch, { Place } from '../components/PlaceSearch';
 import { colors, radii } from '../theme';
+import { listView } from '../hooks/listView';
 
 const DISCOVER_LOCATION_COPY: Record<AskReason, string> = {
     prompt: 'LinkdUp uses where you are right now to show trending spots and parties near you.',
-    denied: 'Location is off for LinkdUp. Turn it on in your browser or phone settings, then try again.',
+    denied: 'Location is blocked for LinkdUp. Allow it in your browser or phone settings, then try again.',
     unavailable: "We couldn't find where you are. Check your connection and try again.",
     timeout: 'Finding your location took too long. Try again.',
 };
@@ -395,9 +396,13 @@ export default function DiscoverScreen() {
     const [pickedLabel, setPickedLabel] = useState<string | null>(null);
     const [cityOpen, setCityOpen] = useState(false);
     const [locationIssue, setLocationIssue] = useState<AskReason | null>(null);
-    const [loadingVenues, setLoadingVenues] = useState(false);
+    const [locating, setLocating] = useState(false);
+    const locatingRef = useRef(false);
+    const permission = useLocationPermission();
+    const seenPermission = useRef(permission);
+    const [loadingVenues, setLoadingVenues] = useState(true);
     const [venueLimited, setVenueLimited] = useState(false);
-    const [loadingParties, setLoadingParties] = useState(false);
+    const [loadingParties, setLoadingParties] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
     const [selectedVenue, setSelectedVenue] = useState<DiscoverVenue | null>(null);
@@ -431,15 +436,20 @@ export default function DiscoverScreen() {
     }, []);
 
     const load = useCallback(async (force = false, prompt = false) => {
+        if (prompt) {
+            setLocating(true);
+            locatingRef.current = true;
+        }
         try {
             const reading = picked.current && !prompt ? ({ ok: false, reason: 'prompt' } as const) : await getLiveLocation({ prompt });
-            if (!reading.ok && _venueCache && (reading.reason === 'timeout' || reading.reason === 'unavailable')) return;
-            const origin = discoverOrigin(reading, picked.current);
+            if (!reading.ok && !prompt && _venueCache && (reading.reason === 'timeout' || reading.reason === 'unavailable')) return;
+            const { origin, issue } = discoverStep(reading, picked.current, prompt);
+            setLocationIssue(issue);
             if (!origin) {
-                if (!reading.ok) setLocationIssue(reading.reason);
                 setNoLocation(true);
                 return;
             }
+            if (issue) return;
             if (origin.live) {
                 picked.current = null;
                 setPickedLabel(null);
@@ -448,7 +458,6 @@ export default function DiscoverScreen() {
             setUserLat(lat);
             setUserLng(lng);
             setNoLocation(false);
-            setLocationIssue(null);
 
             if (!force && !isCacheStale(lat, lng)) {
                 setVenues(_venueCache!);
@@ -457,6 +466,10 @@ export default function DiscoverScreen() {
             }
 
             if (origin.live) api.updateLocation(lat, lng).catch(() => {});
+            if (isCacheStale(lat, lng)) {
+                setVenues([]);
+                setParties([]);
+            }
             setLoadingVenues(true);
             setLoadingParties(true);
 
@@ -502,6 +515,10 @@ export default function DiscoverScreen() {
         } catch (e: any) {
             console.error('[discover]', e);
         } finally {
+            if (prompt) {
+                locatingRef.current = false;
+                setLocating(false);
+            }
             setLoadingVenues(false);
             setLoadingParties(false);
         }
@@ -511,6 +528,15 @@ export default function DiscoverScreen() {
         load();
         fetchLikes(!likesLoadedRef.current);
     }, [load, fetchLikes]));
+
+    useEffect(() => {
+        const prev = seenPermission.current;
+        seenPermission.current = permission;
+        if (prev === permission || prev === 'unknown' || locatingRef.current) return;
+        if (picked.current) {
+            if (permission === 'granted') setLocationIssue(null);
+        } else load();
+    }, [permission, load]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -627,6 +653,24 @@ export default function DiscoverScreen() {
         trendingScrollRef.current?.scrollTo({ x: trendingScrollX + 320, animated: true });
     };
 
+    const visibleVenues = venues.filter((v) => !likedPlaceIds.has(v.google_place_id));
+    const venuesView = listView(visibleVenues, loadingVenues);
+    const partiesView = listView(parties, loadingParties);
+
+    const citySearch = cityOpen ? (
+        <PlaceSearch
+            confirmLabel="Show spots here"
+            onPick={async (place) => {
+                picked.current = place;
+                setPickedLabel(place.label);
+                setLocationIssue(null);
+                setCityOpen(false);
+                await load(true);
+            }}
+            onCancel={() => setCityOpen(false)}
+        />
+    ) : null;
+
     return (
         <View style={styles.root}>
             {activeTab === 'feed' ? (
@@ -690,14 +734,43 @@ export default function DiscoverScreen() {
                                 <Text style={styles.subtitle}>
                                     {pickedLabel ? `Trending spots and parties near ${pickedLabel}` : 'Trending spots and parties near you'}
                                 </Text>
-                                {pickedLabel && (
-                                    <TouchableOpacity
-                                        onPress={() => load(true, true)}
-                                        accessibilityRole="button"
-                                        style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
-                                    >
-                                        <Text style={[styles.subtitle, { color: colors.primary }]}>Use my live location instead</Text>
-                                    </TouchableOpacity>
+                                {userLat !== null && !noLocation && (
+                                    <Text style={styles.sourceLine}>
+                                        {pickedLabel ? 'Using: Chosen city' : 'Using: Live location'}
+                                    </Text>
+                                )}
+                                {permissionLabel(permission) && (
+                                    <Text style={styles.sourceLine} accessibilityLiveRegion="polite">{permissionLabel(permission)}</Text>
+                                )}
+                                {pickedLabel && !noLocation && (
+                                    <View style={styles.linkRow}>
+                                        <TouchableOpacity
+                                            onPress={() => setCityOpen(true)}
+                                            disabled={cityOpen || locating}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ disabled: cityOpen || locating }}
+                                            style={styles.link}
+                                        >
+                                            <Text style={styles.linkText}>Change city</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => load(true, true)}
+                                            disabled={locating}
+                                            accessibilityRole="button"
+                                            accessibilityState={{ busy: locating, disabled: locating }}
+                                            style={styles.link}
+                                        >
+                                            <Text style={styles.linkText}>
+                                                {locating ? 'Finding your location…' : 'Use my live location instead'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                                {pickedLabel && !noLocation && citySearch}
+                                {pickedLabel && locationIssue && (
+                                    <Text style={styles.issue} accessibilityRole="alert">
+                                        {`${DISCOVER_LOCATION_COPY[locationIssue]} Still showing spots near ${pickedLabel}.`}
+                                    </Text>
                                 )}
                             </Animated.View>
 
@@ -712,19 +785,9 @@ export default function DiscoverScreen() {
                                         <GradientButton
                                             title={!locationIssue || locationIssue === 'prompt' ? 'Use my live location' : 'Try again'}
                                             onPress={() => load(true, true)}
+                                            loading={locating}
                                         />
-                                        {cityOpen ? (
-                                            <PlaceSearch
-                                                confirmLabel="Show spots here"
-                                                onPick={async (place) => {
-                                                    picked.current = place;
-                                                    setPickedLabel(place.label);
-                                                    setCityOpen(false);
-                                                    await load(true);
-                                                }}
-                                                onCancel={() => setCityOpen(false)}
-                                            />
-                                        ) : (
+                                        {cityOpen ? citySearch : (
                                             <View style={{ marginTop: 10 }}>
                                                 <GradientButton variant="ghost" title="Pick a city" onPress={() => setCityOpen(true)} />
                                             </View>
@@ -737,12 +800,12 @@ export default function DiscoverScreen() {
                                 <Animated.View entering={FadeInDown.delay(60).duration(400)}>
                                     <Text style={styles.sectionTitle}>Trending near you</Text>
 
-                                    {loadingVenues ? (
+                                    {venuesView === 'loading' ? (
                                         <View style={styles.loadingRow}>
                                             <ActivityIndicator color={colors.primary} />
                                             <Text style={styles.loadingText}>Finding nearby spots…</Text>
                                         </View>
-                                    ) : venues.length === 0 ? (
+                                    ) : venuesView === 'empty' ? (
                                         <View style={styles.inlineEmpty}>
                                             <Text style={styles.inlineEmptyText}>
                                                 {venueLimited
@@ -900,12 +963,12 @@ export default function DiscoverScreen() {
                                 <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginTop: 32 }}>
                                     <Text style={styles.sectionTitle}>Active parties nearby</Text>
 
-                                    {loadingParties ? (
+                                    {partiesView === 'loading' ? (
                                         <View style={styles.loadingRow}>
                                             <ActivityIndicator color={colors.primary} />
                                             <Text style={styles.loadingText}>Looking for parties…</Text>
                                         </View>
-                                    ) : parties.length === 0 ? (
+                                    ) : partiesView === 'empty' ? (
                                         <View style={styles.emptyCard}>
                                             <Text style={styles.emptyIcon}>🎉</Text>
                                             <Text style={styles.emptyTitle}>No one's hanging out nearby yet</Text>
@@ -1039,6 +1102,20 @@ const styles = StyleSheet.create({
     header: { paddingTop: 8, paddingBottom: 24 },
     title: { color: 'white', fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 4 },
     subtitle: { color: colors.text60, fontSize: 14, fontFamily: 'Inter_400Regular' },
+    sourceLine: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 6 },
+    linkRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 },
+    link: { minHeight: 44, justifyContent: 'center' },
+    linkText: { color: colors.primaryAlt, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+    issue: {
+        color: 'white',
+        fontFamily: 'Inter_500Medium',
+        fontSize: 13,
+        lineHeight: 20,
+        marginTop: 4,
+        paddingLeft: 10,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.danger,
+    },
 
     sectionTitle: {
         color: 'white',

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable,
-    Modal, Image, RefreshControl,
+    Modal, Image, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -17,6 +17,7 @@ import HelpButton from '../components/HelpButton';
 import AnchoredHint from '../components/AnchoredHint';
 import { api, MyLocation } from '../services/api';
 import { latestOnly } from '../hooks/latestOnly';
+import { listView } from '../hooks/listView';
 import { locationSourceLabel } from '../services/locationChoice';
 import DialogHost from '../components/DialogHost';
 import { confirm, errorText, showError } from '../components/dialogs';
@@ -235,6 +236,7 @@ export default function HomeScreen() {
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [parties, setParties] = useState<PartyRow[]>([]);
+    const [partiesLoaded, setPartiesLoaded] = useState(false);
     const [onlineFriends, setOnlineFriends] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [me, setMe] = useState<any>(null);
@@ -270,6 +272,7 @@ export default function HomeScreen() {
                 }
             }
             setParties(myParties ?? []);
+            setPartiesLoaded(true);
             setPendingCount((pendingReqs ?? []).length);
             setOnlineFriends((friends ?? []).filter((f: any) => f.is_online).slice(0, 5));
         } catch {}
@@ -338,6 +341,7 @@ export default function HomeScreen() {
     };
 
     const activeParties = parties.filter(p => p.status !== 'done');
+    const partiesView = listView(activeParties, !partiesLoaded);
 
     return (
         <View style={styles.root}>
@@ -412,7 +416,9 @@ export default function HomeScreen() {
                     <View style={{ marginTop: 32, paddingHorizontal: 24 }}>
                         <Text style={styles.sectionHeader}>Your Active Parties</Text>
 
-                        {activeParties.length === 0 ? (
+                        {partiesView === 'loading' ? (
+                            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+                        ) : partiesView === 'empty' ? (
                             <View style={styles.emptyCard}>
                                 <Text style={styles.emptyTitle}>No parties yet</Text>
                                 <Text style={styles.emptyBody}>

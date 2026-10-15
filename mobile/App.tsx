@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -19,6 +19,9 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import DialogHost from './src/components/DialogHost';
 import { darkColors } from './src/theme';
+import { settleFinishedAnimations } from './src/services/webAnimations';
+
+if (Platform.OS === 'web' && typeof document !== 'undefined') settleFinishedAnimations(document);
 
 const linking: LinkingOptions<any> = {
     prefixes: ['linkdup://', 'http://localhost:8081', 'exp://'],

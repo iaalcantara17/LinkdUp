@@ -10,6 +10,7 @@ import {
     Linking,
     Platform,
     RefreshControl,
+    ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -22,6 +23,7 @@ import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
 import { api } from '../services/api';
 import { latestOnly } from '../hooks/latestOnly';
+import { listView } from '../hooks/listView';
 import DialogHost from '../components/DialogHost';
 import { confirm, errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
@@ -152,6 +154,7 @@ export default function HangoutsScreen() {
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [hangouts, setHangouts] = useState<Hangout[]>([]);
+    const [loaded, setLoaded] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [meId, setMeId] = useState<string | null>(null);
     const [menuHangout, setMenuHangout] = useState<Hangout | null>(null);
@@ -172,6 +175,7 @@ export default function HangoutsScreen() {
         } catch {
             if (isLatest()) setHangouts([]);
         }
+        if (isLatest()) setLoaded(true);
     }, [latestLoad]);
 
     const openHangoutMenu = (h: Hangout) => {
@@ -222,6 +226,8 @@ export default function HangoutsScreen() {
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
+    const hangoutsView = listView(hangouts, !loaded);
+
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         await load();
@@ -246,7 +252,9 @@ export default function HangoutsScreen() {
                             <Text style={styles.subtitle}>Your locked meetups, in order</Text>
                         </Animated.View>
                     }
-                    ListEmptyComponent={
+                    ListEmptyComponent={hangoutsView === 'loading' ? (
+                        <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
+                    ) : hangoutsView === 'empty' ? (
                         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.emptyCard}>
                             <Text style={{ fontSize: 48, marginBottom: 16 }}>📅</Text>
                             <Text style={styles.emptyTitle}>Nothing locked in yet</Text>
@@ -257,7 +265,7 @@ export default function HangoutsScreen() {
                                 <GradientButton title="Create a Party" onPress={() => nav.navigate('CreateParty')} />
                             </View>
                         </Animated.View>
-                    }
+                    ) : null}
                     renderItem={({ item, index }) => (
                         <HangoutCard
                             item={item}
