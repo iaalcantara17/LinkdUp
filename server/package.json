@@ -24,7 +24,7 @@
     "zod": "^3.23.8"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

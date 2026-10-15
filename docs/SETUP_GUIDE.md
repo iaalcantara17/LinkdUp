@@ -6,7 +6,7 @@ Step-by-step instructions to go from zero to running app. Do these in order.
 
 ## 0. Prerequisites (one-time, on your machine)
 
-1. Install **Node.js 20 LTS** from nodejs.org. Verify with `node -v`.
+1. Install **Node.js 22 LTS** from nodejs.org. Verify with `node -v`.
 2. Install **Git** if you don't have it. Verify with `git -v`.
 3. Install **Expo Go** on your phone from the App Store / Play Store.
 4. Install the **Expo CLI** globally: `npm install -g expo-cli eas-cli`.
