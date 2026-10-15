@@ -387,8 +387,8 @@ export default function DiscoverScreen() {
 
     const [activeTab, setActiveTab] = useState<'explore' | 'feed' | 'likes'>('explore');
 
-    const [venues, setVenues] = useState<DiscoverVenue[]>(_venueCache ?? []);
-    const [parties, setParties] = useState<DiscoverParty[]>(_partyCache ?? []);
+    const [venues, setVenues] = useState<DiscoverVenue[]>([]);
+    const [parties, setParties] = useState<DiscoverParty[]>([]);
     const [userLat, setUserLat] = useState<number | null>(null);
     const [userLng, setUserLng] = useState<number | null>(null);
     const [noLocation, setNoLocation] = useState(false);
@@ -400,9 +400,9 @@ export default function DiscoverScreen() {
     const locatingRef = useRef(false);
     const permission = useLocationPermission();
     const seenPermission = useRef(permission);
-    const [loadingVenues, setLoadingVenues] = useState(_venueCache === null);
+    const [loadingVenues, setLoadingVenues] = useState(true);
     const [venueLimited, setVenueLimited] = useState(false);
-    const [loadingParties, setLoadingParties] = useState(_venueCache === null);
+    const [loadingParties, setLoadingParties] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
     const [selectedVenue, setSelectedVenue] = useState<DiscoverVenue | null>(null);
@@ -466,6 +466,10 @@ export default function DiscoverScreen() {
             }
 
             if (origin.live) api.updateLocation(lat, lng).catch(() => {});
+            if (isCacheStale(lat, lng)) {
+                setVenues([]);
+                setParties([]);
+            }
             setLoadingVenues(true);
             setLoadingParties(true);
 
@@ -511,8 +515,10 @@ export default function DiscoverScreen() {
         } catch (e: any) {
             console.error('[discover]', e);
         } finally {
-            if (prompt) locatingRef.current = false;
-            setLocating(false);
+            if (prompt) {
+                locatingRef.current = false;
+                setLocating(false);
+            }
             setLoadingVenues(false);
             setLoadingParties(false);
         }
@@ -527,8 +533,9 @@ export default function DiscoverScreen() {
         const prev = seenPermission.current;
         seenPermission.current = permission;
         if (prev === permission || prev === 'unknown' || locatingRef.current) return;
-        if (picked.current) setLocationIssue(null);
-        else load();
+        if (picked.current) {
+            if (permission === 'granted') setLocationIssue(null);
+        } else load();
     }, [permission, load]);
 
     const onRefresh = useCallback(async () => {
@@ -739,9 +746,9 @@ export default function DiscoverScreen() {
                                     <View style={styles.linkRow}>
                                         <TouchableOpacity
                                             onPress={() => setCityOpen(true)}
-                                            disabled={cityOpen}
+                                            disabled={cityOpen || locating}
                                             accessibilityRole="button"
-                                            accessibilityState={{ disabled: cityOpen }}
+                                            accessibilityState={{ disabled: cityOpen || locating }}
                                             style={styles.link}
                                         >
                                             <Text style={styles.linkText}>Change city</Text>

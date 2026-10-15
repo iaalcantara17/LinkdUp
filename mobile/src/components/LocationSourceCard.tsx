@@ -76,10 +76,10 @@ export default function LocationSourceCard({ partyId, myLocation, onChanged }: P
         const prev = seenPermission.current;
         seenPermission.current = permission;
         if (prev === permission || prev === 'unknown' || busy) return;
-        setError(null);
         if (permission !== 'granted') return setLiveIssue(permission === 'denied' ? 'denied' : 'prompt');
+        setError(null);
         setLiveIssue(null);
-        if (myLocation?.mode !== 'custom') takeLive(false);
+        if (myLocation && myLocation.mode !== 'custom') takeLive(false);
     }, [permission]);
 
     const chooseLive = () => {

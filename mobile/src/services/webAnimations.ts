@@ -1,7 +1,8 @@
 type AnimationTarget = { style?: { animationName?: string } };
+type AnimationEvent = 'animationend' | 'animationcancel';
 type AnimationDoc = {
-    addEventListener(type: 'animationend', fn: (e: any) => void, capture: boolean): void;
-    removeEventListener(type: 'animationend', fn: (e: any) => void, capture: boolean): void;
+    addEventListener(type: AnimationEvent, fn: (e: any) => void, capture: boolean): void;
+    removeEventListener(type: AnimationEvent, fn: (e: any) => void, capture: boolean): void;
 };
 
 export function settleFinishedAnimations(doc: AnimationDoc): () => void {
@@ -10,5 +11,9 @@ export function settleFinishedAnimations(doc: AnimationDoc): () => void {
         if (style?.animationName === e.animationName) style.animationName = '';
     };
     doc.addEventListener('animationend', onEnd, true);
-    return () => doc.removeEventListener('animationend', onEnd, true);
+    doc.addEventListener('animationcancel', onEnd, true);
+    return () => {
+        doc.removeEventListener('animationend', onEnd, true);
+        doc.removeEventListener('animationcancel', onEnd, true);
+    };
 }

@@ -10,6 +10,7 @@ import {
     Linking,
     Platform,
     RefreshControl,
+    ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -225,6 +226,8 @@ export default function HangoutsScreen() {
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
+    const hangoutsView = listView(hangouts, !loaded);
+
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         await load();
@@ -249,7 +252,9 @@ export default function HangoutsScreen() {
                             <Text style={styles.subtitle}>Your locked meetups, in order</Text>
                         </Animated.View>
                     }
-                    ListEmptyComponent={listView(hangouts, !loaded) === 'empty' ? (
+                    ListEmptyComponent={hangoutsView === 'loading' ? (
+                        <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
+                    ) : hangoutsView === 'empty' ? (
                         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.emptyCard}>
                             <Text style={{ fontSize: 48, marginBottom: 16 }}>📅</Text>
                             <Text style={styles.emptyTitle}>Nothing locked in yet</Text>

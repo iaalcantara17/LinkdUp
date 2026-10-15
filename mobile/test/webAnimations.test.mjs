@@ -22,6 +22,14 @@ test('a finished entering animation is cleared so showing a hidden screen again 
     assert.equal(doc.listeners.get('animationend').capture, true);
 });
 
+test('an entering animation cancelled by hiding the screen is cleared too', () => {
+    const doc = fakeDoc();
+    settleFinishedAnimations(doc);
+    const card = { style: { animationName: 'FadeInDown' } };
+    doc.listeners.get('animationcancel').fn({ target: card, animationName: 'FadeInDown' });
+    assert.equal(card.style.animationName, '');
+});
+
 test('animations set by class or a different inline animation are left alone', () => {
     const doc = fakeDoc();
     settleFinishedAnimations(doc);
@@ -38,6 +46,7 @@ test('stopping removes the listener', () => {
     const doc = fakeDoc();
     settleFinishedAnimations(doc)();
     assert.equal(doc.listeners.has('animationend'), false);
+    assert.equal(doc.listeners.has('animationcancel'), false);
 });
 
 test('the app settles animations on web before anything renders', () => {

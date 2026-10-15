@@ -29,5 +29,14 @@ test('list screens start in loading and render through listView', () => {
     for (const [file, pattern] of Object.entries(files)) assert.match(read(file), pattern, file);
     assert.match(read('screens/FriendsScreen.tsx'), /useState\(true\)[\s\S]*useState\(true\)/);
     assert.match(read('screens/BlockedUsersScreen.tsx'), /const \[loading, setLoading\] = useState\(true\)/);
-    assert.match(read('screens/DiscoverScreen.tsx'), /useState\(_venueCache === null\)/);
+    const discover = read('screens/DiscoverScreen.tsx');
+    assert.match(discover, /const \[loadingVenues, setLoadingVenues\] = useState\(true\)/);
+    assert.match(discover, /const \[loadingParties, setLoadingParties\] = useState\(true\)/);
+    assert.doesNotMatch(discover, /useState<\w+\[\]>\(_\w+Cache/);
+    assert.match(read('screens/HomeScreen.tsx'), /=== 'loading' \?[\s\S]{0,80}<ActivityIndicator/);
+    assert.match(read('screens/HangoutsScreen.tsx'), /=== 'loading' \?[\s\S]{0,80}<ActivityIndicator/);
+});
+
+test('moving Discover to a new place drops the old place lists before fetching', () => {
+    assert.match(read('screens/DiscoverScreen.tsx'), /if \(isCacheStale\(lat, lng\)\) \{\s*setVenues\(\[\]\);\s*setParties\(\[\]\);/);
 });

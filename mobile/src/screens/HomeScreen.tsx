@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable,
-    Modal, Image, RefreshControl,
+    Modal, Image, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -341,6 +341,7 @@ export default function HomeScreen() {
     };
 
     const activeParties = parties.filter(p => p.status !== 'done');
+    const partiesView = listView(activeParties, !partiesLoaded);
 
     return (
         <View style={styles.root}>
@@ -415,7 +416,9 @@ export default function HomeScreen() {
                     <View style={{ marginTop: 32, paddingHorizontal: 24 }}>
                         <Text style={styles.sectionHeader}>Your Active Parties</Text>
 
-                        {listView(activeParties, !partiesLoaded) === 'empty' ? (
+                        {partiesView === 'loading' ? (
+                            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+                        ) : partiesView === 'empty' ? (
                             <View style={styles.emptyCard}>
                                 <Text style={styles.emptyTitle}>No parties yet</Text>
                                 <Text style={styles.emptyBody}>

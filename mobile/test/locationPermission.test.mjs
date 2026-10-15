@@ -64,3 +64,13 @@ test('Discover and the lobby card follow permission changes and show the state',
     }
     assert.match(read('components/LocationSourceCard.tsx'), /permission !== 'denied'/);
 });
+
+test('a late permission event never wipes the message for a failed request, and never saves live before the saved choice is known', () => {
+    const discover = read('screens/DiscoverScreen.tsx');
+    assert.match(discover, /if \(picked\.current\) \{\s*if \(permission === 'granted'\) setLocationIssue\(null\);/);
+    assert.match(discover, /if \(prompt\) \{\s*locatingRef\.current = false;\s*setLocating\(false\);/);
+    assert.match(discover, /disabled=\{cityOpen \|\| locating\}/);
+    const card = read('components/LocationSourceCard.tsx');
+    assert.match(card, /if \(permission !== 'granted'\) return setLiveIssue/);
+    assert.match(card, /setError\(null\);\s*setLiveIssue\(null\);\s*if \(myLocation && myLocation\.mode !== 'custom'\) takeLive\(false\);/);
+});
