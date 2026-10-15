@@ -30,6 +30,7 @@ import { getLiveLocation, useLocationPermission } from '../services/liveLocation
 import { discoverStep, permissionLabel, type AskReason } from '../services/locationChoice';
 import PlaceSearch, { Place } from '../components/PlaceSearch';
 import { colors, radii } from '../theme';
+import { listView } from '../hooks/listView';
 
 const DISCOVER_LOCATION_COPY: Record<AskReason, string> = {
     prompt: 'LinkdUp uses where you are right now to show trending spots and parties near you.',
@@ -386,8 +387,8 @@ export default function DiscoverScreen() {
 
     const [activeTab, setActiveTab] = useState<'explore' | 'feed' | 'likes'>('explore');
 
-    const [venues, setVenues] = useState<DiscoverVenue[]>([]);
-    const [parties, setParties] = useState<DiscoverParty[]>([]);
+    const [venues, setVenues] = useState<DiscoverVenue[]>(_venueCache ?? []);
+    const [parties, setParties] = useState<DiscoverParty[]>(_partyCache ?? []);
     const [userLat, setUserLat] = useState<number | null>(null);
     const [userLng, setUserLng] = useState<number | null>(null);
     const [noLocation, setNoLocation] = useState(false);
@@ -399,9 +400,9 @@ export default function DiscoverScreen() {
     const locatingRef = useRef(false);
     const permission = useLocationPermission();
     const seenPermission = useRef(permission);
-    const [loadingVenues, setLoadingVenues] = useState(false);
+    const [loadingVenues, setLoadingVenues] = useState(_venueCache === null);
     const [venueLimited, setVenueLimited] = useState(false);
-    const [loadingParties, setLoadingParties] = useState(false);
+    const [loadingParties, setLoadingParties] = useState(_venueCache === null);
     const [refreshing, setRefreshing] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
     const [selectedVenue, setSelectedVenue] = useState<DiscoverVenue | null>(null);
@@ -645,6 +646,10 @@ export default function DiscoverScreen() {
         trendingScrollRef.current?.scrollTo({ x: trendingScrollX + 320, animated: true });
     };
 
+    const visibleVenues = venues.filter((v) => !likedPlaceIds.has(v.google_place_id));
+    const venuesView = listView(visibleVenues, loadingVenues);
+    const partiesView = listView(parties, loadingParties);
+
     const citySearch = cityOpen ? (
         <PlaceSearch
             confirmLabel="Show spots here"
@@ -787,12 +792,12 @@ export default function DiscoverScreen() {
                                 <Animated.View entering={FadeInDown.delay(60).duration(400)}>
                                     <Text style={styles.sectionTitle}>Trending near you</Text>
 
-                                    {loadingVenues ? (
+                                    {venuesView === 'loading' ? (
                                         <View style={styles.loadingRow}>
                                             <ActivityIndicator color={colors.primary} />
                                             <Text style={styles.loadingText}>Finding nearby spots…</Text>
                                         </View>
-                                    ) : venues.length === 0 ? (
+                                    ) : venuesView === 'empty' ? (
                                         <View style={styles.inlineEmpty}>
                                             <Text style={styles.inlineEmptyText}>
                                                 {venueLimited
@@ -950,12 +955,12 @@ export default function DiscoverScreen() {
                                 <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginTop: 32 }}>
                                     <Text style={styles.sectionTitle}>Active parties nearby</Text>
 
-                                    {loadingParties ? (
+                                    {partiesView === 'loading' ? (
                                         <View style={styles.loadingRow}>
                                             <ActivityIndicator color={colors.primary} />
                                             <Text style={styles.loadingText}>Looking for parties…</Text>
                                         </View>
-                                    ) : parties.length === 0 ? (
+                                    ) : partiesView === 'empty' ? (
                                         <View style={styles.emptyCard}>
                                             <Text style={styles.emptyIcon}>🎉</Text>
                                             <Text style={styles.emptyTitle}>No one's hanging out nearby yet</Text>

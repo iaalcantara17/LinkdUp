@@ -14,6 +14,7 @@ import { confirm, confirmBlock, errorText, showError } from '../components/dialo
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+import { listView } from '../hooks/listView';
 
 const FRIENDS_HELP: { title: string; description: string }[] = [
     { title: 'Friends tab', description: 'See everyone you\'ve accepted.' },
@@ -42,9 +43,9 @@ export default function FriendsScreen() {
 
     const [activeTab, setActiveTab] = useState<FriendTab>('friends');
     const [friends, setFriends] = useState<any[]>([]);
-    const [loadingFriends, setLoadingFriends] = useState(false);
+    const [loadingFriends, setLoadingFriends] = useState(true);
     const [pending, setPending] = useState<any[]>([]);
-    const [loadingPending, setLoadingPending] = useState(false);
+    const [loadingPending, setLoadingPending] = useState(true);
     const [searchQ, setSearchQ] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searching, setSearching] = useState(false);
@@ -142,6 +143,9 @@ export default function FriendsScreen() {
         } catch (e: any) { showError("Couldn't send friend request", errorText(e, 'Try again in a moment.')); }
     };
 
+    const friendsView = listView(friends, loadingFriends);
+    const pendingView = listView(pending, loadingPending);
+
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
@@ -175,9 +179,9 @@ export default function FriendsScreen() {
                 >
                     {activeTab === 'friends' && (
                         <>
-                            {loadingFriends ? (
+                            {friendsView === 'loading' ? (
                                 <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-                            ) : friends.length === 0 ? (
+                            ) : friendsView === 'empty' ? (
                                 <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
                                     <Text style={{ fontSize: 48, marginBottom: 12 }}>👋</Text>
                                     <Text style={styles.emptyTitle}>No friends yet</Text>
@@ -223,9 +227,9 @@ export default function FriendsScreen() {
 
                     {activeTab === 'requests' && (
                         <>
-                            {loadingPending ? (
+                            {pendingView === 'loading' ? (
                                 <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-                            ) : pending.length === 0 ? (
+                            ) : pendingView === 'empty' ? (
                                 <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
                                     <Text style={{ fontSize: 48, marginBottom: 12 }}>📭</Text>
                                     <Text style={styles.emptyTitle}>No pending requests</Text>

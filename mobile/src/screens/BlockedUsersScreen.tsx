@@ -12,6 +12,7 @@ import { confirm, errorText, showError } from '../components/dialogs';
 import { useTheme } from '../context/ThemeContext';
 import type { AppColors } from '../theme';
 import { radii } from '../theme';
+import { listView } from '../hooks/listView';
 
 export default function BlockedUsersScreen() {
     const nav = useNavigation<any>();
@@ -19,7 +20,7 @@ export default function BlockedUsersScreen() {
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [items, setItems] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [unblockBusy, setUnblockBusy] = useState<Record<string, boolean>>({});
 
     const load = useCallback(async () => {
@@ -91,7 +92,7 @@ export default function BlockedUsersScreen() {
                     <View style={{ width: 38 }} />
                 </View>
 
-                {loading ? (
+                {listView(items, loading) === 'loading' ? (
                     <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
                 ) : (
                     <FlatList
