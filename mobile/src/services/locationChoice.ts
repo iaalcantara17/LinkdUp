@@ -84,11 +84,15 @@ export function pendingAction() {
     };
 }
 
-export function discoverOrigin(
+export function discoverStep(
     reading: LiveResult,
     picked: { latitude: number; longitude: number } | null,
-): { coords: Coords; live: boolean } | null {
-    if (reading.ok) return { coords: reading.coords, live: true };
-    if (picked) return { coords: { latitude: picked.latitude, longitude: picked.longitude }, live: false };
-    return null;
+    askedLive: boolean,
+): { origin: { coords: Coords; live: boolean } | null; issue: AskReason | null } {
+    if (reading.ok) return { origin: { coords: reading.coords, live: true }, issue: null };
+    if (!picked) return { origin: null, issue: reading.reason };
+    return {
+        origin: { coords: { latitude: picked.latitude, longitude: picked.longitude }, live: false },
+        issue: askedLive ? reading.reason : null,
+    };
 }
