@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, act, fireEvent } from '@testing-library/react-native';
+import { render, screen, act, fireEvent } from '@testing-library/react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../src/services/api';
 import { getLiveLocation } from '../src/services/liveLocation';
 import * as fx from './fixtures';
@@ -41,10 +42,20 @@ const loaded = {
 async function show(Screen, overrides = {}, params = { partyId: 'p1' }) {
     global.__route = { params };
     global.__api.reset(fx.routes({ ...loaded, ...overrides }));
-    await render(<Screen />);
-    await act(async () => {
-        await new Promise((r) => setTimeout(r, 30));
-    });
+    await render(
+        <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+            <Screen />
+        </SafeAreaProvider>,
+    );
+    await settle();
+}
+
+async function settle() {
+    for (let i = 0; i < 20; i++) {
+        await act(async () => {
+            await new Promise((r) => setTimeout(r, 0));
+        });
+    }
 }
 
 const button = (name) => screen.getByRole('button', { name });
@@ -138,9 +149,8 @@ describe('PartyLobby', () => {
         screen.getByText('Alice');
         screen.getByText('Bob');
         button('Use a different location');
-        await act(async () => {
-            fireEvent.press(button('Start swiping'));
-        });
+        fireEvent.click(button('Start swiping'));
+        await settle();
         expect(api.startParty).toHaveBeenCalledWith('p1');
     });
 
@@ -184,10 +194,8 @@ describe('Swipe', () => {
         screen.getByText('Your turn - swipe or tap to vote');
         button('Back');
         button('Skip Blue Bottle Cafe');
-        await act(async () => {
-            fireEvent.press(button('Like Blue Bottle Cafe'));
-            await new Promise((r) => setTimeout(r, 30));
-        });
+        fireEvent.click(button('Like Blue Bottle Cafe'));
+        await settle();
         expect(api.vote).toHaveBeenCalledWith('p1', 'l1', true);
     });
 
@@ -233,7 +241,7 @@ describe('Discover', () => {
     test('loaded shows nearby venues from the live location', async () => {
         at(44.0);
         await show(DiscoverScreen);
-        await screen.findByText('Hudson Taproom');
+        expect((await screen.findAllByText('Hudson Taproom')).length).toBeGreaterThan(0);
         for (const tab of ['Home', 'Discover', 'Party', 'Calendar', 'Profile']) screen.getByRole('tab', { name: tab });
     });
 
@@ -302,10 +310,9 @@ describe('CalendarConfirmation', () => {
 
     test('Add to Google Calendar asks a member without Google to connect first', async () => {
         await show(CalendarConfirmationScreen, { calendarOAuthStart: { url: 'https://accounts.google.com/o/oauth2' } });
-        await act(async () => {
-            fireEvent.press(button('Add to Google Calendar'));
-            await new Promise((r) => setTimeout(r, 30));
-        });
+        fireEvent.click(button('Add to Google Calendar'));
+        await settle();
+        expect(api.calendarOAuthStart).toHaveBeenCalledTimes(1);
         expect(api.calendarExport).not.toHaveBeenCalled();
     });
 

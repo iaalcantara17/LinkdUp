@@ -4,9 +4,9 @@
 
 **Goal:** Protect the core flow (sign in, create, join, location, swipe, Link, date, lock, calendar export) with tests before the design refactor, without changing app behavior.
 
-**Architecture:** Server flow tests boot the real `src/index.ts` app with `app.listen` captured onto a random port, Supabase replaced by an in-memory PostgREST/Auth fake behind `fetch`, and Google replaced at `axios.post` (Places) and `googleapis` (Calendar). Mobile logic stays on `node:test`; screen smoke tests use `jest-expo` with React Native Testing Library and mocked `api`, `supabase` and theme/auth contexts.
+**Architecture:** Server flow tests boot the real `src/index.ts` app with `app.listen` captured onto a random port, Supabase replaced by an in-memory PostgREST/Auth fake behind `fetch`, and Google replaced at `axios.post` (Places) and `googleapis` (Calendar). Mobile logic stays on `node:test`; screen smoke tests use the `jest-expo/web` preset (react-native-web in jsdom) with DOM Testing Library and mocked `api`, `supabase` and theme/auth contexts.
 
-**Tech Stack:** Node 22 `node:test` + tsx (server), `node:test` with type stripping (mobile logic), jest-expo 54 + @testing-library/react-native (screens), GitHub Actions.
+**Tech Stack:** Node 22 `node:test` + tsx (server), `node:test` with type stripping (mobile logic), jest-expo/web 54 + @testing-library/react (screens), GitHub Actions.
 
 **Spec:** the user request for branch `safety-net-tests` (core flow list, five items, no behavior changes).
 

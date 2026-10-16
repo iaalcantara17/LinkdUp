@@ -1,5 +1,16 @@
 require('react-native-gesture-handler/jestSetup');
 
+if (typeof window !== 'undefined' && !window.matchMedia) {
+    window.matchMedia = (query) => ({
+        matches: false,
+        media: query,
+        addListener() {},
+        removeListener() {},
+        addEventListener() {},
+        removeEventListener() {},
+    });
+}
+
 process.env.EXPO_PUBLIC_API_URL = 'http://api.test';
 process.env.TZ = 'America/New_York';
 

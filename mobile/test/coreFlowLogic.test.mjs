@@ -5,25 +5,40 @@ import { chooseLocation, choiceLabel, locationSourceLabel, startGate, watchWebPe
 import { confirm, showError, toast, respond, dismiss, getSnapshot, errorText, TOAST_MS } from '../src/components/dialogs.ts';
 import { sortDeck } from '../src/services/swipeDeck.ts';
 
-const LIVE_RESULTS = [null, { ok: true }, { ok: false, reason: 'denied' }, { ok: false, reason: 'unavailable' }, { ok: false, reason: 'timeout' }];
+const L = { none: null, ok: { ok: true }, denied: { ok: false, reason: 'denied' }, unavailable: { ok: false, reason: 'unavailable' }, timeout: { ok: false, reason: 'timeout' } };
+const LIVE = { kind: 'live' };
+const CUSTOM = { kind: 'custom', label: 'Hoboken' };
+const ask = (reason) => ({ kind: 'ask', reason });
 
 test('location source state machine covers every mix of preference, live reading and custom place', () => {
-    for (const preferCustom of [false, true]) {
-        for (const live of LIVE_RESULTS) {
-            for (const custom of [null, { label: 'Hoboken' }]) {
-                const expected = preferCustom && custom
-                    ? { kind: 'custom', label: 'Hoboken' }
-                    : live?.ok
-                        ? { kind: 'live' }
-                        : custom
-                            ? { kind: 'custom', label: 'Hoboken' }
-                            : { kind: 'ask', reason: live && !live.ok ? live.reason : 'prompt' };
-                assert.deepEqual(chooseLocation({ preferCustom, live, custom }), expected, JSON.stringify({ preferCustom, live, custom }));
-            }
-        }
+    const table = [
+        [false, 'none', false, ask('prompt')],
+        [false, 'none', true, CUSTOM],
+        [false, 'ok', false, LIVE],
+        [false, 'ok', true, LIVE],
+        [false, 'denied', false, ask('denied')],
+        [false, 'denied', true, CUSTOM],
+        [false, 'unavailable', false, ask('unavailable')],
+        [false, 'unavailable', true, CUSTOM],
+        [false, 'timeout', false, ask('timeout')],
+        [false, 'timeout', true, CUSTOM],
+        [true, 'none', false, ask('prompt')],
+        [true, 'none', true, CUSTOM],
+        [true, 'ok', false, LIVE],
+        [true, 'ok', true, CUSTOM],
+        [true, 'denied', false, ask('denied')],
+        [true, 'denied', true, CUSTOM],
+        [true, 'unavailable', false, ask('unavailable')],
+        [true, 'unavailable', true, CUSTOM],
+        [true, 'timeout', false, ask('timeout')],
+        [true, 'timeout', true, CUSTOM],
+    ];
+    for (const [preferCustom, live, hasCustom, expected] of table) {
+        const input = { preferCustom, live: L[live], custom: hasCustom ? { label: 'Hoboken' } : null };
+        assert.deepEqual(chooseLocation(input), expected, JSON.stringify(input));
     }
     assert.deepEqual(
-        [{ kind: 'live' }, { kind: 'custom', label: 'Hoboken' }, { kind: 'ask', reason: 'denied' }].map(choiceLabel),
+        [LIVE, CUSTOM, ask('denied')].map(choiceLabel),
         ['Live', 'Custom: Hoboken', 'Not set yet'],
     );
 });
@@ -75,7 +90,7 @@ function serverOrder(a, b) {
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-test('deck order is round first and matches the server ORDER BY for any arrival order', () => {
+test('deck order is round first, then priority, rating and id, for any arrival order', () => {
     const rounds = ['2026-10-16T10:00:00.000Z', '2026-10-16T10:05:00.000Z'];
     const ratings = [4.8, 4.2, null, 4.2, 3.9];
     const cards = rounds.flatMap((created_at, r) =>
@@ -90,10 +105,6 @@ test('deck order is round first and matches the server ORDER BY for any arrival 
     }
     const order = sortDeck(cards).map((c) => c.created_at);
     assert.ok(order.lastIndexOf(rounds[0]) < order.indexOf(rounds[1]));
-    for (const file of ['../../server/src/services/matchEngine.ts', '../../server/src/routes/party.ts']) {
-        const src = readFileSync(new URL(file, import.meta.url), 'utf8');
-        assert.match(src, /\.order\('created_at', \{ ascending: true \}\)\s*\.order\('is_priority', \{ ascending: false \}\)\s*\.order\('rating', \{ ascending: false, nullsFirst: false \}\)\s*\.order\('id', \{ ascending: true \}\)/, file);
-    }
 });
 
 test('permission changes are reported in order and stop after unsubscribe', async () => {

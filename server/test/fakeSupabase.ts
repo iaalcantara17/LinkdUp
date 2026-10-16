@@ -93,14 +93,18 @@ function compare(a: any, b: string): number {
 }
 
 function matches(row: Row, col: string, expr: string): boolean {
-    if (expr.startsWith('not.')) return !matches(row, col, expr.slice(4));
+    if (expr.startsWith('not.')) {
+        const inner = expr.slice(4);
+        if (row[col] == null && !inner.startsWith('is.')) return false;
+        return !matches(row, col, inner);
+    }
     const dot = expr.indexOf('.');
     const op = expr.slice(0, dot);
     const value = expr.slice(dot + 1);
     const cell = row[col];
     switch (op) {
         case 'eq': return cell !== null && cell !== undefined && String(cell) === value;
-        case 'neq': return String(cell) !== value;
+        case 'neq': return cell != null && String(cell) !== value;
         case 'gt': return cell != null && compare(cell, value) > 0;
         case 'gte': return cell != null && compare(cell, value) >= 0;
         case 'lt': return cell != null && compare(cell, value) < 0;
