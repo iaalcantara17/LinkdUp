@@ -60,6 +60,24 @@ function toCandidate(p: any): PlaceCandidate {
     };
 }
 
+const DETAILS_TTL_MS = 15 * 60_000;
+export const DETAILS_CACHE_MAX = 500;
+const detailsCache = new Map<string, { venue: PlaceCandidate; expiresAt: number }>();
+
+function rememberDetails(venue: PlaceCandidate): PlaceCandidate {
+    detailsCache.delete(venue.google_place_id);
+    if (detailsCache.size >= DETAILS_CACHE_MAX) detailsCache.delete(detailsCache.keys().next().value!);
+    detailsCache.set(venue.google_place_id, { venue, expiresAt: Date.now() + DETAILS_TTL_MS });
+    return venue;
+}
+
+async function placeDetails(id: string): Promise<PlaceCandidate | null> {
+    const hit = detailsCache.get(id);
+    if (hit && hit.expiresAt > Date.now()) return hit.venue;
+    const venue = await fetchDetails(id);
+    return venue && rememberDetails(venue);
+}
+
 async function fetchDetails(id: string): Promise<PlaceCandidate | null> {
     if (!PLACE_ID_RE.test(id)) return null;
     try {
@@ -117,13 +135,12 @@ async function cachedNearby(
 ): Promise<{ venues: PlaceCandidate[]; stale: boolean }> {
     const cell = gridCell(center);
     const radius = Math.max(1, Math.round(radiusMeters / 1000)) * 1000;
-    const fetched = new Map<string, PlaceCandidate>();
     const { value, stale } = await cached('nearby', nearbyKey(cell, radius, types, page), async () => {
-        for (const v of await fetchNearby(cell, radius, types)) fetched.set(v.google_place_id, v);
-        return fetched.size ? { ids: [...fetched.keys()] } : null;
+        const ids = (await fetchNearby(cell, radius, types)).map((v) => rememberDetails(v).google_place_id);
+        return ids.length ? { ids } : null;
     });
     const ids = pick(value?.ids ?? []);
-    const details = await Promise.all(ids.map((id) => fetched.get(id) ?? fetchDetails(id)));
+    const details = await Promise.all(ids.map(placeDetails));
     return { venues: details.filter((v): v is PlaceCandidate => v !== null), stale };
 }
 

@@ -5,6 +5,7 @@ import axios from 'axios';
 import { mockSupabase, serve, realFetch, Call } from './supabaseMock';
 import { searchNearbyVenues, getVenuesWithRotation, geocodeCity } from '../src/services/places';
 import { nearbyKey, WRITE_LIMIT_PER_MIN } from '../src/services/googleCache';
+import { DETAILS_CACHE_MAX } from '../src/services/places';
 
 const HOUR = 3_600_000;
 const exact = { latitude: 40.712776, longitude: -74.005974 };
@@ -107,6 +108,53 @@ test('nearby place-ID lists expire after 6 hours', async () => {
     assert.equal((await searchNearbyVenues({ latitude: 22, longitude: 22 }, 8000, 20))[0].google_place_id, 'ChIJfresh');
     assert.equal(refresh.mock.callCount(), 1);
     assert.equal(writes(calls).length, 1);
+});
+
+test('a repeat view within 15 minutes costs no Google calls', async () => {
+    mockSupabase({});
+    const fresh = { ...googlePlace, id: 'ChIJwarm' };
+    const post = mock.method(axios, 'post', async () => ({ data: { places: [fresh] } }));
+    const get = mockDetails();
+    await searchNearbyVenues({ latitude: 30, longitude: 30 }, 8000, 20);
+    mock.restoreAll();
+    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJwarm'] }) : []));
+    const post2 = mock.method(axios, 'post', async () => ({ data: { places: [] } }));
+    const get2 = mockDetails();
+    const venues = await searchNearbyVenues({ latitude: 30, longitude: 30 }, 8000, 20);
+    assert.equal(venues[0].name, 'Fresh Cafe');
+    assert.equal(post.mock.callCount() + post2.mock.callCount(), 1);
+    assert.equal(get.mock.callCount() + get2.mock.callCount(), 0);
+});
+
+test('in-memory place details expire after 15 minutes', async () => {
+    mock.timers.enable({ apis: ['Date'], now: Date.now() });
+    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJttl'] }) : []));
+    const get = mockDetails();
+    await searchNearbyVenues({ latitude: 31, longitude: 31 }, 8000, 20);
+    mock.timers.tick(14 * 60_000);
+    await searchNearbyVenues({ latitude: 31, longitude: 31 }, 8000, 20);
+    assert.equal(get.mock.callCount(), 1);
+    mock.timers.tick(2 * 60_000);
+    await searchNearbyVenues({ latitude: 31, longitude: 31 }, 8000, 20);
+    assert.equal(get.mock.callCount(), 2);
+});
+
+test('in-memory place details are bounded', async () => {
+    const pages = Math.ceil(DETAILS_CACHE_MAX / 20) + 1;
+    const idsFor = (page: number) => Array.from({ length: 20 }, (_, i) => `ChIJbound${page}x${i}`);
+    mockSupabase({}, (c) => {
+        if (!isRead(c, 'nearby')) return [];
+        const page = Number((c.url.searchParams.get('key') ?? '').match(/^eq\.(\d+)\./)?.[1]);
+        return row({ ids: idsFor(page) });
+    });
+    const get = mockDetails();
+    for (let page = 1; page <= pages; page++) await searchNearbyVenues({ latitude: page, longitude: 40 }, 8000, 20);
+    const before = get.mock.callCount();
+    await searchNearbyVenues({ latitude: 1, longitude: 40 }, 8000, 20);
+    assert.ok(get.mock.callCount() > before);
+    const last = get.mock.callCount();
+    await searchNearbyVenues({ latitude: pages, longitude: 40 }, 8000, 20);
+    assert.equal(get.mock.callCount(), last);
 });
 
 test('venues returned for a grid cell are fetched around the rounded center', async () => {
