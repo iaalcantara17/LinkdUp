@@ -141,7 +141,6 @@ router.get('/location/search', rateLimit(PLACE_SEARCH_LIMIT, 60_000), requireAut
         const { q } = placeSearchSchema.parse(req.query);
         const place = await geocodeCity(q);
         if (!place) throw new HttpError(404, 'place_not_found');
-        if (place.cached) res.set('X-Venue-Cache', 'stale');
         res.json(place);
     } catch (e) { next(e); }
 });

@@ -115,8 +115,12 @@ export function nearbyKey(center: { latitude: number; longitude: number }, radiu
     return `${cell.latitude.toFixed(2)},${cell.longitude.toFixed(2)}|r${radiusMeters}|${types.join(',')}|p${page}`;
 }
 
+export function normalizeQuery(query: string): string {
+    return query.replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+}
+
 export function geocodeKey(query: string): string {
-    const key = query.toLowerCase().replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+    const key = normalizeQuery(query).toLowerCase();
     if (key.length < 1 || key.length > 200) throw new HttpError(400, 'invalid_query');
     return key;
 }

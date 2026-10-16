@@ -2,7 +2,7 @@ import axios from 'axios';
 import { config } from '../config';
 import { LatLng } from './midpoint';
 import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
-import { cached, geocodeKey, gridCell, nearbyKey } from './googleCache';
+import { cached, geocodeKey, gridCell, nearbyKey, normalizeQuery } from './googleCache';
 
 export interface PlaceCandidate {
     google_place_id: string;
@@ -139,9 +139,11 @@ async function cachedNearby(
         const ids = (await fetchNearby(cell, radius, types)).map((v) => rememberDetails(v).google_place_id);
         return ids.length ? { ids } : null;
     });
-    const ids = pick(value?.ids ?? []);
-    const details = await Promise.all(ids.map(placeDetails));
-    return { venues: details.filter((v): v is PlaceCandidate => v !== null), stale };
+    const results = await Promise.allSettled(pick(value?.ids ?? []).map(placeDetails));
+    const venues = results.flatMap((r) => (r.status === 'fulfilled' && r.value ? [r.value] : []));
+    const failure = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (!venues.length && failure) throw failure.reason;
+    return { venues, stale };
 }
 
 export async function searchNearbyVenues(
@@ -276,21 +278,16 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
 export const getNearbyVenues = getVenuesWithRotation;
 
 // Forward geocoding for the manual city fallback
-export async function geocodeCity(city: string, country?: string): Promise<(LatLng & { label: string; cached?: true }) | null> {
+export async function geocodeCity(city: string, country?: string): Promise<(LatLng & { label: string }) | null> {
     const q = (country ? `${city}, ${country}` : city).trim();
     const fetched: { place?: LatLng & { label: string } } = {};
-    const { value, stale } = await cached('geocode', geocodeKey(q), async () => {
+    const { value } = await cached('geocode', geocodeKey(q), async () => {
         const place = await fetchGeocode(q);
         if (!place) return null;
         fetched.place = place;
-        return { latitude: place.latitude, longitude: place.longitude, label: typedLabel(q) };
+        return { latitude: place.latitude, longitude: place.longitude, label: Array.from(normalizeQuery(q)).slice(0, 120).join('') };
     });
-    if (fetched.place) return fetched.place;
-    return value && stale ? { ...value, cached: true } : value;
-}
-
-function typedLabel(q: string): string {
-    return q.replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    return fetched.place ?? value;
 }
 
 async function fetchGeocode(q: string): Promise<(LatLng & { label: string }) | null> {

@@ -345,6 +345,15 @@ test('empty nearby results are not cached', async () => {
     assert.equal(writes(calls).length, 0);
 });
 
+test('the stored geocode label is trimmed to 120 characters without splitting an emoji', async () => {
+    const calls = mockSupabase({});
+    mock.method(axios, 'get', async () => ({
+        data: { status: 'OK', results: [{ formatted_address: 'X', geometry: { location: { lat: 1, lng: 1 } } }] },
+    }));
+    await geocodeCity(`${'a'.repeat(119)}😀bc`);
+    assert.equal(writes(calls)[0].body.payload.label, `${'a'.repeat(119)}😀`);
+});
+
 test('cache writes are capped per minute', async () => {
     mock.method(console, 'error', () => {});
     const calls = mockSupabase({});
@@ -401,3 +410,19 @@ test('a failing prune never breaks the request', async () => {
     const venues = await searchNearbyVenues({ latitude: 29, longitude: 29 }, 8000, 20);
     assert.equal(venues[0].google_place_id, 'ChIJprunefail');
 });
+
+test('a details quota error still returns the venues already held in memory', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({});
+    mock.method(axios, 'post', async () => ({ data: { places: [{ ...googlePlace, id: 'ChIJmemA' }] } }));
+    await searchNearbyVenues({ latitude: 32, longitude: 32 }, 8000, 20);
+    mock.restoreAll();
+    mock.method(console, 'error', () => {});
+    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJmemA', 'ChIJquotaB'] }) : []));
+    mock.method(axios, 'get', async (url: string) => {
+        throw quotaError(url);
+    });
+    const venues = await searchNearbyVenues({ latitude: 32, longitude: 32 }, 8000, 20);
+    assert.deepEqual(venues.map((v) => v.google_place_id), ['ChIJmemA']);
+});
+

@@ -63,6 +63,15 @@ async function fetchFromGoogle(name: string, width: number): Promise<{ type: str
     return fetchImage((await fetchPhotoUri(name, width)).uri);
 }
 
+function sweepExpired() {
+    const now = Date.now();
+    for (const [key, held] of cache) {
+        if (held.expiresAt > now) break;
+        cachedBytes -= held.body.length;
+        cache.delete(key);
+    }
+}
+
 function remember(key: string, entry: Photo) {
     if (entry.body.length > CACHE_MAX_BYTES) return;
     const previous = cache.get(key);
@@ -90,8 +99,8 @@ router.get('/', async (req, res) => {
         return;
     }
     const cacheKey = `${parsed.name}:${parsed.width}`;
-    const held = cache.get(cacheKey);
-    let entry: Photo | undefined = held && held.expiresAt > Date.now() ? held : undefined;
+    sweepExpired();
+    let entry: Photo | undefined = cache.get(cacheKey);
     if (!entry) {
         try {
             entry = await fetchFromGoogle(parsed.name, parsed.width);
