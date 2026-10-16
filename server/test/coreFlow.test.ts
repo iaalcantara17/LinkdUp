@@ -418,12 +418,18 @@ test('Google export creates the event for a connected member and stores its id',
     assert.deepEqual(google.inserts.at(-1).requestBody.attendees, [{ email: 'alice@test.dev' }, { email: 'bob@test.dev' }]);
 });
 
-test.skip('BUG: Google export for a member who never connected Google returns 500 server_error instead of a clear 4xx', async () => {
+test('Google export for a member who never connected Google asks them to connect, and the ICS download still works', async () => {
     const { partyId } = await linkedParty();
     const dateId = (await call('POST', `/api/party/${partyId}/dates`, tok('bob'), { proposed_date: '2026-11-20T23:00:00.000Z' })).json.id;
     await call('POST', `/api/party/${partyId}/dates/${dateId}/lock`, tok('alice'));
     const r = await call('POST', `/api/calendar/party/${partyId}/export`, tok('bob'));
-    assert.ok(r.status >= 400 && r.status < 500, `${r.status} ${r.text}`);
+    assert.equal(r.status, 409, r.text);
+    assert.equal(r.json.error, 'user_not_connected_to_google');
+    assert.equal(google.inserts.length, 0);
+    assert.equal(partyRow(partyId).gcal_event_id, null);
+    const ics = await call('GET', `/api/calendar/party/${partyId}/ics`, tok('bob'));
+    assert.equal(ics.status, 200);
+    assert.ok(ics.text.includes('DTSTART:20261120T230000Z'));
 });
 
 test('no response across the whole core flow carries a token, password or server secret', async () => {

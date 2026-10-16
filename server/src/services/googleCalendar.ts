@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { google } from 'googleapis';
 import { config } from '../config';
 import { supabaseAdmin } from '../db';
+import { HttpError } from '../middleware/error';
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 
@@ -77,7 +78,7 @@ export async function createCalendarEventForUser(userId: string, ev: CalendarEve
         .single();
 
     if (!user?.google_calendar_token) {
-        throw new Error('user_not_connected_to_google');
+        throw new HttpError(409, 'user_not_connected_to_google');
     }
 
     const oauth2Client = makeOAuthClient();

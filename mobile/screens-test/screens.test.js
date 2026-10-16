@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { api } from '../src/services/api';
 import { getLiveLocation } from '../src/services/liveLocation';
@@ -42,12 +42,16 @@ const loaded = {
 async function show(Screen, overrides = {}, params = { partyId: 'p1' }) {
     global.__route = { params };
     global.__api.reset(fx.routes({ ...loaded, ...overrides }));
-    await render(
+    mount(Screen);
+    await settle();
+}
+
+function mount(Screen) {
+    return render(
         <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
             <Screen />
         </SafeAreaProvider>,
     );
-    await settle();
 }
 
 async function settle() {
@@ -59,7 +63,21 @@ async function settle() {
 }
 
 const button = (name) => screen.getByRole('button', { name });
-const showsFailure = () => screen.getByText(/couldn't|could not|try again|went wrong/i);
+const NETWORK = "We couldn't reach the server. Check your connection and try again.";
+
+function expectLoadError(title) {
+    const alert = screen.getByRole('alert');
+    within(alert).getByText(title);
+    within(alert).getByText(NETWORK);
+    return within(alert).getByRole('button', { name: 'Try again' });
+}
+
+async function retryLoads(tryAgain, overrides = {}) {
+    global.__api.reset(fx.routes({ ...loaded, ...overrides }));
+    fireEvent.click(tryAgain);
+    await settle();
+    expect(screen.queryByRole('alert')).toBeNull();
+}
 
 beforeEach(() => {
     getLiveLocation.mockResolvedValue({ ok: true, coords: { latitude: 40.74, longitude: -74.03 } });
@@ -86,10 +104,11 @@ describe('Home', () => {
         for (const tab of ['Home', 'Discover', 'Party', 'Calendar', 'Profile']) screen.getByRole('tab', { name: tab });
     });
 
-    test.skip('BUG: a failed party load shows "No parties yet" instead of an error', async () => {
+    test('a failed party load shows an error with Try again instead of the empty state, and retrying loads the parties', async () => {
         await show(HomeScreen, { myParties: failed });
         expect(screen.queryByText('No parties yet')).toBeNull();
-        showsFailure();
+        await retryLoads(expectLoadError("We couldn't load your parties"));
+        screen.getByText('Friday Crew');
     });
 
     test.skip('BUG: Join a party, Friends and Help have no button role, so they have no accessible name as buttons', async () => {
@@ -120,10 +139,20 @@ describe('Friends', () => {
         button('Block Bob Builder');
     });
 
-    test.skip('BUG: a failed friends load shows "No friends yet" instead of an error', async () => {
+    test('a failed friends load shows an error with Try again instead of the empty state, and retrying loads friends', async () => {
         await show(FriendsScreen, { getFriends: failed });
         expect(screen.queryByText('No friends yet')).toBeNull();
-        showsFailure();
+        await retryLoads(expectLoadError("We couldn't load your friends"));
+        screen.getByText('Bob Builder');
+    });
+
+    test('a failed requests load shows an error on the Requests tab instead of the empty state', async () => {
+        await show(FriendsScreen, { getPendingRequests: failed });
+        fireEvent.click(screen.getByText('Requests'));
+        await settle();
+        expect(screen.queryByText('No pending requests')).toBeNull();
+        await retryLoads(expectLoadError("We couldn't load your friend requests"));
+        screen.getByText('No pending requests');
     });
 
     test.skip('BUG: Find Friends and the Friends, Requests and Search tabs have no accessible role', async () => {
@@ -160,10 +189,33 @@ describe('PartyLobby', () => {
         expect(screen.queryByRole('button', { name: 'Start swiping' })).toBeNull();
     });
 
-    test.skip('BUG: a failed party load stays on "Loading..." forever with no error or retry', async () => {
+    test('a failed party load shows an error with Try again instead of loading forever, and retrying loads the party', async () => {
         await show(PartyLobbyScreen, { getParty: failed, getMembers: failed });
         expect(screen.queryAllByText('Loading...')).toHaveLength(0);
-        showsFailure();
+        await retryLoads(expectLoadError("We couldn't load this party"));
+        screen.getByText('Friday Crew');
+    });
+
+    test('a failed poll after the party loaded keeps the lobby on screen', async () => {
+        jest.useFakeTimers();
+        try {
+            global.__route = { params: { partyId: 'p1' } };
+            global.__api.reset(fx.routes(loaded));
+            mount(PartyLobbyScreen);
+            await act(async () => {
+                await jest.advanceTimersByTimeAsync(100);
+            });
+            screen.getByText('Friday Crew');
+            global.__api.reset(fx.routes({ ...loaded, getParty: failed, getMembers: failed }));
+            await act(async () => {
+                await jest.advanceTimersByTimeAsync(16_000);
+            });
+            expect(api.getParty).toHaveBeenCalled();
+            screen.getByText('Friday Crew');
+            expect(screen.queryByRole('alert')).toBeNull();
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     test.skip('BUG: the back arrow, Invite friends tab and join code share have no accessible role or name', async () => {
@@ -199,10 +251,11 @@ describe('Swipe', () => {
         expect(api.vote).toHaveBeenCalledWith('p1', 'l1', true);
     });
 
-    test.skip('BUG: a failed deck load shows "No spots in this area yet" instead of an error', async () => {
+    test('a failed deck load shows an error with Try again instead of the empty state, and retrying loads the deck', async () => {
         await show(SwipeScreen, { getLocations: failed });
         expect(screen.queryByText('No spots in this area yet')).toBeNull();
-        showsFailure();
+        await retryLoads(expectLoadError("We couldn't load the spots for this party"));
+        screen.getByText('Blue Bottle Cafe');
     });
 });
 
@@ -245,12 +298,13 @@ describe('Discover', () => {
         for (const tab of ['Home', 'Discover', 'Party', 'Calendar', 'Profile']) screen.getByRole('tab', { name: tab });
     });
 
-    test.skip('BUG: a failed venue load shows "No spots found nearby" instead of an error', async () => {
+    test('a failed venue load shows an error with Try again instead of the empty state, and retrying loads spots', async () => {
         at(45.0);
         await show(DiscoverScreen, { discoverVenues: failed });
         await screen.findByText(/Trending near you/);
         expect(screen.queryByText(/No spots found nearby/)).toBeNull();
-        showsFailure();
+        await retryLoads(expectLoadError("We couldn't load spots near you"));
+        expect(screen.getAllByText('Hudson Taproom').length).toBeGreaterThan(0);
     });
 
     test.skip('BUG: the Explore, Feed and Your Likes switch has no tab role', async () => {
@@ -277,9 +331,11 @@ describe('Profile', () => {
         screen.getByText('Sign out');
     });
 
-    test.skip('BUG: a failed profile load leaves every field on "Loading..." even though the signed-in profile is known', async () => {
+    test('a failed profile load shows an error with Try again instead of loading forever, and retrying loads the profile', async () => {
         await show(ProfileScreen, { me: failed });
         expect(screen.queryAllByText('Loading...')).toHaveLength(0);
+        await retryLoads(expectLoadError("We couldn't load your profile"));
+        screen.getByText('Alice Liddell');
     });
 
     test.skip('BUG: Sign out, Delete account and Edit photo have no button role', async () => {
@@ -316,9 +372,56 @@ describe('CalendarConfirmation', () => {
         expect(api.calendarExport).not.toHaveBeenCalled();
     });
 
-    test.skip('BUG: a failed load stays on "Loading..." with no error or retry', async () => {
+    test('when the server says Google is not connected, Add to Google Calendar falls back to connecting', async () => {
+        await show(CalendarConfirmationScreen, {
+            me: { ...fx.profile, google_calendar_connected: true },
+            calendarExport: new Error('user_not_connected_to_google'),
+            calendarOAuthStart: { url: 'https://accounts.google.com/o/oauth2' },
+        });
+        fireEvent.click(button('Add to Google Calendar'));
+        await settle();
+        expect(api.calendarExport).toHaveBeenCalledWith('p1');
+        expect(api.calendarOAuthStart).toHaveBeenCalledTimes(1);
+    });
+
+    test('a failed load shows an error with Try again instead of loading forever, and retrying loads the hangout', async () => {
         await show(CalendarConfirmationScreen, { getMatch: failed, getParty: failed, getMembers: failed, getDates: failed });
         expect(screen.queryAllByText('Loading...')).toHaveLength(0);
-        showsFailure();
+        await retryLoads(expectLoadError("We couldn't load your hangout details"));
+        screen.getByText('Blue Bottle Cafe');
     });
+});
+
+describe('slow loads', () => {
+    const SLOW = 'Taking longer than usual. The server may be waking up, which can take up to a minute.';
+    const cases = [
+        ['Home', HomeScreen, { myParties: never }],
+        ['Friends', FriendsScreen, { getFriends: never, getPendingRequests: never }],
+        ['PartyLobby', PartyLobbyScreen, { getParty: never, getMembers: never }],
+        ['Swipe', SwipeScreen, { getLocations: never }],
+        ['Discover', DiscoverScreen, { discoverVenues: never, discoverParties: never }],
+        ['Profile', ProfileScreen, { me: never }],
+        ['CalendarConfirmation', CalendarConfirmationScreen, { getMatch: never, getParty: never }],
+    ];
+
+    afterEach(() => jest.useRealTimers());
+
+    for (const [name, Screen, overrides] of cases) {
+        test(`${name} says it is taking longer than usual after 8 seconds of loading`, async () => {
+            getLiveLocation.mockResolvedValue({ ok: true, coords: { latitude: 47.0 + cases.findIndex((c) => c[0] === name), longitude: -74.03 } });
+            jest.useFakeTimers();
+            global.__route = { params: { partyId: 'p1' } };
+            global.__api.reset(fx.routes({ ...loaded, ...overrides }));
+            mount(Screen);
+            await act(async () => {
+                await jest.advanceTimersByTimeAsync(7_500);
+            });
+            expect(screen.queryByText(SLOW)).toBeNull();
+            expect(screen.getByRole('status').textContent).toBe('');
+            await act(async () => {
+                await jest.advanceTimersByTimeAsync(1_000);
+            });
+            expect(screen.getByRole('status').textContent).toBe(SLOW);
+        });
+    }
 });

@@ -22,6 +22,7 @@ const LOBBY_HELP: { title: string; description: string }[] = [
 import { api, MyLocation } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
 import LocationSourceCard from '../components/LocationSourceCard';
+import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { startGate } from '../services/locationChoice';
 import { supabase } from '../services/supabase';
 import { typography, radii } from '../theme';
@@ -37,6 +38,7 @@ export default function PartyLobbyScreen() {
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [party, setParty] = useState<any>(null);
+    const [loadError, setLoadError] = useState<unknown>(null);
     const codeCardRef = useRef<View>(null);
     const [members, setMembers] = useState<any[]>([]);
     const [me, setMe] = useState<string | null>(null);
@@ -47,12 +49,14 @@ export default function PartyLobbyScreen() {
     const [myLocation, setMyLocation] = useState<MyLocation | null>(null);
 
     const refresh = useCallback(async () => {
+        let partyError: unknown = null;
         try {
             const [p, ms, sess] = await Promise.all([
-                api.getParty(partyId).catch(() => null),
+                api.getParty(partyId).catch((e) => { partyError = e; return null; }),
                 api.getMembers(partyId).catch(() => null),
                 supabase.auth.getUser(),
             ]);
+            setLoadError(partyError);
             if (p?.party) setParty(p.party);
             if (p?.my_location) setMyLocation(p.my_location);
             if (ms) setMembers(ms);
@@ -140,8 +144,19 @@ export default function PartyLobbyScreen() {
                 </View>
 
                 <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
+                    {!party && loadError ? (
+                        <LoadError
+                            title="We couldn't load this party"
+                            error={loadError}
+                            onRetry={() => {
+                                setLoadError(null);
+                                refresh();
+                            }}
+                        />
+                    ) : (
                     <Animated.View entering={FadeInDown.duration(400)}>
                         <Text style={styles.title}>{party?.name ?? 'Loading...'}</Text>
+                        {!party && <SlowLoadNote loading />}
                         <Text style={styles.sub}>Status: {party?.status ?? '...'}</Text>
                         <Text style={[styles.sub, { marginTop: 2, color: colors.text40 }]}>
                             Swipe together — 10 spots, then pick the winner
@@ -288,6 +303,7 @@ export default function PartyLobbyScreen() {
                         </>
                         )}
                     </Animated.View>
+                    )}
                 </ScrollView>
             </SafeAreaView>
 

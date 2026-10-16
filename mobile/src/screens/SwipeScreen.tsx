@@ -17,6 +17,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from 'lucide-react-native';
 import { api, photoUri } from '../services/api';
 import { errorText } from '../components/dialogs';
+import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { deckProgress, sortDeck, turnLabel } from '../services/swipeDeck';
 import { supabase } from '../services/supabase';
 import HelpButton from '../components/HelpButton';
@@ -106,6 +107,7 @@ export default function SwipeScreen() {
     // For demo/legacy fallback: local index advancement
     const [localIndex, setLocalIndex] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<unknown>(null);
     const [noMatch, setNoMatch] = useState(false);
     const [resetting, setResetting] = useState(false);
     const [voteCounts, setVoteCounts] = useState<Record<string, number>>({});
@@ -169,9 +171,10 @@ export default function SwipeScreen() {
     }, [nav, partyId]);
 
     const load = useCallback(async () => {
+        let locationsError: unknown = null;
         try {
             const [locs, members, me, myVotes, partyData] = await Promise.all([
-                api.getLocations(partyId).catch(() => []),
+                api.getLocations(partyId).catch((e) => { locationsError = e; return null; }),
                 api.getMembers(partyId).catch(() => null),
                 api.me().catch(() => null),
                 isDemo ? Promise.resolve([]) : api.getMyVotes(partyId).catch(() => []),
@@ -179,6 +182,12 @@ export default function SwipeScreen() {
             ]);
 
             myUserIdRef.current = me?.id ?? null;
+
+            if (locationsError) {
+                if (venuesRef.current.length === 0) setLoadError(locationsError);
+                return;
+            }
+            setLoadError(null);
 
             const nextVenues = Array.isArray(locs) && locs.length > 0
                 ? sortDeck(locs as Venue[])
@@ -241,6 +250,12 @@ export default function SwipeScreen() {
     }, [partyId, isDemo, nav, setCurrentVoteState, goToProposal]);
 
     useEffect(() => { load(); }, [load]);
+
+    const retryLoad = useCallback(() => {
+        setLoadError(null);
+        setLoading(true);
+        load();
+    }, [load]);
     useEffect(() => {
         translateX.value = 0;
         translateY.value = 0;
@@ -574,8 +589,17 @@ export default function SwipeScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
+            <View style={[styles.root, { alignItems: 'center', justifyContent: 'center', padding: 32 }]}>
                 <Text style={{ color: colors.textPrimary }}>Loading venues...</Text>
+                <SlowLoadNote loading />
+            </View>
+        );
+    }
+
+    if (loadError && venues.length === 0) {
+        return (
+            <View style={[styles.root, { justifyContent: 'center', padding: 32 }]}>
+                <LoadError title="We couldn't load the spots for this party" error={loadError} onRetry={retryLoad} />
             </View>
         );
     }

@@ -15,6 +15,7 @@ import Animated, {
 import { Calendar as CalendarIcon, Clock, MapPin, Users, ArrowLeft } from 'lucide-react-native';
 import IconBadge from '../components/IconBadge';
 import GradientButton from '../components/GradientButton';
+import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { api } from '../services/api';
 import { errorText, showError, showInfo, toast } from '../components/dialogs';
 import { typography, spacing, radii } from '../theme';
@@ -48,6 +49,9 @@ export default function CalendarConfirmationScreen() {
     const [lockedDate, setLockedDate] = useState<string | null>(null);
     const [attendees, setAttendees] = useState<Attendee[]>([]);
     const [partyCode, setPartyCode] = useState<string | null>(null);
+    const [detailsLoaded, setDetailsLoaded] = useState(false);
+    const [loadError, setLoadError] = useState<unknown>(null);
+    const [loadAttempt, setLoadAttempt] = useState(0);
 
     const scale = useSharedValue(1);
     useEffect(() => {
@@ -77,12 +81,18 @@ export default function CalendarConfirmationScreen() {
         let cancelled = false;
         (async () => {
             try {
+                let failure: unknown = null;
                 const [matchData, partyData, members, me] = await Promise.all([
-                    api.getMatch(partyId).catch(() => null),
-                    api.getParty(partyId).catch(() => null),
+                    api.getMatch(partyId).catch((e) => { failure = e; return null; }),
+                    api.getParty(partyId).catch((e) => { failure = e; return null; }),
                     api.getMembers(partyId).catch(() => []),
                     api.me().catch(() => null),
                 ]);
+                if (cancelled) return;
+                if (failure) {
+                    setLoadError(failure);
+                    return;
+                }
 
                 if (!cancelled && matchData?.location) {
                     setVenue({ name: matchData.location.name, address: matchData.location.address });
@@ -108,12 +118,13 @@ export default function CalendarConfirmationScreen() {
                         }))
                     );
                 }
+                if (!cancelled) setDetailsLoaded(true);
             } catch (e: any) {
                 console.error('[calendar-confirm]', e);
             }
         })();
         return () => { cancelled = true; };
-    }, [partyId]);
+    }, [partyId, loadAttempt]);
 
     useEffect(() => {
         return () => {
@@ -307,7 +318,18 @@ export default function CalendarConfirmationScreen() {
                         <Text style={styles.subtitle}>Your hangout is locked in. See you there!</Text>
                     </Animated.View>
 
+                    {loadError && !detailsLoaded ? (
+                        <LoadError
+                            title="We couldn't load your hangout details"
+                            error={loadError}
+                            onRetry={() => {
+                                setLoadError(null);
+                                setLoadAttempt((n) => n + 1);
+                            }}
+                        />
+                    ) : (
                     <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.eventCard}>
+                        {partyId !== 'demo' && !detailsLoaded && <SlowLoadNote loading />}
                         <View style={styles.venueBlock}>
                             <Text style={styles.venueName}>{venue?.name ?? 'Loading...'}</Text>
                             {!!venue?.address && (
@@ -370,6 +392,7 @@ export default function CalendarConfirmationScreen() {
                             </View>
                         </View>
                     </Animated.View>
+                    )}
 
                     <Animated.View entering={FadeInDown.delay(400).duration(500)}>
                         <GradientButton

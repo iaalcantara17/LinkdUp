@@ -15,6 +15,7 @@ import { radii } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { listView } from '../hooks/listView';
+import { LoadError, SlowLoadNote } from '../components/LoadState';
 
 const FRIENDS_HELP: { title: string; description: string }[] = [
     { title: 'Friends tab', description: 'See everyone you\'ve accepted.' },
@@ -44,8 +45,10 @@ export default function FriendsScreen() {
     const [activeTab, setActiveTab] = useState<FriendTab>('friends');
     const [friends, setFriends] = useState<any[]>([]);
     const [loadingFriends, setLoadingFriends] = useState(true);
+    const [friendsError, setFriendsError] = useState<unknown>(null);
     const [pending, setPending] = useState<any[]>([]);
     const [loadingPending, setLoadingPending] = useState(true);
+    const [pendingError, setPendingError] = useState<unknown>(null);
     const [searchQ, setSearchQ] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searching, setSearching] = useState(false);
@@ -57,7 +60,10 @@ export default function FriendsScreen() {
         try {
             const data = await api.getFriends();
             setFriends(data ?? []);
-        } catch {}
+            setFriendsError(null);
+        } catch (e) {
+            setFriendsError(e);
+        }
         finally { setLoadingFriends(false); }
     }, []);
 
@@ -66,7 +72,10 @@ export default function FriendsScreen() {
         try {
             const data = await api.getPendingRequests();
             setPending(data ?? []);
-        } catch {}
+            setPendingError(null);
+        } catch (e) {
+            setPendingError(e);
+        }
         finally { setLoadingPending(false); }
     }, []);
 
@@ -179,8 +188,13 @@ export default function FriendsScreen() {
                 >
                     {activeTab === 'friends' && (
                         <>
-                            {friendsView === 'loading' ? (
-                                <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+                            {friendsError && friends.length === 0 && !loadingFriends ? (
+                                <LoadError title="We couldn't load your friends" error={friendsError} onRetry={loadFriends} />
+                            ) : friendsView === 'loading' ? (
+                                <>
+                                    <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+                                    <SlowLoadNote loading />
+                                </>
                             ) : friendsView === 'empty' ? (
                                 <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
                                     <Text style={{ fontSize: 48, marginBottom: 12 }}>👋</Text>
@@ -227,8 +241,13 @@ export default function FriendsScreen() {
 
                     {activeTab === 'requests' && (
                         <>
-                            {pendingView === 'loading' ? (
-                                <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+                            {pendingError && pending.length === 0 && !loadingPending ? (
+                                <LoadError title="We couldn't load your friend requests" error={pendingError} onRetry={loadPending} />
+                            ) : pendingView === 'loading' ? (
+                                <>
+                                    <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+                                    <SlowLoadNote loading />
+                                </>
                             ) : pendingView === 'empty' ? (
                                 <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
                                     <Text style={{ fontSize: 48, marginBottom: 12 }}>📭</Text>
