@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import axios from 'axios';
 import { mockSupabase, serve, realFetch, Call } from './supabaseMock';
 import { searchNearbyVenues, getVenuesWithRotation, geocodeCity } from '../src/services/places';
+import { nearbyKey, WRITE_LIMIT_PER_MIN } from '../src/services/googleCache';
 import photoRoutes from '../src/routes/photo';
 
 const HOUR = 3_600_000;
@@ -230,4 +231,96 @@ test('persisted photo URI lets a fresh process skip the Google media call', asyn
     } finally {
         server.close();
     }
+});
+
+for (const bad of [
+    { latitude: 95, longitude: 0 },
+    { latitude: 0, longitude: 181 },
+    { latitude: NaN, longitude: 0 },
+    { latitude: 0, longitude: Infinity },
+]) {
+    test(`invalid coordinates ${JSON.stringify(bad)} are rejected before Google or the cache`, async () => {
+        const calls = mockSupabase({});
+        const post = mock.method(axios, 'post', async () => ({ data: { places: [] } }));
+        await assert.rejects(searchNearbyVenues(bad), { status: 400, code: 'invalid_coordinates' });
+        await assert.rejects(getVenuesWithRotation({ center: bad }), { status: 400, code: 'invalid_coordinates' });
+        assert.equal(post.mock.callCount(), 0);
+        assert.equal(calls.length, 0);
+    });
+}
+
+test('discover load-more rejects out-of-range coordinates with 400', async () => {
+    mockSupabase({ tok: 'user-1' });
+    const post = mock.method(axios, 'post', async () => ({ data: { places: [] } }));
+    const { default: discoverRoutes } = await import('../src/routes/discover');
+    const { server, base } = await serve('/api/discover', discoverRoutes);
+    try {
+        const res = await realFetch(`${base}/api/discover/venues/more?lat=95&lng=0`, { headers: { authorization: 'Bearer tok' } });
+        assert.equal(res.status, 400);
+        assert.equal(post.mock.callCount(), 0);
+    } finally {
+        server.close();
+    }
+});
+
+test('nearby keys reject malformed types, radius and page', () => {
+    const c = { latitude: 1, longitude: 2 };
+    assert.throws(() => nearbyKey(c, 8000, ['cafe;drop'], 0));
+    assert.throws(() => nearbyKey(c, 8000, [], 0));
+    assert.throws(() => nearbyKey(c, 8500, ['cafe'], 0));
+    assert.throws(() => nearbyKey(c, 999_000, ['cafe'], 0));
+    assert.throws(() => nearbyKey(c, 8000, ['cafe'], -1));
+    assert.throws(() => nearbyKey(c, 8000, ['cafe'], 1.5));
+    assert.equal(nearbyKey(c, 8000, ['cafe', 'bar'], 3), '1.00,2.00|r8000|cafe,bar|p3');
+});
+
+test('overlong geocode query is rejected without calling Google', async () => {
+    mockSupabase({});
+    const get = mock.method(axios, 'get', async () => ({ data: { status: 'OK', results: [] } }));
+    await assert.rejects(geocodeCity('x'.repeat(201)), { status: 400, code: 'invalid_query' });
+    assert.equal(get.mock.callCount(), 0);
+});
+
+test('long photo names are stored under a short fixed-length key', async () => {
+    const posts: any[] = [];
+    mock.method(globalThis, 'fetch', async (input: any, init?: RequestInit) => {
+        const url = String(input);
+        if (url.startsWith('http://127.0.0.1')) return realFetch(input, init);
+        if (url.startsWith('http://localhost:54321/')) {
+            if (init?.method === 'POST') posts.push(JSON.parse(String(init.body)));
+            return Response.json([]);
+        }
+        if (url.startsWith('https://places.googleapis.com/')) return Response.json({ photoUri: 'https://lh3.googleusercontent.com/p/x' });
+        return new Response(Buffer.from([1]), { headers: { 'content-type': 'image/jpeg' } });
+    });
+    const { server, base } = await serve('/api/photo', photoRoutes);
+    try {
+        const name = `places/ChIJlong/photos/${'A'.repeat(1000)}`;
+        assert.equal((await fetch(`${base}/api/photo?name=${encodeURIComponent(name)}`)).status, 200);
+        assert.equal(posts.length, 1);
+        assert.match(posts[0].key, /^[0-9a-f]{64}$/);
+    } finally {
+        server.close();
+    }
+});
+
+test('oversized payloads are served but not written to the cache', async () => {
+    mock.method(console, 'error', () => {});
+    const calls = mockSupabase({});
+    const huge = Array.from({ length: 20 }, (_, i) => ({ ...googlePlace, id: `ChIJ${i}`, displayName: { text: 'x'.repeat(5000) } }));
+    mock.method(axios, 'post', async () => ({ data: { places: huge } }));
+    const venues = await searchNearbyVenues({ latitude: 10, longitude: 10 }, 8000, 20);
+    assert.equal(venues.length, 20);
+    assert.equal(writes(calls).length, 0);
+});
+
+test('cache writes are capped per minute', async () => {
+    mock.method(console, 'error', () => {});
+    const calls = mockSupabase({});
+    mock.method(axios, 'get', async () => ({
+        data: { status: 'OK', results: [{ formatted_address: 'Town', geometry: { location: { lat: 1, lng: 1 } } }] },
+    }));
+    for (let i = 0; i < WRITE_LIMIT_PER_MIN + 5; i++) await geocodeCity(`Town ${i}`);
+    assert.ok(writes(calls).length <= WRITE_LIMIT_PER_MIN);
+    assert.ok(writes(calls).length >= WRITE_LIMIT_PER_MIN - 10);
 });

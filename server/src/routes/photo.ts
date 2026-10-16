@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { config } from '../config';
-import { cached } from '../services/googleCache';
+import { cached, photoKey } from '../services/googleCache';
 import { venueLimitReached } from '../middleware/error';
 
 const router = Router();
@@ -63,7 +63,7 @@ async function fetchImage(uri: unknown, signal: AbortSignal): Promise<{ type: st
 
 async function fetchFromGoogle(name: string, width: number): Promise<{ type: string; body: Buffer }> {
     const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
-    const key = `${name}:${width}`;
+    const key = photoKey(name, width);
     const getUri = () => fetchPhotoUri(name, width, signal);
     const first = await cached('photo', key, getUri);
     try {

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { config } from '../config';
 import { LatLng } from './midpoint';
-import { isGoogleQuotaError, venueLimitReached } from '../middleware/error';
+import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
 import { cached, geocodeKey, gridCell, nearbyKey } from './googleCache';
 
 export interface PlaceCandidate {
@@ -207,6 +207,7 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
         ({ value: mapped, stale } = await cachedNearby(center, radiusMeters, rotationTypes, rotationSeed));
         console.log('[venues-rotation] venues available:', mapped.length);
     } catch (e: any) {
+        if (e instanceof HttpError) throw e;
         console.error('[venues-rotation] Places API error:', e?.response?.data ?? e?.message);
         if (isGoogleQuotaError(e)) return { venues: [], nextPageToken: null, newSeed: rotationSeed, exhausted: false, limited: true };
         return { venues: [], nextPageToken: null, newSeed: rotationSeed + 1, exhausted: rotationSeed + 1 >= ROTATION_COUNT };

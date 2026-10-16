@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { supabaseAdmin } from '../db';
 import { HttpError, isGoogleQuotaError } from '../middleware/error';
 
@@ -5,6 +6,11 @@ export type CacheKind = 'nearby' | 'geocode' | 'photo';
 
 const DAY_MS = 86_400_000;
 const TTL_MS: Record<CacheKind, number> = { nearby: DAY_MS, geocode: 30 * DAY_MS, photo: DAY_MS };
+export const WRITE_LIMIT_PER_MIN = 60;
+const MAX_KEY_CHARS = 512;
+const MAX_PAYLOAD_CHARS = 60_000;
+let writeWindowStart = 0;
+let writesInWindow = 0;
 
 type Row = { payload: unknown; fetched_at: string };
 
@@ -50,23 +56,50 @@ export async function cached<T>(
         if (row && isQuotaError(e)) return { value: row.payload as T, hit: true, stale: true };
         throw e;
     }
-    if (value != null) await writeRow(kind, key, value);
+    if (value != null && writeAllowed(key, value)) await writeRow(kind, key, value);
     return { value, hit: false, stale: false };
+}
+
+function writeAllowed(key: string, payload: unknown): boolean {
+    const now = Date.now();
+    if (now - writeWindowStart >= 60_000) {
+        writeWindowStart = now;
+        writesInWindow = 0;
+    }
+    if (writesInWindow >= WRITE_LIMIT_PER_MIN || key.length > MAX_KEY_CHARS || JSON.stringify(payload).length > MAX_PAYLOAD_CHARS) {
+        console.error('[google-cache] write skipped: limit reached or entry too large');
+        return false;
+    }
+    writesInWindow += 1;
+    return true;
 }
 
 function isQuotaError(e: unknown): boolean {
     return isGoogleQuotaError(e) || (e instanceof HttpError && e.code === 'venue_limit_reached');
 }
 
+const inRange = (n: number, max: number) => Number.isFinite(n) && Math.abs(n) <= max;
+
 export function gridCell(center: { latitude: number; longitude: number }) {
+    if (!inRange(center.latitude, 90) || !inRange(center.longitude, 180)) throw new HttpError(400, 'invalid_coordinates');
     return { latitude: Number(center.latitude.toFixed(2)), longitude: Number(center.longitude.toFixed(2)) };
 }
 
 export function nearbyKey(center: { latitude: number; longitude: number }, radiusMeters: number, types: string[], page: number | 'base'): string {
     const cell = gridCell(center);
+    const validRadius = Number.isInteger(radiusMeters / 1000) && radiusMeters >= 1000 && radiusMeters <= 50_000;
+    const validTypes = types.length >= 1 && types.length <= 30 && types.every((t) => /^[a-z_]{1,40}$/.test(t));
+    const validPage = page === 'base' || (Number.isInteger(page) && page >= 0 && page < 100);
+    if (!validRadius || !validTypes || !validPage) throw new HttpError(400, 'invalid_cache_key');
     return `${cell.latitude.toFixed(2)},${cell.longitude.toFixed(2)}|r${radiusMeters}|${types.join(',')}|p${page}`;
 }
 
 export function geocodeKey(query: string): string {
-    return query.toLowerCase().replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+    const key = query.toLowerCase().replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+    if (key.length < 1 || key.length > 200) throw new HttpError(400, 'invalid_query');
+    return key;
+}
+
+export function photoKey(name: string, width: number): string {
+    return createHash('sha256').update(`${name}:${width}`).digest('hex');
 }
