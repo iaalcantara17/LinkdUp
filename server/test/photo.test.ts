@@ -29,7 +29,6 @@ function mockGoogle(handler?: (url: string) => Response | Promise<Response>) {
     const calls: { url: string; init?: RequestInit }[] = [];
     mock.method(globalThis, 'fetch', async (input: any, init?: RequestInit) => {
         const url = String(input);
-        if (url.startsWith('http://localhost:54321/')) return Response.json([]);
         calls.push({ url, init });
         if (handler) return handler(url);
         if (url.startsWith('https://places.googleapis.com/')) {

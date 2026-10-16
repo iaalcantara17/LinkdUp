@@ -28,18 +28,52 @@ const INCLUDED_TYPES = [
     'night_club',
 ];
 
-const FIELD_MASK = [
-    'places.id',
-    'places.displayName',
-    'places.formattedAddress',
-    'places.location',
-    'places.rating',
-    'places.userRatingCount',
-    'places.priceLevel',
-    'places.photos',
-    'places.primaryType',
-    'places.types',
-].join(',');
+const PLACE_FIELDS = [
+    'id',
+    'displayName',
+    'formattedAddress',
+    'location',
+    'rating',
+    'userRatingCount',
+    'priceLevel',
+    'photos',
+    'primaryType',
+    'types',
+];
+const FIELD_MASK = PLACE_FIELDS.map((f) => `places.${f}`).join(',');
+const DETAILS_FIELD_MASK = PLACE_FIELDS.join(',');
+const PLACE_ID_RE = /^[A-Za-z0-9_-]{1,256}$/;
+
+function toCandidate(p: any): PlaceCandidate {
+    const photoName = p.photos?.[0]?.name as string | undefined;
+    return {
+        google_place_id: p.id,
+        name: p.displayName?.text ?? 'Unknown',
+        address: p.formattedAddress ?? '',
+        latitude: p.location?.latitude ?? 0,
+        longitude: p.location?.longitude ?? 0,
+        photo_url: photoName ? `/api/photo?name=${encodeURIComponent(photoName)}` : null,
+        rating: p.rating ?? null,
+        user_ratings_total: p.userRatingCount ?? null,
+        category: humanizeCategory(p.primaryType ?? null),
+        price_level: priceLevelToInt(p.priceLevel),
+    };
+}
+
+async function fetchDetails(id: string): Promise<PlaceCandidate | null> {
+    if (!PLACE_ID_RE.test(id)) return null;
+    try {
+        const res = await axios.get(`https://places.googleapis.com/v1/places/${id}`, {
+            headers: { 'X-Goog-Api-Key': config.google.mapsApiKey, 'X-Goog-FieldMask': DETAILS_FIELD_MASK },
+            timeout: 10_000,
+        });
+        return res.data?.id ? toCandidate(res.data) : null;
+    } catch (e: any) {
+        if (isGoogleQuotaError(e)) throw e;
+        console.error('[place-details] lookup failed:', e?.response?.status ?? e?.message);
+        return null;
+    }
+}
 
 async function fetchNearby(center: LatLng, radiusMeters: number, includedTypes: string[]): Promise<PlaceCandidate[]> {
     const body = {
@@ -71,27 +105,26 @@ async function fetchNearby(center: LatLng, radiusMeters: number, includedTypes: 
         }),
     );
 
-    return places.map((p: any) => {
-        const photoName = p.photos?.[0]?.name as string | undefined;
-        return {
-            google_place_id: p.id,
-            name: p.displayName?.text ?? 'Unknown',
-            address: p.formattedAddress ?? '',
-            latitude: p.location?.latitude ?? 0,
-            longitude: p.location?.longitude ?? 0,
-            photo_url: photoName ? `/api/photo?name=${encodeURIComponent(photoName)}` : null,
-            rating: p.rating ?? null,
-            user_ratings_total: p.userRatingCount ?? null,
-            category: humanizeCategory(p.primaryType ?? null),
-            price_level: priceLevelToInt(p.priceLevel),
-        };
-    });
+    return places.map(toCandidate);
 }
 
-async function cachedNearby(center: LatLng, radiusMeters: number, types: string[], page: number | 'base') {
+async function cachedNearby(
+    center: LatLng,
+    radiusMeters: number,
+    types: string[],
+    page: number | 'base',
+    pick: (ids: string[]) => string[],
+): Promise<{ venues: PlaceCandidate[]; stale: boolean }> {
     const cell = gridCell(center);
     const radius = Math.max(1, Math.round(radiusMeters / 1000)) * 1000;
-    return cached('nearby', nearbyKey(cell, radius, types, page), () => fetchNearby(cell, radius, types));
+    const fetched = new Map<string, PlaceCandidate>();
+    const { value, stale } = await cached('nearby', nearbyKey(cell, radius, types, page), async () => {
+        for (const v of await fetchNearby(cell, radius, types)) fetched.set(v.google_place_id, v);
+        return fetched.size ? { ids: [...fetched.keys()] } : null;
+    });
+    const ids = pick(value?.ids ?? []);
+    const details = await Promise.all(ids.map((id) => fetched.get(id) ?? fetchDetails(id)));
+    return { venues: details.filter((v): v is PlaceCandidate => v !== null), stale };
 }
 
 export async function searchNearbyVenues(
@@ -99,8 +132,7 @@ export async function searchNearbyVenues(
     radiusMeters = 5000,
     maxResults = 15,
 ): Promise<PlaceCandidate[] & { cached?: true }> {
-    const { value, stale } = await cachedNearby(center, radiusMeters, INCLUDED_TYPES, 'base');
-    const venues = value.slice(0, maxResults);
+    const { venues, stale } = await cachedNearby(center, radiusMeters, INCLUDED_TYPES, 'base', (ids) => ids.slice(0, maxResults));
     return stale ? Object.assign(venues, { cached: true as const }) : venues;
 }
 
@@ -201,11 +233,12 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
     const radiusMeters = Math.min(baseRadiusMeters + rotationSeed * 3000, 25_000);
     const rotationTypes = ROTATION_TYPES[rotationSeed];
 
-    let mapped: PlaceCandidate[];
+    let fresh: PlaceCandidate[];
     let stale = false;
     try {
-        ({ value: mapped, stale } = await cachedNearby(center, radiusMeters, rotationTypes, rotationSeed));
-        console.log('[venues-rotation] venues available:', mapped.length);
+        ({ venues: fresh, stale } = await cachedNearby(center, radiusMeters, rotationTypes, rotationSeed, (ids) =>
+            ids.filter((id) => !excludeIds.has(id)),
+        ));
     } catch (e: any) {
         if (e instanceof HttpError) throw e;
         console.error('[venues-rotation] Places API error:', e?.response?.data ?? e?.message);
@@ -213,7 +246,6 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
         return { venues: [], nextPageToken: null, newSeed: rotationSeed + 1, exhausted: rotationSeed + 1 >= ROTATION_COUNT };
     }
 
-    const fresh = mapped.filter((v) => !excludeIds.has(v.google_place_id));
     console.log('[venues-rotation] after dedup:', fresh.length);
 
     // New Places API has no next_page_token for searchNearby — always advance rotation
@@ -229,8 +261,19 @@ export const getNearbyVenues = getVenuesWithRotation;
 // Forward geocoding for the manual city fallback
 export async function geocodeCity(city: string, country?: string): Promise<(LatLng & { label: string; cached?: true }) | null> {
     const q = (country ? `${city}, ${country}` : city).trim();
-    const { value, stale } = await cached('geocode', geocodeKey(q), () => fetchGeocode(q));
+    const fetched: { place?: LatLng & { label: string } } = {};
+    const { value, stale } = await cached('geocode', geocodeKey(q), async () => {
+        const place = await fetchGeocode(q);
+        if (!place) return null;
+        fetched.place = place;
+        return { latitude: place.latitude, longitude: place.longitude, label: typedLabel(q) };
+    });
+    if (fetched.place) return fetched.place;
     return value && stale ? { ...value, cached: true } : value;
+}
+
+function typedLabel(q: string): string {
+    return q.replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim().slice(0, 120);
 }
 
 async function fetchGeocode(q: string): Promise<(LatLng & { label: string }) | null> {

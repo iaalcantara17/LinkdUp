@@ -1,16 +1,14 @@
-import { createHash } from 'node:crypto';
 import { supabaseAdmin } from '../db';
 import { HttpError, isGoogleQuotaError } from '../middleware/error';
 
-export type CacheKind = 'nearby' | 'geocode' | 'photo';
+export type CacheKind = 'nearby' | 'geocode';
 
-const DAY_MS = 86_400_000;
-const TTL_MS: Record<CacheKind, number> = { nearby: DAY_MS, geocode: 30 * DAY_MS, photo: DAY_MS };
+const HOUR_MS = 3_600_000;
+const TTL_MS: Record<CacheKind, number> = { nearby: 6 * HOUR_MS, geocode: 24 * HOUR_MS };
 export const WRITE_LIMIT_PER_MIN = 60;
 const MAX_KEY_CHARS = 512;
-const MAX_PAYLOAD_BYTES = 60_000;
 let writeWindowStart = 0;
-let writesInWindow: Record<CacheKind, number> = { nearby: 0, geocode: 0, photo: 0 };
+let writesInWindow: Record<CacheKind, number> = { nearby: 0, geocode: 0 };
 
 type Row = { payload: unknown; fetched_at: string };
 
@@ -56,19 +54,17 @@ export async function cached<T>(
         if (row && isQuotaError(e)) return { value: row.payload as T, hit: true, stale: true };
         throw e;
     }
-    const empty = value == null || (Array.isArray(value) && value.length === 0);
-    if (!empty && writeAllowed(kind, key, value)) await writeRow(kind, key, value);
+    if (value != null && writeAllowed(kind, key)) await writeRow(kind, key, value);
     return { value, hit: false, stale: false };
 }
 
-function writeAllowed(kind: CacheKind, key: string, payload: unknown): boolean {
+function writeAllowed(kind: CacheKind, key: string): boolean {
     const now = Date.now();
     if (now - writeWindowStart >= 60_000) {
         writeWindowStart = now;
-        writesInWindow = { nearby: 0, geocode: 0, photo: 0 };
+        writesInWindow = { nearby: 0, geocode: 0 };
     }
-    const tooBig = key.length > MAX_KEY_CHARS || Buffer.byteLength(JSON.stringify(payload)) > MAX_PAYLOAD_BYTES;
-    if (writesInWindow[kind] >= WRITE_LIMIT_PER_MIN || tooBig) {
+    if (writesInWindow[kind] >= WRITE_LIMIT_PER_MIN || key.length > MAX_KEY_CHARS) {
         console.error('[google-cache] write skipped: limit reached or entry too large');
         return false;
     }
@@ -100,8 +96,4 @@ export function geocodeKey(query: string): string {
     const key = query.toLowerCase().replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
     if (key.length < 1 || key.length > 200) throw new HttpError(400, 'invalid_query');
     return key;
-}
-
-export function photoKey(name: string, width: number): string {
-    return createHash('sha256').update(`${name}:${width}`).digest('hex');
 }

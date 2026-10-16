@@ -1,7 +1,5 @@
 import { Router } from 'express';
 import { config } from '../config';
-import { cached, photoKey } from '../services/googleCache';
-import { venueLimitReached } from '../middleware/error';
 
 const router = Router();
 
@@ -46,15 +44,13 @@ async function fetchPhotoUri(name: string, width: number): Promise<{ uri: string
         `https://places.googleapis.com/v1/${name}/media?maxWidthPx=${width}&skipHttpRedirect=true`,
         { headers: { 'X-Goog-Api-Key': config.google.mapsApiKey }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) },
     );
-    if (meta.status === 429) throw venueLimitReached();
     if (!meta.ok) throw new Error(`photo metadata status ${meta.status}`);
     const { photoUri } = (await meta.json()) as { photoUri?: unknown };
     if (typeof photoUri !== 'string' || !photoUri.startsWith('https://')) throw new Error('photo metadata missing photoUri');
     return { uri: photoUri };
 }
 
-async function fetchImage(uri: unknown): Promise<{ type: string; body: Buffer }> {
-    if (typeof uri !== 'string' || !uri.startsWith('https://')) throw new Error('invalid photo uri');
+async function fetchImage(uri: string): Promise<{ type: string; body: Buffer }> {
     const upstream = await fetch(uri, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS), redirect: 'follow' });
     const type = upstream.headers.get('content-type') ?? '';
     if (!upstream.ok || !type.startsWith('image/')) throw new Error(`photo status ${upstream.status}`);
@@ -62,15 +58,7 @@ async function fetchImage(uri: unknown): Promise<{ type: string; body: Buffer }>
 }
 
 async function fetchFromGoogle(name: string, width: number): Promise<{ type: string; body: Buffer }> {
-    const key = photoKey(name, width);
-    const getUri = () => fetchPhotoUri(name, width);
-    const first = await cached('photo', key, getUri);
-    try {
-        return await fetchImage(first.value.uri);
-    } catch (e) {
-        if (!first.hit) throw e;
-        return fetchImage((await cached('photo', key, getUri, true)).value.uri);
-    }
+    return fetchImage((await fetchPhotoUri(name, width)).uri);
 }
 
 function remember(key: string, entry: { type: string; body: Buffer }) {
