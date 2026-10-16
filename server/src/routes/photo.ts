@@ -13,9 +13,11 @@ const RATE_WINDOW_MS = 60_000;
 const CACHE_MAX_ENTRIES = 300;
 const CACHE_MAX_BYTES = 2 * 1024 * 1024;
 export const CACHE_TOTAL_BYTES = 24 * 1024 * 1024;
+const CACHE_TTL_MS = 60 * 60_000;
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
-const cache = new Map<string, { type: string; body: Buffer }>();
+type Photo = { type: string; body: Buffer };
+const cache = new Map<string, Photo & { expiresAt: number }>();
 let cachedBytes = 0;
 const hits = new Map<string, { count: number; resetAt: number }>();
 
@@ -61,7 +63,7 @@ async function fetchFromGoogle(name: string, width: number): Promise<{ type: str
     return fetchImage((await fetchPhotoUri(name, width)).uri);
 }
 
-function remember(key: string, entry: { type: string; body: Buffer }) {
+function remember(key: string, entry: Photo) {
     if (entry.body.length > CACHE_MAX_BYTES) return;
     const previous = cache.get(key);
     if (previous) {
@@ -73,7 +75,7 @@ function remember(key: string, entry: { type: string; body: Buffer }) {
         cachedBytes -= oldest.body.length;
         cache.delete(oldestKey);
     }
-    cache.set(key, entry);
+    cache.set(key, { ...entry, expiresAt: Date.now() + CACHE_TTL_MS });
     cachedBytes += entry.body.length;
 }
 
@@ -88,7 +90,8 @@ router.get('/', async (req, res) => {
         return;
     }
     const cacheKey = `${parsed.name}:${parsed.width}`;
-    let entry = cache.get(cacheKey);
+    const held = cache.get(cacheKey);
+    let entry: Photo | undefined = held && held.expiresAt > Date.now() ? held : undefined;
     if (!entry) {
         try {
             entry = await fetchFromGoogle(parsed.name, parsed.width);

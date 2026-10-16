@@ -181,6 +181,20 @@ test('concurrent fetches of the same photo do not inflate the memory byte count'
     assert.equal(calls.length, before);
 });
 
+test('memory-cached photos expire after one hour', async () => {
+    mock.timers.enable({ apis: ['Date'], now: Date.now() });
+    const calls = mockGoogle();
+    const qs = `name=${encodeURIComponent(newName())}`;
+    await (await get(qs)).arrayBuffer();
+    const first = calls.length;
+    mock.timers.tick(59 * 60_000);
+    await (await get(qs)).arrayBuffer();
+    assert.equal(calls.length, first);
+    mock.timers.tick(2 * 60_000);
+    await (await get(qs)).arrayBuffer();
+    assert.ok(calls.length > first);
+});
+
 test('per-IP rate limit returns 429', async () => {
     mockGoogle();
     let last: Response | undefined;
