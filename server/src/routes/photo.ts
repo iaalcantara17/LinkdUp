@@ -41,10 +41,10 @@ function parseQuery(query: Record<string, unknown>): { name: string; width: numb
     return { name, width: w === undefined ? DEFAULT_WIDTH : Math.min(Number(w), MAX_WIDTH) };
 }
 
-async function fetchPhotoUri(name: string, width: number, signal: AbortSignal): Promise<{ uri: string }> {
+async function fetchPhotoUri(name: string, width: number): Promise<{ uri: string }> {
     const meta = await fetch(
         `https://places.googleapis.com/v1/${name}/media?maxWidthPx=${width}&skipHttpRedirect=true`,
-        { headers: { 'X-Goog-Api-Key': config.google.mapsApiKey }, signal },
+        { headers: { 'X-Goog-Api-Key': config.google.mapsApiKey }, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) },
     );
     if (meta.status === 429) throw venueLimitReached();
     if (!meta.ok) throw new Error(`photo metadata status ${meta.status}`);
@@ -53,29 +53,33 @@ async function fetchPhotoUri(name: string, width: number, signal: AbortSignal): 
     return { uri: photoUri };
 }
 
-async function fetchImage(uri: unknown, signal: AbortSignal): Promise<{ type: string; body: Buffer }> {
+async function fetchImage(uri: unknown): Promise<{ type: string; body: Buffer }> {
     if (typeof uri !== 'string' || !uri.startsWith('https://')) throw new Error('invalid photo uri');
-    const upstream = await fetch(uri, { signal, redirect: 'follow' });
+    const upstream = await fetch(uri, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS), redirect: 'follow' });
     const type = upstream.headers.get('content-type') ?? '';
     if (!upstream.ok || !type.startsWith('image/')) throw new Error(`photo status ${upstream.status}`);
     return { type, body: Buffer.from(await upstream.arrayBuffer()) };
 }
 
 async function fetchFromGoogle(name: string, width: number): Promise<{ type: string; body: Buffer }> {
-    const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
     const key = photoKey(name, width);
-    const getUri = () => fetchPhotoUri(name, width, signal);
+    const getUri = () => fetchPhotoUri(name, width);
     const first = await cached('photo', key, getUri);
     try {
-        return await fetchImage(first.value.uri, signal);
+        return await fetchImage(first.value.uri);
     } catch (e) {
         if (!first.hit) throw e;
-        return fetchImage((await cached('photo', key, getUri, true)).value.uri, signal);
+        return fetchImage((await cached('photo', key, getUri, true)).value.uri);
     }
 }
 
 function remember(key: string, entry: { type: string; body: Buffer }) {
     if (entry.body.length > CACHE_MAX_BYTES) return;
+    const previous = cache.get(key);
+    if (previous) {
+        cachedBytes -= previous.body.length;
+        cache.delete(key);
+    }
     while (cache.size && (cache.size >= CACHE_MAX_ENTRIES || cachedBytes + entry.body.length > CACHE_TOTAL_BYTES)) {
         const [oldestKey, oldest] = cache.entries().next().value!;
         cachedBytes -= oldest.body.length;

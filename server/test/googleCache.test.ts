@@ -314,6 +314,22 @@ test('oversized payloads are served but not written to the cache', async () => {
     assert.equal(writes(calls).length, 0);
 });
 
+test('multibyte payloads over the byte cap are not written', async () => {
+    mock.method(console, 'error', () => {});
+    const calls = mockSupabase({});
+    const wide = Array.from({ length: 20 }, (_, i) => ({ ...googlePlace, id: `ChIJw${i}`, displayName: { text: 'é'.repeat(2000) } }));
+    mock.method(axios, 'post', async () => ({ data: { places: wide } }));
+    await searchNearbyVenues({ latitude: 11, longitude: 11 }, 8000, 20);
+    assert.equal(writes(calls).length, 0);
+});
+
+test('empty nearby results are not cached', async () => {
+    const calls = mockSupabase({});
+    mock.method(axios, 'post', async () => ({ data: { places: [] } }));
+    assert.deepEqual(await searchNearbyVenues({ latitude: 12, longitude: 12 }, 8000, 20), []);
+    assert.equal(writes(calls).length, 0);
+});
+
 test('cache writes are capped per minute', async () => {
     mock.method(console, 'error', () => {});
     const calls = mockSupabase({});
@@ -323,4 +339,7 @@ test('cache writes are capped per minute', async () => {
     for (let i = 0; i < WRITE_LIMIT_PER_MIN + 5; i++) await geocodeCity(`Town ${i}`);
     assert.ok(writes(calls).length <= WRITE_LIMIT_PER_MIN);
     assert.ok(writes(calls).length >= WRITE_LIMIT_PER_MIN - 10);
+    mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
+    await searchNearbyVenues({ latitude: 13, longitude: 13 }, 8000, 20);
+    assert.equal(writes(calls).filter((w) => w.body.kind === 'nearby').length, 1);
 });

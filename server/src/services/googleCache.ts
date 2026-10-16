@@ -8,9 +8,9 @@ const DAY_MS = 86_400_000;
 const TTL_MS: Record<CacheKind, number> = { nearby: DAY_MS, geocode: 30 * DAY_MS, photo: DAY_MS };
 export const WRITE_LIMIT_PER_MIN = 60;
 const MAX_KEY_CHARS = 512;
-const MAX_PAYLOAD_CHARS = 60_000;
+const MAX_PAYLOAD_BYTES = 60_000;
 let writeWindowStart = 0;
-let writesInWindow = 0;
+let writesInWindow: Record<CacheKind, number> = { nearby: 0, geocode: 0, photo: 0 };
 
 type Row = { payload: unknown; fetched_at: string };
 
@@ -56,21 +56,23 @@ export async function cached<T>(
         if (row && isQuotaError(e)) return { value: row.payload as T, hit: true, stale: true };
         throw e;
     }
-    if (value != null && writeAllowed(key, value)) await writeRow(kind, key, value);
+    const empty = value == null || (Array.isArray(value) && value.length === 0);
+    if (!empty && writeAllowed(kind, key, value)) await writeRow(kind, key, value);
     return { value, hit: false, stale: false };
 }
 
-function writeAllowed(key: string, payload: unknown): boolean {
+function writeAllowed(kind: CacheKind, key: string, payload: unknown): boolean {
     const now = Date.now();
     if (now - writeWindowStart >= 60_000) {
         writeWindowStart = now;
-        writesInWindow = 0;
+        writesInWindow = { nearby: 0, geocode: 0, photo: 0 };
     }
-    if (writesInWindow >= WRITE_LIMIT_PER_MIN || key.length > MAX_KEY_CHARS || JSON.stringify(payload).length > MAX_PAYLOAD_CHARS) {
+    const tooBig = key.length > MAX_KEY_CHARS || Buffer.byteLength(JSON.stringify(payload)) > MAX_PAYLOAD_BYTES;
+    if (writesInWindow[kind] >= WRITE_LIMIT_PER_MIN || tooBig) {
         console.error('[google-cache] write skipped: limit reached or entry too large');
         return false;
     }
-    writesInWindow += 1;
+    writesInWindow[kind] += 1;
     return true;
 }
 

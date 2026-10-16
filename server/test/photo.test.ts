@@ -162,6 +162,26 @@ test('memory cache evicts oldest photos once total bytes exceed the cap', async 
     assert.equal(calls.length, lastBefore);
 });
 
+test('concurrent fetches of the same photo do not inflate the memory byte count', async () => {
+    const big = Buffer.alloc(1.5 * 1024 * 1024, 8);
+    let release!: () => void;
+    const bothInFlight = new Promise<void>((r) => (release = r));
+    let metaCalls = 0;
+    const calls = mockGoogle(async (url) => {
+        if (!url.startsWith('https://places.googleapis.com/')) return new Response(big, { headers: { 'content-type': 'image/jpeg' } });
+        if (++metaCalls === 2) release();
+        if (metaCalls <= 2) await Promise.race([bothInFlight, new Promise((r) => setTimeout(r, 2000))]);
+        return Response.json({ photoUri: `https://lh3.googleusercontent.com/p/${encodeURIComponent(url)}` });
+    });
+    const dup = `name=${encodeURIComponent(newName())}`;
+    await Promise.all([get(dup), get(dup)].map(async (p) => (await p).arrayBuffer()));
+    assert.equal(metaCalls, 2);
+    for (let i = 1; i < CACHE_TOTAL_BYTES / big.length; i++) await (await get(`name=${encodeURIComponent(newName())}`)).arrayBuffer();
+    const before = calls.length;
+    await (await get(dup)).arrayBuffer();
+    assert.equal(calls.length, before);
+});
+
 test('per-IP rate limit returns 429', async () => {
     mockGoogle();
     let last: Response | undefined;
