@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import express from 'express';
-import photoRoutes, { MAX_WIDTH, RATE_LIMIT } from '../src/routes/photo';
+import photoRoutes, { CACHE_TOTAL_BYTES, MAX_WIDTH, RATE_LIMIT } from '../src/routes/photo';
 
 const KEY = process.env.GOOGLE_MAPS_API_KEY!;
 const realFetch = globalThis.fetch;
@@ -29,6 +29,7 @@ function mockGoogle(handler?: (url: string) => Response | Promise<Response>) {
     const calls: { url: string; init?: RequestInit }[] = [];
     mock.method(globalThis, 'fetch', async (input: any, init?: RequestInit) => {
         const url = String(input);
+        if (url.startsWith('http://localhost:54321/')) return Response.json([]);
         calls.push({ url, init });
         if (handler) return handler(url);
         if (url.startsWith('https://places.googleapis.com/')) {
@@ -142,6 +143,23 @@ test('the key is sent to Google only, never to the image host', async () => {
     assert.ok(imageCall);
     assert.ok(!imageCall.url.includes(KEY));
     assert.ok(!JSON.stringify(imageCall.init ?? {}).includes(KEY));
+});
+
+test('memory cache evicts oldest photos once total bytes exceed the cap', async () => {
+    const big = Buffer.alloc(1.5 * 1024 * 1024, 7);
+    const calls = mockGoogle((url) =>
+        url.startsWith('https://places.googleapis.com/')
+            ? Response.json({ photoUri: `https://lh3.googleusercontent.com/p/${encodeURIComponent(url)}` })
+            : new Response(big, { headers: { 'content-type': 'image/jpeg' } }),
+    );
+    const names = Array.from({ length: Math.ceil(CACHE_TOTAL_BYTES / big.length) + 1 }, newName);
+    for (const n of names) await (await get(`name=${encodeURIComponent(n)}`)).arrayBuffer();
+    const before = calls.length;
+    await (await get(`name=${encodeURIComponent(names[0])}`)).arrayBuffer();
+    assert.ok(calls.length > before);
+    const lastBefore = calls.length;
+    await (await get(`name=${encodeURIComponent(names.at(-1)!)}`)).arrayBuffer();
+    assert.equal(calls.length, lastBefore);
 });
 
 test('per-IP rate limit returns 429', async () => {

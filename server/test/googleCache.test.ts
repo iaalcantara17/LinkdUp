@@ -1,0 +1,141 @@
+import './env';
+import { test, mock, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
+import axios from 'axios';
+import { mockSupabase, serve, realFetch, Call } from './supabaseMock';
+import { searchNearbyVenues, getVenuesWithRotation, geocodeCity } from '../src/services/places';
+import photoRoutes from '../src/routes/photo';
+
+const HOUR = 3_600_000;
+const exact = { latitude: 40.712776, longitude: -74.005974 };
+const venue = {
+    google_place_id: 'ChIJcached', name: 'Cached Cafe', address: '1 Main St',
+    latitude: 40.71, longitude: -74.0, photo_url: null, rating: 4.5,
+    user_ratings_total: 10, category: 'Cafe', price_level: 1,
+};
+const googlePlace = { id: 'ChIJfresh', displayName: { text: 'Fresh Cafe' }, primaryType: 'cafe', types: ['cafe'] };
+const row = (payload: unknown, ageMs = 0) => [{ payload, fetched_at: new Date(Date.now() - ageMs).toISOString() }];
+const isRead = (c: Call, kind: string) => c.table === 'google_cache' && c.method === 'GET' && c.url.searchParams.get('kind') === `eq.${kind}`;
+const writes = (calls: Call[]) => calls.filter((c) => c.table === 'google_cache' && c.method === 'POST');
+
+afterEach(() => mock.restoreAll());
+
+test('nearby cache hit avoids the Google call', async () => {
+    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row([venue], HOUR) : []));
+    const post = mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
+    const venues = await searchNearbyVenues(exact, 8000, 20);
+    assert.equal(post.mock.callCount(), 0);
+    assert.equal(venues[0].google_place_id, 'ChIJcached');
+});
+
+test('rotation cache hit avoids the Google call and still applies excludes', async () => {
+    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row([venue, { ...venue, google_place_id: 'ChIJother' }]) : []));
+    const post = mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
+    const r = await getVenuesWithRotation({ center: exact, rotationSeed: 1, excludeIds: new Set(['ChIJcached']) });
+    assert.equal(post.mock.callCount(), 0);
+    assert.deepEqual(r.venues.map((v) => v.google_place_id), ['ChIJother']);
+    assert.equal(r.newSeed, 2);
+});
+
+test('nearby miss calls Google once and stores the result', async () => {
+    const calls = mockSupabase({});
+    const post = mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
+    const venues = await searchNearbyVenues(exact, 8000, 20);
+    assert.equal(post.mock.callCount(), 1);
+    assert.equal(venues[0].google_place_id, 'ChIJfresh');
+    const [w] = writes(calls);
+    assert.equal(w.body.kind, 'nearby');
+    assert.equal(w.body.payload[0].google_place_id, 'ChIJfresh');
+    assert.equal(w.url.searchParams.get('on_conflict'), 'kind,key');
+});
+
+test('expired nearby entry refreshes from Google', async () => {
+    const calls = mockSupabase({}, (c) => (isRead(c, 'nearby') ? row([venue], 25 * HOUR) : []));
+    const post = mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
+    const venues = await searchNearbyVenues(exact, 8000, 20);
+    assert.equal(post.mock.callCount(), 1);
+    assert.equal(venues[0].google_place_id, 'ChIJfresh');
+    assert.equal(writes(calls).length, 1);
+});
+
+test('no exact coordinates reach the cache key or the cache table', async () => {
+    const calls = mockSupabase({});
+    mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
+    await searchNearbyVenues(exact, 8000, 20);
+    await getVenuesWithRotation({ center: exact, rotationSeed: 0 });
+    const cacheCalls = calls.filter((c) => c.table === 'google_cache');
+    assert.ok(cacheCalls.length >= 4);
+    for (const c of cacheCalls) {
+        const seen = decodeURIComponent(c.url.search) + JSON.stringify(c.body ?? {});
+        assert.ok(!seen.includes('40.712776') && !seen.includes('74.005974'), seen);
+        assert.ok(!/user_?id/i.test(seen));
+    }
+    for (const w of writes(calls)) assert.match(w.body.key, /^40\.71,-74\.01\|/);
+});
+
+test('venues returned for a grid cell are fetched around the rounded center', async () => {
+    mockSupabase({});
+    const post = mock.method(axios, 'post', async () => ({ data: { places: [] } }));
+    await searchNearbyVenues(exact, 8000, 20);
+    const body = post.mock.calls[0].arguments[1] as any;
+    assert.deepEqual(body.locationRestriction.circle.center, { latitude: 40.71, longitude: -74.01 });
+});
+
+test('geocode cache hit avoids the Google call using a normalized query', async () => {
+    mockSupabase({}, (c) =>
+        isRead(c, 'geocode') && c.url.searchParams.get('key') === 'eq.paris, france'
+            ? row({ latitude: 48.85, longitude: 2.35, label: 'Paris, France' }, 20 * 24 * HOUR)
+            : [],
+    );
+    const get = mock.method(axios, 'get', async () => ({ data: { status: 'OK', results: [] } }));
+    const place = await geocodeCity('  PARIS ', ' France');
+    assert.equal(get.mock.callCount(), 0);
+    assert.equal(place?.label, 'Paris, France');
+});
+
+test('geocode miss calls Google once and stores the result', async () => {
+    const calls = mockSupabase({});
+    const get = mock.method(axios, 'get', async () => ({
+        data: { status: 'OK', results: [{ formatted_address: 'Austin, TX, USA', geometry: { location: { lat: 30.27, lng: -97.74 } } }] },
+    }));
+    const place = await geocodeCity('Austin');
+    assert.equal(get.mock.callCount(), 1);
+    assert.equal(place?.label, 'Austin, TX, USA');
+    const [w] = writes(calls);
+    assert.equal(w.body.kind, 'geocode');
+    assert.equal(w.body.key, 'austin');
+});
+
+test('expired geocode entry refreshes from Google', async () => {
+    mockSupabase({}, (c) => (isRead(c, 'geocode') ? row({ latitude: 1, longitude: 1, label: 'Old' }, 31 * 24 * HOUR) : []));
+    const get = mock.method(axios, 'get', async () => ({
+        data: { status: 'OK', results: [{ formatted_address: 'New', geometry: { location: { lat: 2, lng: 2 } } }] },
+    }));
+    const place = await geocodeCity('Somewhere');
+    assert.equal(get.mock.callCount(), 1);
+    assert.equal(place?.label, 'New');
+});
+
+test('persisted photo URI lets a fresh process skip the Google media call', async () => {
+    const urls: string[] = [];
+    mock.method(globalThis, 'fetch', async (input: any, init?: RequestInit) => {
+        const url = String(input);
+        if (url.startsWith('http://127.0.0.1')) return realFetch(input, init);
+        urls.push(url);
+        if (url.startsWith('http://localhost:54321/rest/v1/google_cache')) {
+            return Response.json(init?.method === 'POST' ? [] : row({ uri: 'https://lh3.googleusercontent.com/p/cached' }));
+        }
+        if (url.startsWith('https://lh3.googleusercontent.com/p/cached')) {
+            return new Response(Buffer.from([1, 2, 3]), { headers: { 'content-type': 'image/jpeg' } });
+        }
+        return new Response('unexpected', { status: 500 });
+    });
+    const { server, base } = await serve('/api/photo', photoRoutes);
+    try {
+        const res = await fetch(`${base}/api/photo?name=${encodeURIComponent('places/ChIJdb/photos/AeYdb')}`);
+        assert.equal(res.status, 200);
+        assert.ok(!urls.some((u) => u.startsWith('https://places.googleapis.com/')), urls.join('\n'));
+    } finally {
+        server.close();
+    }
+});

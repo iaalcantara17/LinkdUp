@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { config } from '../config';
+import { cached } from '../services/googleCache';
 
 const router = Router();
 
@@ -12,9 +13,11 @@ export const RATE_LIMIT = 120;
 const RATE_WINDOW_MS = 60_000;
 const CACHE_MAX_ENTRIES = 300;
 const CACHE_MAX_BYTES = 2 * 1024 * 1024;
+export const CACHE_TOTAL_BYTES = 24 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
 const cache = new Map<string, { type: string; body: Buffer }>();
+let cachedBytes = 0;
 const hits = new Map<string, { count: number; resetAt: number }>();
 
 function rateLimited(ip: string): boolean {
@@ -37,8 +40,7 @@ function parseQuery(query: Record<string, unknown>): { name: string; width: numb
     return { name, width: w === undefined ? DEFAULT_WIDTH : Math.min(Number(w), MAX_WIDTH) };
 }
 
-async function fetchFromGoogle(name: string, width: number): Promise<Response> {
-    const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
+async function fetchPhotoUri(name: string, width: number, signal: AbortSignal): Promise<{ uri: string }> {
     const meta = await fetch(
         `https://places.googleapis.com/v1/${name}/media?maxWidthPx=${width}&skipHttpRedirect=true`,
         { headers: { 'X-Goog-Api-Key': config.google.mapsApiKey }, signal },
@@ -46,7 +48,39 @@ async function fetchFromGoogle(name: string, width: number): Promise<Response> {
     if (!meta.ok) throw new Error(`photo metadata status ${meta.status}`);
     const { photoUri } = (await meta.json()) as { photoUri?: unknown };
     if (typeof photoUri !== 'string' || !photoUri.startsWith('https://')) throw new Error('photo metadata missing photoUri');
-    return fetch(photoUri, { signal, redirect: 'follow' });
+    return { uri: photoUri };
+}
+
+async function fetchImage(uri: unknown, signal: AbortSignal): Promise<{ type: string; body: Buffer }> {
+    if (typeof uri !== 'string' || !uri.startsWith('https://')) throw new Error('invalid photo uri');
+    const upstream = await fetch(uri, { signal, redirect: 'follow' });
+    const type = upstream.headers.get('content-type') ?? '';
+    if (!upstream.ok || !type.startsWith('image/')) throw new Error(`photo status ${upstream.status}`);
+    return { type, body: Buffer.from(await upstream.arrayBuffer()) };
+}
+
+async function fetchFromGoogle(name: string, width: number): Promise<{ type: string; body: Buffer }> {
+    const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
+    const key = `${name}:${width}`;
+    const getUri = () => fetchPhotoUri(name, width, signal);
+    const first = await cached('photo', key, getUri);
+    try {
+        return await fetchImage(first.value.uri, signal);
+    } catch (e) {
+        if (!first.hit) throw e;
+        return fetchImage((await cached('photo', key, getUri, true)).value.uri, signal);
+    }
+}
+
+function remember(key: string, entry: { type: string; body: Buffer }) {
+    if (entry.body.length > CACHE_MAX_BYTES) return;
+    while (cache.size && (cache.size >= CACHE_MAX_ENTRIES || cachedBytes + entry.body.length > CACHE_TOTAL_BYTES)) {
+        const [oldestKey, oldest] = cache.entries().next().value!;
+        cachedBytes -= oldest.body.length;
+        cache.delete(oldestKey);
+    }
+    cache.set(key, entry);
+    cachedBytes += entry.body.length;
 }
 
 router.get('/', async (req, res) => {
@@ -63,19 +97,13 @@ router.get('/', async (req, res) => {
     let entry = cache.get(cacheKey);
     if (!entry) {
         try {
-            const upstream = await fetchFromGoogle(parsed.name, parsed.width);
-            const type = upstream.headers.get('content-type') ?? '';
-            if (!upstream.ok || !type.startsWith('image/')) throw new Error(`photo status ${upstream.status}`);
-            entry = { type, body: Buffer.from(await upstream.arrayBuffer()) };
+            entry = await fetchFromGoogle(parsed.name, parsed.width);
         } catch (e: any) {
             console.error('[photo] upstream failed:', String(e?.message ?? e).split(config.google.mapsApiKey).join('[redacted]'));
             res.status(502).json({ error: 'photo_unavailable' });
             return;
         }
-        if (entry.body.length <= CACHE_MAX_BYTES) {
-            if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value!);
-            cache.set(cacheKey, entry);
-        }
+        remember(cacheKey, entry);
     }
     res.set({
         'Content-Type': entry.type,
