@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../db';
+import { HttpError, isGoogleQuotaError } from '../middleware/error';
 
 export type CacheKind = 'nearby' | 'geocode' | 'photo';
 
@@ -39,12 +40,22 @@ export async function cached<T>(
     key: string,
     fetcher: () => Promise<T>,
     force = false,
-): Promise<{ value: T; hit: boolean }> {
+): Promise<{ value: T; hit: boolean; stale: boolean }> {
     const row = force ? null : await readRow(kind, key);
-    if (row && Date.now() - Date.parse(row.fetched_at) < TTL_MS[kind]) return { value: row.payload as T, hit: true };
-    const value = await fetcher();
+    if (row && Date.now() - Date.parse(row.fetched_at) < TTL_MS[kind]) return { value: row.payload as T, hit: true, stale: false };
+    let value: T;
+    try {
+        value = await fetcher();
+    } catch (e) {
+        if (row && isQuotaError(e)) return { value: row.payload as T, hit: true, stale: true };
+        throw e;
+    }
     if (value != null) await writeRow(kind, key, value);
-    return { value, hit: false };
+    return { value, hit: false, stale: false };
+}
+
+function isQuotaError(e: unknown): boolean {
+    return isGoogleQuotaError(e) || (e instanceof HttpError && e.code === 'venue_limit_reached');
 }
 
 export function gridCell(center: { latitude: number; longitude: number }) {

@@ -94,9 +94,14 @@ async function cachedNearby(center: LatLng, radiusMeters: number, types: string[
     return cached('nearby', nearbyKey(cell, radius, types, page), () => fetchNearby(cell, radius, types));
 }
 
-export async function searchNearbyVenues(center: LatLng, radiusMeters = 5000, maxResults = 15): Promise<PlaceCandidate[]> {
-    const { value } = await cachedNearby(center, radiusMeters, INCLUDED_TYPES, 'base');
-    return value.slice(0, maxResults);
+export async function searchNearbyVenues(
+    center: LatLng,
+    radiusMeters = 5000,
+    maxResults = 15,
+): Promise<PlaceCandidate[] & { cached?: true }> {
+    const { value, stale } = await cachedNearby(center, radiusMeters, INCLUDED_TYPES, 'base');
+    const venues = value.slice(0, maxResults);
+    return stale ? Object.assign(venues, { cached: true as const }) : venues;
 }
 
 function humanizeCategory(t: string | null): string | null {
@@ -178,6 +183,7 @@ export interface VenueRotationResult {
     newSeed: number;
     exhausted: boolean;
     limited?: boolean;
+    cached?: true;
 }
 
 export async function getVenuesWithRotation(params: VenueRotationParams): Promise<VenueRotationResult> {
@@ -196,8 +202,9 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
     const rotationTypes = ROTATION_TYPES[rotationSeed];
 
     let mapped: PlaceCandidate[];
+    let stale = false;
     try {
-        mapped = (await cachedNearby(center, radiusMeters, rotationTypes, rotationSeed)).value;
+        ({ value: mapped, stale } = await cachedNearby(center, radiusMeters, rotationTypes, rotationSeed));
         console.log('[venues-rotation] venues available:', mapped.length);
     } catch (e: any) {
         console.error('[venues-rotation] Places API error:', e?.response?.data ?? e?.message);
@@ -212,16 +219,17 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
     const newSeed = rotationSeed + 1;
     const exhausted = newSeed >= ROTATION_COUNT && fresh.length === 0;
 
-    return { venues: fresh, nextPageToken: null, newSeed, exhausted };
+    return { venues: fresh, nextPageToken: null, newSeed, exhausted, ...(stale && { cached: true as const }) };
 }
 
 /** Alias — shared venue pool helper for party + discover load-more. */
 export const getNearbyVenues = getVenuesWithRotation;
 
 // Forward geocoding for the manual city fallback
-export async function geocodeCity(city: string, country?: string): Promise<(LatLng & { label: string }) | null> {
+export async function geocodeCity(city: string, country?: string): Promise<(LatLng & { label: string; cached?: true }) | null> {
     const q = (country ? `${city}, ${country}` : city).trim();
-    return (await cached('geocode', geocodeKey(q), () => fetchGeocode(q))).value;
+    const { value, stale } = await cached('geocode', geocodeKey(q), () => fetchGeocode(q));
+    return value && stale ? { ...value, cached: true } : value;
 }
 
 async function fetchGeocode(q: string): Promise<(LatLng & { label: string }) | null> {

@@ -116,6 +116,98 @@ test('expired geocode entry refreshes from Google', async () => {
     assert.equal(place?.label, 'New');
 });
 
+const quotaError = (url: string) =>
+    Object.assign(new Error('quota'), { config: { url }, response: { status: 429, data: { error: { status: 'RESOURCE_EXHAUSTED' } } } });
+const nearbyQuota = async () => {
+    throw quotaError('https://places.googleapis.com/v1/places:searchNearby');
+};
+
+test('nearby quota error serves the stale cached result and flags it', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row([venue], 3 * 24 * HOUR) : []));
+    mock.method(axios, 'post', nearbyQuota);
+    const venues = await searchNearbyVenues(exact, 8000, 20);
+    assert.equal(venues[0].google_place_id, 'ChIJcached');
+    assert.equal(venues.cached, true);
+});
+
+test('nearby quota error with no cache still raises the limit error', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({});
+    mock.method(axios, 'post', nearbyQuota);
+    await assert.rejects(searchNearbyVenues(exact, 8000, 20), (e: any) => e?.response?.status === 429);
+});
+
+test('rotation quota error serves stale venues instead of the limit flag', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row([venue], 3 * 24 * HOUR) : []));
+    mock.method(axios, 'post', nearbyQuota);
+    const r = await getVenuesWithRotation({ center: exact, rotationSeed: 2 });
+    assert.equal(r.limited, undefined);
+    assert.equal(r.cached, true);
+    assert.equal(r.venues[0].google_place_id, 'ChIJcached');
+    assert.equal(r.newSeed, 3);
+});
+
+test('rotation quota error with no cache keeps the limit flag', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({});
+    mock.method(axios, 'post', nearbyQuota);
+    const r = await getVenuesWithRotation({ center: exact, rotationSeed: 2 });
+    assert.equal(r.limited, true);
+});
+
+test('geocode quota error serves the stale cached place and flags it', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({}, (c) => (isRead(c, 'geocode') ? row({ latitude: 1, longitude: 2, label: 'Old Town' }, 40 * 24 * HOUR) : []));
+    mock.method(axios, 'get', async () => ({ data: { status: 'OVER_QUERY_LIMIT', results: [] } }));
+    const place = await geocodeCity('Old Town');
+    assert.deepEqual(place, { latitude: 1, longitude: 2, label: 'Old Town', cached: true });
+});
+
+test('discover load-more says the venues are cached when Google is over quota', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({ tok: 'user-1' }, (c) => (isRead(c, 'nearby') ? row([venue], 3 * 24 * HOUR) : []));
+    mock.method(axios, 'post', nearbyQuota);
+    const { default: discoverRoutes } = await import('../src/routes/discover');
+    const { server, base } = await serve('/api/discover', discoverRoutes);
+    try {
+        const qs = `lat=${exact.latitude}&lng=${exact.longitude}`;
+        const more = await realFetch(`${base}/api/discover/venues/more?${qs}`, { headers: { authorization: 'Bearer tok' } });
+        assert.equal(more.status, 200);
+        assert.equal(more.headers.get('x-venue-cache'), 'stale');
+        assert.equal((await more.json()).cached, true);
+        const first = await realFetch(`${base}/api/discover/venues?${qs}`, { headers: { authorization: 'Bearer tok' } });
+        assert.equal(first.status, 200);
+        assert.equal(first.headers.get('x-venue-cache'), 'stale');
+    } finally {
+        server.close();
+    }
+});
+
+test('stale photo URI is used when the Google media call is over quota', async () => {
+    mock.method(console, 'error', () => {});
+    const urls: string[] = [];
+    mock.method(globalThis, 'fetch', async (input: any, init?: RequestInit) => {
+        const url = String(input);
+        if (url.startsWith('http://127.0.0.1')) return realFetch(input, init);
+        urls.push(url);
+        if (url.startsWith('http://localhost:54321/rest/v1/google_cache')) {
+            return Response.json(init?.method === 'POST' ? [] : row({ uri: 'https://lh3.googleusercontent.com/p/old' }, 3 * 24 * HOUR));
+        }
+        if (url.startsWith('https://places.googleapis.com/')) return Response.json({ error: { status: 'RESOURCE_EXHAUSTED' } }, { status: 429 });
+        return new Response(Buffer.from([9, 9]), { headers: { 'content-type': 'image/jpeg' } });
+    });
+    const { server, base } = await serve('/api/photo', photoRoutes);
+    try {
+        const res = await fetch(`${base}/api/photo?name=${encodeURIComponent('places/ChIJstale/photos/AeYstale')}`);
+        assert.equal(res.status, 200);
+        assert.ok(urls.includes('https://lh3.googleusercontent.com/p/old'));
+    } finally {
+        server.close();
+    }
+});
+
 test('persisted photo URI lets a fresh process skip the Google media call', async () => {
     const urls: string[] = [];
     mock.method(globalThis, 'fetch', async (input: any, init?: RequestInit) => {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { config } from '../config';
 import { cached } from '../services/googleCache';
+import { venueLimitReached } from '../middleware/error';
 
 const router = Router();
 
@@ -45,6 +46,7 @@ async function fetchPhotoUri(name: string, width: number, signal: AbortSignal): 
         `https://places.googleapis.com/v1/${name}/media?maxWidthPx=${width}&skipHttpRedirect=true`,
         { headers: { 'X-Goog-Api-Key': config.google.mapsApiKey }, signal },
     );
+    if (meta.status === 429) throw venueLimitReached();
     if (!meta.ok) throw new Error(`photo metadata status ${meta.status}`);
     const { photoUri } = (await meta.json()) as { photoUri?: unknown };
     if (typeof photoUri !== 'string' || !photoUri.startsWith('https://')) throw new Error('photo metadata missing photoUri');
