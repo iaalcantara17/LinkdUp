@@ -1,3 +1,5 @@
+process.env.TZ = 'America/New_York';
+
 module.exports = {
     preset: 'jest-expo/web',
     roots: ['<rootDir>/screens-test', '<rootDir>/src'],

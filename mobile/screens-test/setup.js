@@ -11,8 +11,11 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
     });
 }
 
+if (typeof window !== 'undefined') {
+    window.open = jest.fn(() => ({ closed: false, location: { href: '' } }));
+}
+
 process.env.EXPO_PUBLIC_API_URL = 'http://api.test';
-process.env.TZ = 'America/New_York';
 
 jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
