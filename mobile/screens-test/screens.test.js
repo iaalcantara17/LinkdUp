@@ -316,6 +316,18 @@ describe('CalendarConfirmation', () => {
         expect(api.calendarExport).not.toHaveBeenCalled();
     });
 
+    test('when the server says Google is not connected, Add to Google Calendar falls back to connecting', async () => {
+        await show(CalendarConfirmationScreen, {
+            me: { ...fx.profile, google_calendar_connected: true },
+            calendarExport: new Error('user_not_connected_to_google'),
+            calendarOAuthStart: { url: 'https://accounts.google.com/o/oauth2' },
+        });
+        fireEvent.click(button('Add to Google Calendar'));
+        await settle();
+        expect(api.calendarExport).toHaveBeenCalledWith('p1');
+        expect(api.calendarOAuthStart).toHaveBeenCalledTimes(1);
+    });
+
     test.skip('BUG: a failed load stays on "Loading..." with no error or retry', async () => {
         await show(CalendarConfirmationScreen, { getMatch: failed, getParty: failed, getMembers: failed, getDates: failed });
         expect(screen.queryAllByText('Loading...')).toHaveLength(0);
