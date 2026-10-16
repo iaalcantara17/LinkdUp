@@ -4,12 +4,13 @@ import { BlurView } from 'expo-blur';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Home as HomeIcon, Compass, Users, Calendar, User } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
+import { ColorRoles, space, typeScale } from '../theme';
 
 export default function BottomNav() {
     const nav = useNavigation<any>();
     const route = useRoute();
-    const { isDark, colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+    const { isDark, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(roles), [roles]);
 
     const items = [
         { key: 'Home', label: 'Home', Icon: HomeIcon, onPress: () => nav.navigate('Home') },
@@ -25,7 +26,7 @@ export default function BottomNav() {
                 <View style={styles.inner} accessibilityRole="tablist">
                     {items.map((item) => {
                         const active = route.name === item.key;
-                        const color = active ? colors.primary : colors.text40;
+                        const color = active ? roles.primary : roles.textFaint;
                         return (
                             <TouchableOpacity key={item.key} style={styles.item} onPress={item.onPress} activeOpacity={0.7} accessibilityRole="tab" accessibilityState={{ selected: active }}>
                                 <item.Icon size={24} color={color} />
@@ -39,7 +40,7 @@ export default function BottomNav() {
     );
 }
 
-function makeStyles(c: ReturnType<typeof useTheme>['colors'], dark: boolean) {
+function makeStyles(r: ColorRoles) {
     return StyleSheet.create({
         wrap: {
             position: 'absolute',
@@ -49,23 +50,20 @@ function makeStyles(c: ReturnType<typeof useTheme>['colors'], dark: boolean) {
         },
         blur: {
             borderTopWidth: 1,
-            borderTopColor: c.glassBorder,
-            backgroundColor: dark ? 'rgba(10,10,15,0.80)' : 'rgba(250,250,251,0.85)',
+            borderTopColor: r.border,
+            backgroundColor: r.chrome,
         } as any,
         inner: {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-around',
-            paddingTop: 10,
-            paddingBottom: 20,
+            paddingTop: space.s2,
+            paddingBottom: space.s5,
         },
         item: {
             alignItems: 'center',
-            gap: 4,
+            gap: space.s1,
         },
-        label: {
-            fontSize: 11,
-            fontFamily: 'Inter_500Medium',
-        },
+        label: typeScale.caption,
     });
 }

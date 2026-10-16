@@ -1,7 +1,7 @@
 import React, { ReactNode, useMemo } from 'react';
 import { Text, TouchableOpacity, ViewStyle, ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { radii } from '../theme';
+import { AppColors, ColorRoles, elevation, palette, radius, space, typeScale } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface Props {
@@ -27,22 +27,22 @@ export default function GradientButton({
     style,
     size = 'lg',
 }: Props) {
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
     const isDisabled = disabled || loading;
-    const padV = size === 'lg' ? 18 : 14;
+    const padV = size === 'lg' ? space.s4 : space.s3;
 
     const content = (
         <View style={styles.inner}>
             {leftIcon}
             {loading ? (
-                <ActivityIndicator color={variant === 'white' ? 'black' : 'white'} />
+                <ActivityIndicator color={variant === 'white' ? palette.black : roles.primaryText} />
             ) : (
                 <Text
                     style={[
                         styles.text,
-                        variant === 'white' && { color: 'black' },
-                        isDisabled && variant !== 'white' && { color: colors.text40 },
+                        variant === 'white' && { color: palette.black },
+                        isDisabled && variant !== 'white' && { color: roles.textFaint },
                     ]}
                 >
                     {title}
@@ -85,7 +85,7 @@ export default function GradientButton({
     return (
         <TouchableOpacity onPress={onPress} disabled={isDisabled} accessibilityRole="button" accessibilityState={{ disabled: !!isDisabled, busy: !!loading }} activeOpacity={0.85} style={style}>
             <LinearGradient
-                colors={isDisabled ? ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.10)'] : (colors.gradient as any)}
+                colors={isDisabled ? [colors.glassStrong, colors.glassStrong] : (colors.gradient as any)}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={[styles.base, { paddingVertical: padV }]}
@@ -96,37 +96,32 @@ export default function GradientButton({
     );
 }
 
-function makeStyles(c: ReturnType<typeof useTheme>['colors']) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         base: {
-            borderRadius: radii.lg,
+            borderRadius: radius.lg,
             alignItems: 'center',
             justifyContent: 'center',
-            paddingHorizontal: 24,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.25,
-            shadowRadius: 12,
-            elevation: 8,
+            paddingHorizontal: space.s6,
+            ...elevation[2],
         },
         ghost: {
             backgroundColor: c.glass,
             borderWidth: 1,
-            borderColor: c.glassBorder,
+            borderColor: r.border,
         },
         white: {
-            backgroundColor: 'white',
+            backgroundColor: palette.white,
         },
         inner: {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 10,
+            gap: space.s2,
         },
         text: {
-            fontFamily: 'Inter_700Bold',
-            fontSize: 18,
-            color: 'white',
+            ...typeScale.subtitle,
+            color: r.primaryText,
         },
     });
 }
