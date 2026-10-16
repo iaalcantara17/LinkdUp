@@ -1,16 +1,15 @@
+import { radius, space } from './tokens';
+
 export const spacing = {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-    xxl: 48,
+    xs: space.s1,
+    sm: space.s2,
+    md: space.s4,
+    lg: space.s6,
+    xl: space.s8,
+    xxl: space.s12,
 };
 
 export const radii = {
-    sm: 8,
-    md: 12,
-    lg: 16,
+    ...radius,
     xl: 24,
-    pill: 999,
 };
