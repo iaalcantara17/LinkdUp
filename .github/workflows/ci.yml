@@ -27,7 +27,16 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      - name: Test with coverage
+        shell: bash
+        run: |
+          npm run test:coverage 2>&1 | tee test-output.txt
+          {
+            echo '### Server test coverage'
+            echo '```'
+            sed -n '/start of coverage report/,/end of coverage report/p' test-output.txt | sed -E 's/^(# |ℹ )//'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - run: npm run build
 
   mobile:
@@ -46,5 +55,18 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci --legacy-peer-deps
       - run: npm run typecheck
-      - run: npm test
+      - name: Test with coverage
+        shell: bash
+        run: |
+          npm run test:coverage 2>&1 | tee test-output.txt
+          {
+            echo '### Mobile logic test coverage'
+            echo '```'
+            sed -n '/start of coverage report/,/end of coverage report/p' test-output.txt | sed -E 's/^(# |ℹ )//'
+            echo '```'
+            echo '### Mobile screen test coverage'
+            echo '```'
+            sed -n '/Coverage summary/,/^=\{10,\}$/p' test-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - run: npm run build:web

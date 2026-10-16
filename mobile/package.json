@@ -11,7 +11,8 @@
     "build:web": "expo export --platform web --output-dir dist",
     "test": "npm run test:logic && npm run test:screens",
     "test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning --test \"test/*.test.mjs\"",
-    "test:screens": "jest"
+    "test:screens": "jest",
+    "test:coverage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.mjs\" && jest --coverage --coverageReporters=text-summary --collectCoverageFrom=\"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
