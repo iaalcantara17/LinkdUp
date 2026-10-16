@@ -6,6 +6,7 @@ export type CacheKind = 'nearby' | 'geocode';
 const HOUR_MS = 3_600_000;
 const TTL_MS: Record<CacheKind, number> = { nearby: 6 * HOUR_MS, geocode: 24 * HOUR_MS };
 const MAX_STALE_MS = 24 * HOUR_MS;
+export const PRUNE_BATCH = 50;
 export const WRITE_LIMIT_PER_MIN = 60;
 const MAX_KEY_CHARS = 512;
 let writeWindowStart = 0;
@@ -37,7 +38,28 @@ async function writeRow(kind: CacheKind, key: string, payload: unknown): Promise
         if (error) throw error;
     } catch (e: any) {
         console.error('[google-cache] write failed:', e?.message ?? e);
+        return;
     }
+    await pruneExpired().catch((e: any) => console.error('[google-cache] prune failed:', e?.message ?? e));
+}
+
+async function pruneExpired(): Promise<void> {
+    const cutoff = new Date(Date.now() - MAX_STALE_MS).toISOString();
+    const { data, error } = await supabaseAdmin
+        .from('google_cache')
+        .select('fetched_at')
+        .lt('fetched_at', cutoff)
+        .order('fetched_at', { ascending: true })
+        .limit(PRUNE_BATCH);
+    if (error) throw error;
+    const boundary = data?.at(-1)?.fetched_at;
+    if (!boundary) return;
+    const { error: deleteError } = await supabaseAdmin
+        .from('google_cache')
+        .delete()
+        .lt('fetched_at', cutoff)
+        .lte('fetched_at', boundary);
+    if (deleteError) throw deleteError;
 }
 
 export async function cached<T>(

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import axios from 'axios';
 import { mockSupabase, serve, realFetch, Call } from './supabaseMock';
 import { searchNearbyVenues, getVenuesWithRotation, geocodeCity } from '../src/services/places';
-import { nearbyKey, WRITE_LIMIT_PER_MIN } from '../src/services/googleCache';
+import { nearbyKey, PRUNE_BATCH, WRITE_LIMIT_PER_MIN } from '../src/services/googleCache';
 import { DETAILS_CACHE_MAX } from '../src/services/places';
 
 const HOUR = 3_600_000;
@@ -358,4 +358,46 @@ test('cache writes are capped per minute', async () => {
     mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
     await searchNearbyVenues({ latitude: 13, longitude: 13 }, 8000, 20);
     assert.equal(writes(calls).filter((w) => w.body.kind === 'nearby').length, 1);
+});
+
+test('writes prune a bounded batch of rows older than 24 hours, oldest first', async () => {
+    const oldest = new Date(Date.now() - 50 * HOUR).toISOString();
+    const boundary = new Date(Date.now() - 30 * HOUR).toISOString();
+    const calls = mockSupabase({}, (c) =>
+        c.table === 'google_cache' && c.method === 'GET' && !c.url.searchParams.has('kind')
+            ? [{ fetched_at: oldest }, { fetched_at: boundary }]
+            : [],
+    );
+    mock.method(axios, 'post', async () => ({ data: { places: [{ ...googlePlace, id: 'ChIJprune' }] } }));
+    const started = Date.now();
+    await searchNearbyVenues({ latitude: 27, longitude: 27 }, 8000, 20);
+    const scan = calls.find((c) => c.table === 'google_cache' && c.method === 'GET' && !c.url.searchParams.has('kind'))!;
+    assert.ok(scan, 'no prune scan');
+    assert.equal(scan.url.searchParams.get('limit'), String(PRUNE_BATCH));
+    assert.equal(scan.url.searchParams.get('order'), 'fetched_at.asc');
+    const cutoff = Date.parse(scan.url.searchParams.get('fetched_at')!.replace(/^lt\./, ''));
+    assert.ok(Math.abs(started - 24 * HOUR - cutoff) < 5_000);
+    const del = calls.find((c) => c.table === 'google_cache' && c.method === 'DELETE')!;
+    assert.ok(del, 'no prune delete');
+    assert.deepEqual(del.url.searchParams.getAll('fetched_at').sort(), [`lt.${new Date(cutoff).toISOString()}`, `lte.${boundary}`].sort());
+});
+
+test('writes with nothing expired do not delete anything', async () => {
+    const calls = mockSupabase({});
+    mock.method(axios, 'post', async () => ({ data: { places: [{ ...googlePlace, id: 'ChIJnoprune' }] } }));
+    await searchNearbyVenues({ latitude: 28, longitude: 28 }, 8000, 20);
+    assert.ok(calls.some((c) => c.table === 'google_cache' && c.method === 'GET' && !c.url.searchParams.has('kind')));
+    assert.ok(!calls.some((c) => c.method === 'DELETE'));
+});
+
+test('a failing prune never breaks the request', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({}, (c) =>
+        c.table === 'google_cache' && c.method === 'GET' && !c.url.searchParams.has('kind')
+            ? Response.json({ message: 'boom' }, { status: 500 })
+            : [],
+    );
+    mock.method(axios, 'post', async () => ({ data: { places: [{ ...googlePlace, id: 'ChIJprunefail' }] } }));
+    const venues = await searchNearbyVenues({ latitude: 29, longitude: 29 }, 8000, 20);
+    assert.equal(venues[0].google_place_id, 'ChIJprunefail');
 });

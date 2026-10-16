@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS public.google_cache (
         false))
 );
 
+CREATE INDEX IF NOT EXISTS google_cache_fetched_at_idx ON public.google_cache (fetched_at);
+
 ALTER TABLE public.google_cache ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.google_cache FROM anon, authenticated;
 
