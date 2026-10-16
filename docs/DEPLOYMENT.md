@@ -51,14 +51,11 @@ Nothing changes in the project itself. Run `server/src/db/migrations/031_photo_p
 
 ### What the server caches, and why
 
-To stay within the Google Places terms, the server stores only place IDs and short-lived data:
+To stay within the Google Places terms, the server keeps venue data only briefly in memory:
 
-- **Supabase `google_cache` table** (migration 035, server-only, RLS on with no client access):
-  - Nearby search results as an ordered list of place IDs per ~1 km grid cell and page. It is read only when Google reports a quota error: if the list is under 24 hours old, the venues from it that are still in server memory are shown and the response says it is cached.
-  - Geocoded cities as latitude, longitude and the city name the user typed, kept 24 hours.
-  - Rows older than 24 hours are deleted in small batches whenever the server writes a new row.
-- **Server memory only** (lost when Render sleeps): nearby venue lists for 15 minutes (up to 100 searches) and photo bytes for 1 hour. When a list is not in memory the server runs the nearby search again.
-- **Never stored in Supabase**: venue names, addresses, ratings, prices, photos or photo names, or anyone's exact location.
+- **Supabase `google_cache` table** (migration 035, server-only, RLS on with no client access): geocoded cities only, as latitude, longitude and the city name the user typed, kept 24 hours. Older rows are deleted in small batches whenever the server writes a new row.
+- **Server memory only** (lost when Render sleeps): nearby venue lists for 15 minutes (up to 100 searches) and photo bytes for 1 hour. When a list is not in memory the server runs the nearby search again. If Google is over quota at that point, the app shows the "venue limit reached" message.
+- **Never stored in Supabase**: place IDs, venue names, addresses, ratings, prices, photos or photo names, or anyone's exact location.
 
 Please confirm this still matches Google's rules before launch: [Places API policies](https://developers.google.com/maps/documentation/places/web-service/policies).
 

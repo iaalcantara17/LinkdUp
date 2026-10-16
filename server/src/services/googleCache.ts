@@ -1,25 +1,21 @@
 import { supabaseAdmin } from '../db';
 import { HttpError } from '../middleware/error';
 
-export type CacheKind = 'nearby' | 'geocode';
-
-const HOUR_MS = 3_600_000;
-const GEOCODE_TTL_MS = 24 * HOUR_MS;
-const MAX_STALE_MS = 24 * HOUR_MS;
+const GEOCODE_TTL_MS = 24 * 3_600_000;
 export const PRUNE_BATCH = 50;
 export const WRITE_LIMIT_PER_MIN = 60;
 const MAX_KEY_CHARS = 512;
 let writeWindowStart = 0;
-let writesInWindow: Record<CacheKind, number> = { nearby: 0, geocode: 0 };
+let writesInWindow = 0;
 
 type Row = { payload: unknown; fetched_at: string };
 
-async function readRow(kind: CacheKind, key: string): Promise<Row | null> {
+async function readRow(key: string): Promise<Row | null> {
     try {
         const { data, error } = await supabaseAdmin
             .from('google_cache')
             .select('payload, fetched_at')
-            .eq('kind', kind)
+            .eq('kind', 'geocode')
             .eq('key', key)
             .maybeSingle();
         if (error) throw error;
@@ -30,11 +26,11 @@ async function readRow(kind: CacheKind, key: string): Promise<Row | null> {
     }
 }
 
-async function writeRow(kind: CacheKind, key: string, payload: unknown): Promise<void> {
+async function writeRow(key: string, payload: unknown): Promise<void> {
     try {
         const { error } = await supabaseAdmin
             .from('google_cache')
-            .upsert({ kind, key, payload, fetched_at: new Date().toISOString() }, { onConflict: 'kind,key' });
+            .upsert({ kind: 'geocode', key, payload, fetched_at: new Date().toISOString() }, { onConflict: 'kind,key' });
         if (error) throw error;
     } catch (e: any) {
         console.error('[google-cache] write failed:', e?.message ?? e);
@@ -44,7 +40,7 @@ async function writeRow(kind: CacheKind, key: string, payload: unknown): Promise
 }
 
 async function pruneExpired(): Promise<void> {
-    const cutoff = new Date(Date.now() - MAX_STALE_MS).toISOString();
+    const cutoff = new Date(Date.now() - GEOCODE_TTL_MS).toISOString();
     const { data, error } = await supabaseAdmin
         .from('google_cache')
         .select('fetched_at')
@@ -63,33 +59,24 @@ async function pruneExpired(): Promise<void> {
 }
 
 export async function cachedGeocode<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-    const row = await readRow('geocode', key);
+    const row = await readRow(key);
     if (row && Date.now() - Date.parse(row.fetched_at) < GEOCODE_TTL_MS) return row.payload as T;
     const value = await fetcher();
-    if (value != null) await storeRow('geocode', key, value);
+    if (value != null && writeAllowed(key)) await writeRow(key, value);
     return value;
 }
 
-export async function storeRow(kind: CacheKind, key: string, payload: unknown): Promise<void> {
-    if (writeAllowed(kind, key)) await writeRow(kind, key, payload);
-}
-
-export async function staleRow<T>(kind: CacheKind, key: string): Promise<T | null> {
-    const row = await readRow(kind, key);
-    return row && Date.now() - Date.parse(row.fetched_at) < MAX_STALE_MS ? (row.payload as T) : null;
-}
-
-function writeAllowed(kind: CacheKind, key: string): boolean {
+function writeAllowed(key: string): boolean {
     const now = Date.now();
     if (now - writeWindowStart >= 60_000) {
         writeWindowStart = now;
-        writesInWindow = { nearby: 0, geocode: 0 };
+        writesInWindow = 0;
     }
-    if (writesInWindow[kind] >= WRITE_LIMIT_PER_MIN || key.length > MAX_KEY_CHARS) {
+    if (writesInWindow >= WRITE_LIMIT_PER_MIN || key.length > MAX_KEY_CHARS) {
         console.error('[google-cache] write skipped: limit reached or entry too large');
         return false;
     }
-    writesInWindow[kind] += 1;
+    writesInWindow += 1;
     return true;
 }
 

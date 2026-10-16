@@ -34,7 +34,6 @@ router.get('/venues', requireAuth, async (req: AuthedRequest, res, next) => {
 
         discoverRotationSeeds.delete(req.user!.id);
 
-        if (venues.cached) res.set('X-Venue-Cache', 'stale');
         res.json(enriched);
     } catch (e) {
         next(e);
@@ -56,7 +55,7 @@ router.get('/venues/more', requireAuth, async (req: AuthedRequest, res, next) =>
             excludeParam.split(',').map((s) => s.trim()).filter(Boolean),
         );
 
-        const { venues, nextPageToken, newSeed, exhausted, limited, cached } = await getVenuesWithRotation({
+        const { venues, nextPageToken, newSeed, exhausted, limited } = await getVenuesWithRotation({
             center,
             rotationSeed,
             excludeIds: excludeFromClient,
@@ -74,8 +73,7 @@ router.get('/venues/more', requireAuth, async (req: AuthedRequest, res, next) =>
         }));
 
         const hasMore = !exhausted;
-        if (cached) res.set('X-Venue-Cache', 'stale');
-        res.json({ venues: enriched, hasMore, exhausted, newToken: !!nextPageToken, cached: !!cached });
+        res.json({ venues: enriched, hasMore, exhausted, newToken: !!nextPageToken });
     } catch (e) {
         next(e);
     }

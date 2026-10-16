@@ -280,7 +280,6 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
 
         const venues = await searchNearbyVenues(center, radiusMeters, 10);
         if (venues.length === 0) throw new HttpError(502, 'no_venues_found');
-        if (venues.cached) res.set('X-Venue-Cache', 'stale');
 
         const rows = venues.map((v) => ({ ...v, party_id: partyId }));
         const { error: insertErr } = await supabaseAdmin.from('locations').insert(rows);
@@ -428,13 +427,12 @@ router.get('/:id/more-venues', requireAuth, async (req: AuthedRequest, res, next
             .eq('party_id', partyId);
         const existingIds = new Set((existing ?? []).map((r: any) => r.google_place_id));
 
-        const { venues, nextPageToken, newSeed, exhausted, limited, cached } = await getVenuesWithRotation({
+        const { venues, nextPageToken, newSeed, exhausted, limited } = await getVenuesWithRotation({
             center,
             rotationSeed,
             excludeIds: existingIds,
         });
         if (limited) throw venueLimitReached();
-        if (cached) res.set('X-Venue-Cache', 'stale');
 
         await supabaseAdmin
             .from('parties')

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { config } from '../config';
 import { LatLng } from './midpoint';
 import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
-import { cachedGeocode, geocodeKey, gridCell, nearbyKey, normalizeQuery, staleRow, storeRow } from './googleCache';
+import { cachedGeocode, geocodeKey, gridCell, nearbyKey, normalizeQuery } from './googleCache';
 
 export interface PlaceCandidate {
     google_place_id: string;
@@ -94,58 +94,27 @@ const NEARBY_MEMORY_TTL_MS = 15 * 60_000;
 export const NEARBY_MEMORY_MAX = 100;
 const nearbyMemory = new Map<string, { venues: PlaceCandidate[]; expiresAt: number }>();
 
-function heldVenues(): PlaceCandidate[][] {
-    const now = Date.now();
-    return [...nearbyMemory.values()].filter((held) => held.expiresAt > now).map((held) => held.venues);
-}
-
-function holdVenues(key: string, venues: PlaceCandidate[]) {
-    nearbyMemory.delete(key);
-    if (nearbyMemory.size >= NEARBY_MEMORY_MAX) nearbyMemory.delete(nearbyMemory.keys().next().value!);
-    nearbyMemory.set(key, { venues, expiresAt: Date.now() + NEARBY_MEMORY_TTL_MS });
-}
-
-function pickVenues(venues: PlaceCandidate[], pick: (ids: string[]) => string[]): PlaceCandidate[] {
-    const byId = new Map(venues.map((v) => [v.google_place_id, v]));
-    return pick([...byId.keys()]).map((id) => byId.get(id)!);
-}
-
-async function cachedNearby(
-    center: LatLng,
-    radiusMeters: number,
-    types: string[],
-    page: number | 'base',
-    pick: (ids: string[]) => string[],
-): Promise<{ venues: PlaceCandidate[]; stale: boolean }> {
+async function nearbyVenues(center: LatLng, radiusMeters: number, types: string[], page: number | 'base'): Promise<PlaceCandidate[]> {
     const cell = gridCell(center);
     const radius = Math.max(1, Math.round(radiusMeters / 1000)) * 1000;
     const key = nearbyKey(cell, radius, types, page);
     const held = nearbyMemory.get(key);
-    if (held && held.expiresAt > Date.now()) return { venues: pickVenues(held.venues, pick), stale: false };
-    try {
-        const venues = await fetchNearby(cell, radius, types);
-        if (venues.length) {
-            holdVenues(key, venues);
-            await storeRow('nearby', key, { ids: venues.map((v) => v.google_place_id) });
-        }
-        return { venues: pickVenues(venues, pick), stale: false };
-    } catch (e) {
-        if (!isGoogleQuotaError(e)) throw e;
-        const ids = (await staleRow<{ ids: string[] }>('nearby', key))?.ids ?? [];
-        const known = new Map(heldVenues().flat().map((v) => [v.google_place_id, v]));
-        const venues = pickVenues(ids.flatMap((id) => known.get(id) ?? []), pick);
-        if (!venues.length) throw e;
-        return { venues, stale: true };
+    if (held && held.expiresAt > Date.now()) return held.venues;
+    const venues = await fetchNearby(cell, radius, types);
+    if (venues.length) {
+        nearbyMemory.delete(key);
+        if (nearbyMemory.size >= NEARBY_MEMORY_MAX) nearbyMemory.delete(nearbyMemory.keys().next().value!);
+        nearbyMemory.set(key, { venues, expiresAt: Date.now() + NEARBY_MEMORY_TTL_MS });
     }
+    return venues;
 }
 
 export async function searchNearbyVenues(
     center: LatLng,
     radiusMeters = 5000,
     maxResults = 15,
-): Promise<PlaceCandidate[] & { cached?: true }> {
-    const { venues, stale } = await cachedNearby(center, radiusMeters, INCLUDED_TYPES, 'base', (ids) => ids.slice(0, maxResults));
-    return stale ? Object.assign(venues, { cached: true as const }) : venues;
+): Promise<PlaceCandidate[]> {
+    return (await nearbyVenues(center, radiusMeters, INCLUDED_TYPES, 'base')).slice(0, maxResults);
 }
 
 function humanizeCategory(t: string | null): string | null {
@@ -227,7 +196,6 @@ export interface VenueRotationResult {
     newSeed: number;
     exhausted: boolean;
     limited?: boolean;
-    cached?: true;
 }
 
 export async function getVenuesWithRotation(params: VenueRotationParams): Promise<VenueRotationResult> {
@@ -246,11 +214,8 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
     const rotationTypes = ROTATION_TYPES[rotationSeed];
 
     let fresh: PlaceCandidate[];
-    let stale = false;
     try {
-        ({ venues: fresh, stale } = await cachedNearby(center, radiusMeters, rotationTypes, rotationSeed, (ids) =>
-            ids.filter((id) => !excludeIds.has(id)),
-        ));
+        fresh = (await nearbyVenues(center, radiusMeters, rotationTypes, rotationSeed)).filter((v) => !excludeIds.has(v.google_place_id));
     } catch (e: any) {
         if (e instanceof HttpError) throw e;
         console.error('[venues-rotation] Places API error:', e?.response?.data ?? e?.message);
@@ -264,7 +229,7 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
     const newSeed = rotationSeed + 1;
     const exhausted = newSeed >= ROTATION_COUNT && fresh.length === 0;
 
-    return { venues: fresh, nextPageToken: null, newSeed, exhausted, ...(stale && { cached: true as const }) };
+    return { venues: fresh, nextPageToken: null, newSeed, exhausted };
 }
 
 /** Alias — shared venue pool helper for party + discover load-more. */

@@ -36,18 +36,15 @@ const nearbyQuota = async () => {
 
 afterEach(() => mock.restoreAll());
 
-test('nearby miss calls searchNearby once and stores only the ordered place IDs', async () => {
+test('nearby searches call Google once and never touch Supabase', async () => {
     const calls = mockSupabase({});
     const post = mock.method(axios, 'post', async () => ({ data: { places: [googlePlace, place('ChIJsecond')] } }));
     noDetails();
     const venues = await searchNearbyVenues({ latitude: 50, longitude: 50 }, 8000, 20);
-    assert.equal(post.mock.callCount(), 1);
-    assert.equal(venues[0].name, 'Fresh Cafe');
-    const [w] = writes(calls);
-    assert.equal(w.body.kind, 'nearby');
-    assert.deepEqual(w.body.payload, { ids: ['ChIJfresh', 'ChIJsecond'] });
-    assert.equal(w.url.searchParams.get('on_conflict'), 'kind,key');
-    assert.ok(!calls.some((c) => isRead(c, 'nearby')));
+    await getVenuesWithRotation({ center: { latitude: 50, longitude: 50 }, rotationSeed: 0 });
+    assert.equal(post.mock.callCount(), 2);
+    assert.deepEqual(venues.map((v) => v.google_place_id), ['ChIJfresh', 'ChIJsecond']);
+    assert.deepEqual(calls, []);
 });
 
 test('a repeat view within 15 minutes costs no Google or Supabase calls', async () => {
@@ -63,16 +60,6 @@ test('a repeat view within 15 minutes costs no Google or Supabase calls', async 
     assert.deepEqual(top.map((v) => v.google_place_id), ['ChIJwarm1']);
     assert.equal(post.mock.callCount() + again.mock.callCount(), 1);
     assert.equal(calls.length, 0);
-});
-
-test('when venues are not in memory a stored ID list is ignored and searchNearby runs again', async () => {
-    const calls = mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJcold'] }, HOUR) : []));
-    const post = mock.method(axios, 'post', async () => ({ data: { places: [place('ChIJnew')] } }));
-    noDetails();
-    const venues = await searchNearbyVenues({ latitude: 52, longitude: 52 }, 8000, 20);
-    assert.deepEqual(venues.map((v) => v.google_place_id), ['ChIJnew']);
-    assert.equal(post.mock.callCount(), 1);
-    assert.equal(writes(calls).length, 1);
 });
 
 test('in-memory venues expire after 15 minutes', async () => {
@@ -97,7 +84,7 @@ test('rotation applies excludes and advances the seed', async () => {
     assert.equal(r.newSeed, 2);
 });
 
-test('no venue name, address, rating, photo name or exact user coordinate reaches the table', async () => {
+test('only typed-city geocodes reach the table, never venue data or exact user coordinates', async () => {
     const calls = mockSupabase({});
     mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
     mock.method(axios, 'get', async () => ({
@@ -107,18 +94,17 @@ test('no venue name, address, rating, photo name or exact user coordinate reache
     await getVenuesWithRotation({ center: exact, rotationSeed: 0 });
     await geocodeCity('Secretville');
     const cacheCalls = calls.filter((c) => c.table === 'google_cache');
-    assert.ok(writes(calls).length >= 3);
+    assert.equal(writes(calls).length, 1);
     for (const c of cacheCalls) {
         const seen = decodeURIComponent(c.url.search) + JSON.stringify(c.body ?? {});
-        for (const secret of ['Fresh Cafe', '9 Secret Lane', '4.7', '321', 'AeYsecretphoto', 'PRICE_LEVEL', '40.712776', '74.005974', 'Google Formatted']) {
+        for (const secret of ['Fresh Cafe', '9 Secret Lane', '4.7', '321', 'AeYsecretphoto', 'PRICE_LEVEL', 'ChIJ', '40.712776', '74.005974', 'Google Formatted', 'nearby']) {
             assert.ok(!seen.includes(secret), `${secret} leaked: ${seen}`);
         }
         assert.ok(!/user_?id/i.test(seen));
     }
-    for (const w of writes(calls)) {
-        assert.deepEqual(Object.keys(w.body.payload).sort(), w.body.kind === 'nearby' ? ['ids'] : ['label', 'latitude', 'longitude']);
-        if (w.body.kind === 'nearby') assert.match(w.body.key, /^40\.71,-74\.01\|/);
-    }
+    const [w] = writes(calls);
+    assert.equal(w.body.kind, 'geocode');
+    assert.deepEqual(Object.keys(w.body.payload).sort(), ['label', 'latitude', 'longitude']);
 });
 
 test('venues returned for a grid cell are fetched around the rounded center', async () => {
@@ -168,71 +154,29 @@ test('expired geocodes are not served on a quota error', async () => {
     await assert.rejects(geocodeCity('Old Town'), { code: 'venue_limit_reached' });
 });
 
-async function warmMemory(center: { latitude: number; longitude: number }, ids: string[]) {
-    mockSupabase({});
-    mock.method(axios, 'post', async () => ({ data: { places: ids.map(place) } }));
-    await getVenuesWithRotation({ center, rotationSeed: 4 });
-    mock.restoreAll();
-}
-
-test('quota error serves venues from a stored ID list under 24 hours old when they are still in memory', async () => {
-    await warmMemory({ latitude: 56, longitude: 56 }, ['ChIJstale1']);
+test('quota error with nothing in memory is the limit error and reads nothing from Supabase', async () => {
     mock.method(console, 'error', () => {});
-    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJstale1', 'ChIJunknown'] }, 10 * HOUR) : []));
+    const calls = mockSupabase({});
     mock.method(axios, 'post', nearbyQuota);
-    noDetails();
-    const venues = await searchNearbyVenues({ latitude: 56, longitude: 56 }, 8000, 20);
-    assert.deepEqual(venues.map((v) => v.google_place_id), ['ChIJstale1']);
-    assert.equal(venues.cached, true);
-    const r = await getVenuesWithRotation({ center: { latitude: 56, longitude: 56 }, rotationSeed: 2 });
-    assert.equal(r.limited, undefined);
-    assert.equal(r.cached, true);
-    assert.equal(r.newSeed, 3);
-});
-
-test('quota error with a stored ID list but nothing in memory is the limit error', async () => {
-    mock.method(console, 'error', () => {});
-    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJnotheld'] }, HOUR) : []));
-    mock.method(axios, 'post', nearbyQuota);
-    noDetails();
     await assert.rejects(searchNearbyVenues({ latitude: 57, longitude: 57 }, 8000, 20), (e: any) => e?.response?.status === 429);
     assert.equal((await getVenuesWithRotation({ center: { latitude: 57, longitude: 57 }, rotationSeed: 1 })).limited, true);
+    assert.deepEqual(calls, []);
 });
 
-test('quota error with an ID list 24 hours or older is the limit error', async () => {
-    await warmMemory({ latitude: 58, longitude: 58 }, ['ChIJancient']);
+test('discover routes return venue_limit_reached when Google is over quota and nothing is in memory', async () => {
     mock.method(console, 'error', () => {});
-    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJancient'] }, 25 * HOUR) : []));
-    mock.method(axios, 'post', nearbyQuota);
-    await assert.rejects(searchNearbyVenues({ latitude: 58, longitude: 58 }, 8000, 20), (e: any) => e?.response?.status === 429);
-    assert.equal((await getVenuesWithRotation({ center: { latitude: 58, longitude: 58 }, rotationSeed: 1 })).limited, true);
-});
-
-test('quota error with no stored list keeps the limit error', async () => {
-    mock.method(console, 'error', () => {});
-    mockSupabase({});
-    mock.method(axios, 'post', nearbyQuota);
-    await assert.rejects(searchNearbyVenues({ latitude: 59, longitude: 59 }, 8000, 20), (e: any) => e?.response?.status === 429);
-    assert.equal((await getVenuesWithRotation({ center: { latitude: 59, longitude: 59 }, rotationSeed: 2 })).limited, true);
-});
-
-test('discover routes say the venues are cached when Google is over quota', async () => {
-    const center = { latitude: 41.5, longitude: -73.5 };
-    await warmMemory(center, ['ChIJroute']);
-    mock.method(console, 'error', () => {});
-    mockSupabase({ tok: 'user-1' }, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJroute'] }, 10 * HOUR) : []));
+    mockSupabase({ tok: 'user-1' });
     mock.method(axios, 'post', nearbyQuota);
     const { default: discoverRoutes } = await import('../src/routes/discover');
     const { server, base } = await serve('/api/discover', discoverRoutes);
     try {
-        const qs = `lat=${center.latitude}&lng=${center.longitude}`;
-        const more = await realFetch(`${base}/api/discover/venues/more?${qs}`, { headers: { authorization: 'Bearer tok' } });
-        assert.equal(more.status, 200);
-        assert.equal(more.headers.get('x-venue-cache'), 'stale');
-        assert.equal((await more.json()).cached, true);
-        const first = await realFetch(`${base}/api/discover/venues?${qs}`, { headers: { authorization: 'Bearer tok' } });
-        assert.equal(first.status, 200);
-        assert.equal(first.headers.get('x-venue-cache'), 'stale');
+        const qs = 'lat=41.5&lng=-73.5';
+        for (const path of ['venues', 'venues/more']) {
+            const res = await realFetch(`${base}/api/discover/${path}?${qs}`, { headers: { authorization: 'Bearer tok' } });
+            assert.equal(res.status, 503);
+            assert.deepEqual(await res.json(), { error: 'venue_limit_reached' });
+            assert.equal(res.headers.get('x-venue-cache'), null);
+        }
     } finally {
         server.close();
     }
@@ -286,13 +230,6 @@ test('overlong geocode query is rejected without calling Google', async () => {
     assert.equal(get.mock.callCount(), 0);
 });
 
-test('empty nearby results are not cached', async () => {
-    const calls = mockSupabase({});
-    mock.method(axios, 'post', async () => ({ data: { places: [] } }));
-    assert.deepEqual(await searchNearbyVenues({ latitude: 12, longitude: 12 }, 8000, 20), []);
-    assert.equal(writes(calls).length, 0);
-});
-
 test('the stored geocode label is trimmed to 120 characters without splitting an emoji', async () => {
     const calls = mockSupabase({});
     mock.method(axios, 'get', async () => ({
@@ -300,21 +237,6 @@ test('the stored geocode label is trimmed to 120 characters without splitting an
     }));
     await geocodeCity(`${'a'.repeat(119)}😀bc`);
     assert.equal(writes(calls)[0].body.payload.label, `${'a'.repeat(119)}😀`);
-});
-
-test('cache writes are capped per minute', async () => {
-    mock.method(console, 'error', () => {});
-    const calls = mockSupabase({});
-    mock.method(axios, 'get', async () => ({
-        data: { status: 'OK', results: [{ formatted_address: 'Town', geometry: { location: { lat: 1, lng: 1 } } }] },
-    }));
-    for (let i = 0; i < WRITE_LIMIT_PER_MIN + 5; i++) await geocodeCity(`Town ${i}`);
-    const geocodeWrites = () => writes(calls).filter((w) => w.body.kind === 'geocode').length;
-    assert.ok(geocodeWrites() <= WRITE_LIMIT_PER_MIN);
-    assert.ok(geocodeWrites() >= WRITE_LIMIT_PER_MIN - 10);
-    mock.method(axios, 'post', async () => ({ data: { places: [googlePlace] } }));
-    await searchNearbyVenues({ latitude: 13, longitude: 13 }, 8000, 20);
-    assert.equal(writes(calls).filter((w) => w.body.kind === 'nearby').length, 1);
 });
 
 test('writes prune a bounded batch of rows older than 24 hours, oldest first', async () => {
@@ -325,9 +247,11 @@ test('writes prune a bounded batch of rows older than 24 hours, oldest first', a
             ? [{ fetched_at: oldest }, { fetched_at: boundary }]
             : [],
     );
-    mock.method(axios, 'post', async () => ({ data: { places: [{ ...googlePlace, id: 'ChIJprune' }] } }));
+    mock.method(axios, 'get', async () => ({
+        data: { status: 'OK', results: [{ formatted_address: 'Prune', geometry: { location: { lat: 1, lng: 1 } } }] },
+    }));
     const started = Date.now();
-    await searchNearbyVenues({ latitude: 27, longitude: 27 }, 8000, 20);
+    await geocodeCity('Prune Town');
     const scan = calls.find((c) => c.table === 'google_cache' && c.method === 'GET' && !c.url.searchParams.has('kind'))!;
     assert.ok(scan, 'no prune scan');
     assert.equal(scan.url.searchParams.get('limit'), String(PRUNE_BATCH));
@@ -341,8 +265,10 @@ test('writes prune a bounded batch of rows older than 24 hours, oldest first', a
 
 test('writes with nothing expired do not delete anything', async () => {
     const calls = mockSupabase({});
-    mock.method(axios, 'post', async () => ({ data: { places: [{ ...googlePlace, id: 'ChIJnoprune' }] } }));
-    await searchNearbyVenues({ latitude: 28, longitude: 28 }, 8000, 20);
+    mock.method(axios, 'get', async () => ({
+        data: { status: 'OK', results: [{ formatted_address: 'Prune', geometry: { location: { lat: 1, lng: 1 } } }] },
+    }));
+    await geocodeCity('No Prune Town');
     assert.ok(calls.some((c) => c.table === 'google_cache' && c.method === 'GET' && !c.url.searchParams.has('kind')));
     assert.ok(!calls.some((c) => c.method === 'DELETE'));
 });
@@ -354,9 +280,10 @@ test('a failing prune never breaks the request', async () => {
             ? Response.json({ message: 'boom' }, { status: 500 })
             : [],
     );
-    mock.method(axios, 'post', async () => ({ data: { places: [{ ...googlePlace, id: 'ChIJprunefail' }] } }));
-    const venues = await searchNearbyVenues({ latitude: 29, longitude: 29 }, 8000, 20);
-    assert.equal(venues[0].google_place_id, 'ChIJprunefail');
+    mock.method(axios, 'get', async () => ({
+        data: { status: 'OK', results: [{ formatted_address: 'Prune', geometry: { location: { lat: 1, lng: 1 } } }] },
+    }));
+    assert.equal((await geocodeCity('Prune Fail Town'))?.label, 'Prune');
 });
 
 test('in-memory venue lists are bounded', async () => {
@@ -369,4 +296,16 @@ test('in-memory venue lists are bounded', async () => {
     assert.equal(post.mock.callCount(), before);
     await searchNearbyVenues({ latitude: -60, longitude: 0 }, 8000, 20);
     assert.equal(post.mock.callCount(), before + 1);
+});
+
+test('cache writes are capped per minute', async () => {
+    mock.method(console, 'error', () => {});
+    const calls = mockSupabase({});
+    mock.method(axios, 'get', async () => ({
+        data: { status: 'OK', results: [{ formatted_address: 'Town', geometry: { location: { lat: 1, lng: 1 } } }] },
+    }));
+    for (let i = 0; i < WRITE_LIMIT_PER_MIN + 5; i++) await geocodeCity(`Town ${i}`);
+    const geocodeWrites = () => writes(calls).filter((w) => w.body.kind === 'geocode').length;
+    assert.ok(geocodeWrites() <= WRITE_LIMIT_PER_MIN);
+    assert.ok(geocodeWrites() >= WRITE_LIMIT_PER_MIN - 10);
 });
