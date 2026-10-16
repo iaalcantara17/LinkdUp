@@ -31,6 +31,7 @@ import { discoverStep, permissionLabel, type AskReason } from '../services/locat
 import PlaceSearch, { Place } from '../components/PlaceSearch';
 import { colors, radii } from '../theme';
 import { listView } from '../hooks/listView';
+import { LoadError, SlowLoadNote } from '../components/LoadState';
 
 const DISCOVER_LOCATION_COPY: Record<AskReason, string> = {
     prompt: 'LinkdUp uses where you are right now to show trending spots and parties near you.',
@@ -402,6 +403,7 @@ export default function DiscoverScreen() {
     const seenPermission = useRef(permission);
     const [loadingVenues, setLoadingVenues] = useState(true);
     const [venueLimited, setVenueLimited] = useState(false);
+    const [venueError, setVenueError] = useState<unknown>(null);
     const [loadingParties, setLoadingParties] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -484,7 +486,9 @@ export default function DiscoverScreen() {
             setLikedVenues(likes);
             setLikedPlaceIds(likedIds);
 
-            setVenueLimited(venueData.status === 'rejected' && venueData.reason?.message === VENUE_LIMIT_MESSAGE);
+            const limited = venueData.status === 'rejected' && venueData.reason?.message === VENUE_LIMIT_MESSAGE;
+            setVenueLimited(limited);
+            setVenueError(venueData.status === 'rejected' && !limited ? venueData.reason : null);
             let v = venueData.status === 'fulfilled' ? venueData.value : [];
             v = v.filter((venue: DiscoverVenue) => !likedIds.has(venue.google_place_id));
             const p = partyData.status === 'fulfilled' ? partyData.value : [];
@@ -801,10 +805,15 @@ export default function DiscoverScreen() {
                                     <Text style={styles.sectionTitle}>Trending near you</Text>
 
                                     {venuesView === 'loading' ? (
-                                        <View style={styles.loadingRow}>
-                                            <ActivityIndicator color={colors.primary} />
-                                            <Text style={styles.loadingText}>Finding nearby spots…</Text>
-                                        </View>
+                                        <>
+                                            <View style={styles.loadingRow}>
+                                                <ActivityIndicator color={colors.primary} />
+                                                <Text style={styles.loadingText}>Finding nearby spots…</Text>
+                                            </View>
+                                            <SlowLoadNote loading />
+                                        </>
+                                    ) : venuesView === 'empty' && venueError ? (
+                                        <LoadError title="We couldn't load spots near you" error={venueError} onRetry={() => load(true)} />
                                     ) : venuesView === 'empty' ? (
                                         <View style={styles.inlineEmpty}>
                                             <Text style={styles.inlineEmptyText}>

@@ -20,6 +20,7 @@ import { latestOnly } from '../hooks/latestOnly';
 import { listView } from '../hooks/listView';
 import { locationSourceLabel } from '../services/locationChoice';
 import DialogHost from '../components/DialogHost';
+import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { confirm, errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
 import type { AppColors } from '../theme';
@@ -237,6 +238,7 @@ export default function HomeScreen() {
 
     const [parties, setParties] = useState<PartyRow[]>([]);
     const [partiesLoaded, setPartiesLoaded] = useState(false);
+    const [loadError, setLoadError] = useState<unknown>(null);
     const [onlineFriends, setOnlineFriends] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [me, setMe] = useState<any>(null);
@@ -250,10 +252,11 @@ export default function HomeScreen() {
 
     const load = useCallback(async () => {
         const isLatest = latestLoad();
+        let partiesError: unknown = null;
         try {
             const [myProfile, myParties, pendingReqs, friends] = await Promise.all([
                 api.me().catch(() => null),
-                api.myParties().catch(() => []),
+                api.myParties().catch((e) => { partiesError = e; return null; }),
                 api.getPendingRequests().catch(() => []),
                 api.getFriends().catch(() => []),
             ]);
@@ -271,14 +274,22 @@ export default function HomeScreen() {
                     }
                 }
             }
-            setParties(myParties ?? []);
-            setPartiesLoaded(true);
+            setLoadError(partiesError);
+            if (!partiesError) {
+                setParties(myParties ?? []);
+                setPartiesLoaded(true);
+            }
             setPendingCount((pendingReqs ?? []).length);
             setOnlineFriends((friends ?? []).filter((f: any) => f.is_online).slice(0, 5));
         } catch {}
     }, [syncFromProfile, latestLoad]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
+
+    const retryLoad = useCallback(() => {
+        setLoadError(null);
+        load();
+    }, [load]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -416,8 +427,13 @@ export default function HomeScreen() {
                     <View style={{ marginTop: 32, paddingHorizontal: 24 }}>
                         <Text style={styles.sectionHeader}>Your Active Parties</Text>
 
-                        {partiesView === 'loading' ? (
-                            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+                        {loadError && !partiesLoaded ? (
+                            <LoadError title="We couldn't load your parties" error={loadError} onRetry={retryLoad} />
+                        ) : partiesView === 'loading' ? (
+                            <>
+                                <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+                                <SlowLoadNote loading />
+                            </>
                         ) : partiesView === 'empty' ? (
                             <View style={styles.emptyCard}>
                                 <Text style={styles.emptyTitle}>No parties yet</Text>

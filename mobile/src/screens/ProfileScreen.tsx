@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { api } from '../services/api';
 import DialogHost from '../components/DialogHost';
+import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { confirm, errorText, showError, toast } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors } from '../theme';
@@ -91,6 +92,8 @@ export default function ProfileScreen() {
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [me, setMe] = useState<any>(null);
+
+    const [loadError, setLoadError] = useState<unknown>(null);
     const [schoolName, setSchoolName] = useState<string | null>(null);
     const [avatarUploading, setAvatarUploading] = useState(false);
     const [followCounts, setFollowCounts] = useState<{ followers: number; following: number } | null>(null);
@@ -128,6 +131,7 @@ export default function ProfileScreen() {
     const loadProfile = async () => {
         try {
             const profile = await api.me();
+            setLoadError(null);
             setMe(profile);
             if (profile?.school_id) {
                 try {
@@ -144,7 +148,9 @@ export default function ProfileScreen() {
                     .then((c) => setFollowCounts(c))
                     .catch(() => {});
             }
-        } catch {}
+        } catch (e) {
+            setLoadError(e);
+        }
     };
 
     useFocusEffect(useCallback(() => { loadProfile(); }, []));
@@ -341,6 +347,18 @@ export default function ProfileScreen() {
                             </View>
                         )}
 
+                        {me === null && loadError ? (
+                            <LoadError
+                                title="We couldn't load your profile"
+                                error={loadError}
+                                onRetry={() => {
+                                    setLoadError(null);
+                                    loadProfile();
+                                }}
+                            />
+                        ) : (
+                        <>
+                        {me === null && <SlowLoadNote loading />}
                         <View style={{ alignItems: 'center', marginBottom: 32 }}>
                             <AvatarBubble name={me?.display_name ?? '?'} color={me?.avatar_color} avatarUrl={me?.avatar_url} size={96} />
                             <TouchableOpacity onPress={handleEditPhoto} disabled={avatarUploading} style={styles.editPhotoBtn}>
@@ -431,6 +449,8 @@ export default function ProfileScreen() {
                             </View>
                             {me === null ? <Text style={styles.value}>Loading...</Text> : me?.bio ? <Text style={[styles.value, { lineHeight: 22 }]}>{me.bio}</Text> : <NotSetPill colors={colors} />}
                         </GlassCard>
+                        </>
+                        )}
 
                         {/* ── Settings ── */}
                         <GlassCard style={{ marginTop: 16 }}>
