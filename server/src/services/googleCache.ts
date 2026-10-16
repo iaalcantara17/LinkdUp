@@ -5,6 +5,7 @@ export type CacheKind = 'nearby' | 'geocode';
 
 const HOUR_MS = 3_600_000;
 const TTL_MS: Record<CacheKind, number> = { nearby: 6 * HOUR_MS, geocode: 24 * HOUR_MS };
+const MAX_STALE_MS = 24 * HOUR_MS;
 export const WRITE_LIMIT_PER_MIN = 60;
 const MAX_KEY_CHARS = 512;
 let writeWindowStart = 0;
@@ -43,19 +44,19 @@ export async function cached<T>(
     kind: CacheKind,
     key: string,
     fetcher: () => Promise<T>,
-    force = false,
-): Promise<{ value: T; hit: boolean; stale: boolean }> {
-    const row = force ? null : await readRow(kind, key);
-    if (row && Date.now() - Date.parse(row.fetched_at) < TTL_MS[kind]) return { value: row.payload as T, hit: true, stale: false };
+): Promise<{ value: T; stale: boolean }> {
+    const row = await readRow(kind, key);
+    const age = row ? Date.now() - Date.parse(row.fetched_at) : Infinity;
+    if (row && age < TTL_MS[kind]) return { value: row.payload as T, stale: false };
     let value: T;
     try {
         value = await fetcher();
     } catch (e) {
-        if (row && isQuotaError(e)) return { value: row.payload as T, hit: true, stale: true };
+        if (row && age < MAX_STALE_MS && isQuotaError(e)) return { value: row.payload as T, stale: true };
         throw e;
     }
     if (value != null && writeAllowed(kind, key)) await writeRow(kind, key, value);
-    return { value, hit: false, stale: false };
+    return { value, stale: false };
 }
 
 function writeAllowed(kind: CacheKind, key: string): boolean {

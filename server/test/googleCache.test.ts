@@ -240,6 +240,24 @@ test('rotation quota error with no cache keeps the limit flag', async () => {
     assert.equal(r.limited, true);
 });
 
+test('place-ID lists 24 hours or older are not served on a quota error', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJancient'] }, 25 * HOUR) : []));
+    mock.method(axios, 'post', nearbyQuota);
+    const get = mockDetails();
+    await assert.rejects(searchNearbyVenues({ latitude: 26, longitude: 26 }, 8000, 20), (e: any) => e?.response?.status === 429);
+    const r = await getVenuesWithRotation({ center: { latitude: 26, longitude: 26 }, rotationSeed: 1 });
+    assert.equal(r.limited, true);
+    assert.equal(get.mock.callCount(), 0);
+});
+
+test('expired geocodes are not served on a quota error', async () => {
+    mock.method(console, 'error', () => {});
+    mockSupabase({}, (c) => (isRead(c, 'geocode') ? row({ latitude: 1, longitude: 2, label: 'Old Town' }, 25 * HOUR) : []));
+    mock.method(axios, 'get', async () => ({ data: { status: 'OVER_QUERY_LIMIT', results: [] } }));
+    await assert.rejects(geocodeCity('Old Town'), { code: 'venue_limit_reached' });
+});
+
 test('details quota error on a cache hit becomes the limit error', async () => {
     mock.method(console, 'error', () => {});
     mockSupabase({}, (c) => (isRead(c, 'nearby') ? row({ ids: ['ChIJq'] }) : []));
