@@ -1,10 +1,10 @@
 import { supabaseAdmin } from '../db';
-import { HttpError, isGoogleQuotaError } from '../middleware/error';
+import { HttpError } from '../middleware/error';
 
 export type CacheKind = 'nearby' | 'geocode';
 
 const HOUR_MS = 3_600_000;
-const TTL_MS: Record<CacheKind, number> = { nearby: 6 * HOUR_MS, geocode: 24 * HOUR_MS };
+const GEOCODE_TTL_MS = 24 * HOUR_MS;
 const MAX_STALE_MS = 24 * HOUR_MS;
 export const PRUNE_BATCH = 50;
 export const WRITE_LIMIT_PER_MIN = 60;
@@ -62,23 +62,21 @@ async function pruneExpired(): Promise<void> {
     if (deleteError) throw deleteError;
 }
 
-export async function cached<T>(
-    kind: CacheKind,
-    key: string,
-    fetcher: () => Promise<T>,
-): Promise<{ value: T; stale: boolean }> {
+export async function cachedGeocode<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+    const row = await readRow('geocode', key);
+    if (row && Date.now() - Date.parse(row.fetched_at) < GEOCODE_TTL_MS) return row.payload as T;
+    const value = await fetcher();
+    if (value != null) await storeRow('geocode', key, value);
+    return value;
+}
+
+export async function storeRow(kind: CacheKind, key: string, payload: unknown): Promise<void> {
+    if (writeAllowed(kind, key)) await writeRow(kind, key, payload);
+}
+
+export async function staleRow<T>(kind: CacheKind, key: string): Promise<T | null> {
     const row = await readRow(kind, key);
-    const age = row ? Date.now() - Date.parse(row.fetched_at) : Infinity;
-    if (row && age < TTL_MS[kind]) return { value: row.payload as T, stale: false };
-    let value: T;
-    try {
-        value = await fetcher();
-    } catch (e) {
-        if (row && age < MAX_STALE_MS && isQuotaError(e)) return { value: row.payload as T, stale: true };
-        throw e;
-    }
-    if (value != null && writeAllowed(kind, key)) await writeRow(kind, key, value);
-    return { value, stale: false };
+    return row && Date.now() - Date.parse(row.fetched_at) < MAX_STALE_MS ? (row.payload as T) : null;
 }
 
 function writeAllowed(kind: CacheKind, key: string): boolean {
@@ -93,10 +91,6 @@ function writeAllowed(kind: CacheKind, key: string): boolean {
     }
     writesInWindow[kind] += 1;
     return true;
-}
-
-function isQuotaError(e: unknown): boolean {
-    return isGoogleQuotaError(e) || (e instanceof HttpError && e.code === 'venue_limit_reached');
 }
 
 const inRange = (n: number, max: number) => Number.isFinite(n) && Math.abs(n) <= max;
