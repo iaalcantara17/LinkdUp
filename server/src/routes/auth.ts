@@ -4,6 +4,7 @@ import { supabaseAdmin, supabaseSignIn } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
+import { isDemoUser } from '../middleware/demo';
 import { SELF_PROFILE_SELECT, profileDbError, toSelfProfile } from '../services/userProfile';
 
 const router = Router();
@@ -118,7 +119,7 @@ router.post('/login', rateLimit(LOGIN_LIMIT, 15 * 60_000), async (req, res, next
 
 router.post('/logout', authLimit, requireAuth, async (req: AuthedRequest, res, next) => {
     try {
-        if (req.accessToken) {
+        if (req.accessToken && !isDemoUser(req.user!.id)) {
             await supabaseAdmin.auth.admin.signOut(req.accessToken);
         }
         res.json({ ok: true });
@@ -165,7 +166,7 @@ router.get('/me', authLimit, requireAuth, async (req: AuthedRequest, res, next) 
         if (error) throw profileDbError(error, new HttpError(404, 'profile_not_found'));
         const token = (data as any)?.google_calendar_refresh;
         const google_calendar_connected = token !== null && token !== undefined && String(token).trim() !== '';
-        res.json({ ...toSelfProfile(data), google_calendar_connected });
+        res.json({ ...toSelfProfile(data), google_calendar_connected, is_demo: isDemoUser(req.user!.id) });
     } catch (e) {
         next(e);
     }

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { supabaseAsUser } from '../db';
 import { updateLastSeen } from './updateLastSeen';
+import { demoReadOnly, isDemoUser } from './demo';
 
 export interface AuthedRequest extends Request {
     user?: { id: string; email: string };
@@ -23,6 +24,7 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
         }
         req.user = { id: data.user.id, email: data.user.email ?? '' };
         req.accessToken = token;
+        if (isDemoUser(req.user.id)) return demoReadOnly(req, res, next);
         updateLastSeen(req, res, next);
     } catch (e) {
         return res.status(401).json({ error: 'auth_failed' });
