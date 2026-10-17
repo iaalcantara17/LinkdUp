@@ -227,16 +227,11 @@ export default function MatchScreen() {
 
     return (
         <View style={styles.root}>
-            <GlowOrb color={roles.primaryBorder} top={height * 0.15} left={width * 0.15} size={280} />
-            <GlowOrb color={roles.accentSoft} top={height * 0.40} left={width * 0.35} size={240} delay={800} />
-
-            {showConfetti && (
-                <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                    {Array.from({ length: CONFETTI_COUNT }).map((_, i) => (
-                        <ConfettiParticle key={i} index={i} />
-                    ))}
-                </View>
-            )}
+            <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
+                <GlowOrb color={roles.primaryBorder} top={height * 0.15} left={width * 0.15} size={280} />
+                <GlowOrb color={roles.accentSoft} top={height * 0.40} left={width * 0.35} size={240} delay={800} />
+                {showConfetti && Array.from({ length: CONFETTI_COUNT }).map((_, i) => <ConfettiParticle key={i} index={i} />)}
+            </View>
 
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 32 }} showsVerticalScrollIndicator={false}>
@@ -255,7 +250,8 @@ export default function MatchScreen() {
                         <Text style={styles.subtitle}>Your whole crew wants to go!</Text>
                     </Animated.View>
 
-                    <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.venueCard}>
+                    <Animated.View entering={FadeInDown.delay(200).duration(500)} style={[styles.venueCard, styles.opaque]}>
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.glass }]} />
                         <View style={styles.venueImageWrap}>
                             {venue.photo_url ? (
                                 <Image source={{ uri: photoUri(venue.photo_url) }} style={styles.venueImage} accessibilityLabel={venue.name} accessibilityRole="image" />
@@ -322,12 +318,14 @@ export default function MatchScreen() {
                             rightIcon={<ArrowRight size={20} color={roles.onPrimary} />}
                         />
                         <View style={{ height: 12 }} />
-                        <GradientButton
-                            title="Keep Swiping"
-                            variant="ghost"
-                            onPress={handleKeepSwiping}
-                            loading={keepLoading}
-                        />
+                        <View style={[styles.opaque, { borderRadius: radii.lg }]}>
+                            <GradientButton
+                                title="Keep Swiping"
+                                variant="ghost"
+                                onPress={handleKeepSwiping}
+                                loading={keepLoading}
+                            />
+                        </View>
                     </Animated.View>
                 </ScrollView>
             </SafeAreaView>
@@ -344,6 +342,7 @@ export default function MatchScreen() {
 function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
+        opaque: { backgroundColor: c.bg },
 
         sparkleBadge: { marginBottom: 16 },
         sparkleBadgeBg: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
@@ -351,7 +350,6 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         subtitle: { color: c.text80, fontSize: 18, fontFamily: 'Inter_500Medium' },
 
         venueCard: {
-            backgroundColor: c.glass,
             borderRadius: radii.xl,
             borderWidth: 1,
             borderColor: c.glassBorder,

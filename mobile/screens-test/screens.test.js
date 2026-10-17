@@ -11,6 +11,8 @@ import SwipeScreen from '../src/screens/SwipeScreen';
 import DiscoverScreen from '../src/screens/DiscoverScreen';
 import ProfileScreen from '../src/screens/ProfileScreen';
 import CalendarConfirmationScreen from '../src/screens/CalendarConfirmationScreen';
+import WalkthroughScreen from '../src/screens/WalkthroughScreen';
+import { color } from '../src/theme';
 
 jest.mock('../src/services/liveLocation', () => ({
     getLiveLocation: jest.fn(),
@@ -42,8 +44,9 @@ const loaded = {
 async function show(Screen, overrides = {}, params = { partyId: 'p1' }) {
     global.__route = { params };
     global.__api.reset(fx.routes({ ...loaded, ...overrides }));
-    mount(Screen);
+    const view = mount(Screen);
     await settle();
+    return view;
 }
 
 function mount(Screen) {
@@ -389,6 +392,22 @@ describe('CalendarConfirmation', () => {
         expect(screen.queryAllByText('Loading...')).toHaveLength(0);
         await retryLoads(expectLoadError("We couldn't load your hangout details"));
         screen.getByText('Blue Bottle Cafe');
+    });
+});
+
+describe('Walkthrough', () => {
+    afterEach(() => {
+        global.__theme = undefined;
+    });
+
+    test('from signup in light mode paints no dark theme background on any slide', async () => {
+        global.__theme = 'light';
+        const { container } = await show(WalkthroughScreen, {}, { fromSignup: true });
+        const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+        const dark = [color.dark.background, color.dark.surface, color.dark.surfaceRaised].map(rgb);
+        const painted = [...container.querySelectorAll('*')].map((el) => getComputedStyle(el).backgroundColor);
+        expect(painted).toContain(rgb(color.light.background));
+        expect(painted.filter((bg) => dark.includes(bg))).toEqual([]);
     });
 });
 
