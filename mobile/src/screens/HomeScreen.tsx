@@ -23,7 +23,7 @@ import DialogHost from '../components/DialogHost';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { confirm, errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 const HOME_HELP: { title: string; description: string }[] = [
@@ -53,6 +53,7 @@ interface PartyRow {
 }
 
 function StackedAvatars({ avatars, colors }: { avatars: MemberAvatar[]; colors: AppColors }) {
+    const { roles: r } = useTheme();
     return (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {avatars.map((a, i) => (
@@ -67,7 +68,7 @@ function StackedAvatars({ avatars, colors }: { avatars: MemberAvatar[]; colors: 
                         <Image source={{ uri: a.avatar_url }} style={{ width: 32, height: 32, borderRadius: 14 }} />
                     ) : (
                         <View style={{ width: 32, height: 32, borderRadius: 14, backgroundColor: a.avatar_color ?? colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 11 }}>{a.initial}</Text>
+                            <Text style={{ color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 11 }}>{a.initial}</Text>
                         </View>
                     )}
                 </View>
@@ -120,6 +121,7 @@ function PartyProgressBar({ totalVotes, memberCount, venueCount, colors }: {
 }
 
 function PartyCard({ party, onPress, onMenuPress, colors }: { party: PartyRow; onPress: () => void; onMenuPress: () => void; colors: AppColors }) {
+    const { roles: r } = useTheme();
     const isMatched = party.status === 'matched' || party.status === 'scheduled';
     const isSwiping = party.status === 'swiping';
 
@@ -147,14 +149,9 @@ function PartyCard({ party, onPress, onMenuPress, colors }: { party: PartyRow; o
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     {isMatched && (
-                        <LinearGradient
-                            colors={['#10B981', '#059669']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: radii.pill }}
-                        >
-                            <Text style={{ color: 'white', fontFamily: 'Inter_900Black', fontSize: 11 }}>MATCHED! 🎉</Text>
-                        </LinearGradient>
+                        <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: radii.pill, backgroundColor: r.successFill }}>
+                            <Text style={{ color: r.onPrimary, fontFamily: 'Inter_900Black', fontSize: 11 }}>MATCHED! 🎉</Text>
+                        </View>
                     )}
                     <TouchableOpacity
                         onPress={(e) => { e.stopPropagation?.(); onMenuPress(); }}
@@ -184,6 +181,7 @@ function PartyCard({ party, onPress, onMenuPress, colors }: { party: PartyRow; o
 }
 
 function OnlineFriendBubble({ friend, onPress, index, colors }: { friend: any; onPress: () => void; index: number; colors: AppColors }) {
+    const { roles: r } = useTheme();
     const name: string = friend.display_name ?? '?';
     const initials = name.slice(0, 2).toUpperCase();
 
@@ -195,10 +193,10 @@ function OnlineFriendBubble({ friend, onPress, index, colors }: { friend: any; o
                         <Image source={{ uri: friend.avatar_url }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: colors.glassBorder }} />
                     ) : (
                         <View style={{ width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.glassBorder, backgroundColor: friend.avatar_color ?? colors.primary }}>
-                            <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 18 }}>{initials}</Text>
+                            <Text style={{ color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 18 }}>{initials}</Text>
                         </View>
                     )}
-                    <View style={{ position: 'absolute', bottom: 1, right: 1, width: 16, height: 16, borderRadius: 8, backgroundColor: '#22C55E', borderWidth: 2, borderColor: colors.bg }} />
+                    <View style={{ position: 'absolute', bottom: 1, right: 1, width: 16, height: 16, borderRadius: 8, backgroundColor: r.success, borderWidth: 2, borderColor: colors.bg }} />
                 </View>
                 <Text style={{ color: colors.text60, fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 6, textAlign: 'center', maxWidth: 64 }} numberOfLines={1}>{name.split(' ')[0]}</Text>
             </TouchableOpacity>
@@ -207,6 +205,7 @@ function OnlineFriendBubble({ friend, onPress, index, colors }: { friend: any; o
 }
 
 function AnimatedFAB({ onPress, colors }: { onPress: () => void; colors: AppColors }) {
+    const { roles: r } = useTheme();
     const scale = useSharedValue(0);
 
     useEffect(() => {
@@ -224,7 +223,7 @@ function AnimatedFAB({ onPress, colors }: { onPress: () => void; colors: AppColo
                     end={{ x: 1, y: 1 }}
                     style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}
                 >
-                    <Plus size={28} color="white" strokeWidth={3} />
+                    <Plus size={28} color={r.onPrimary} strokeWidth={3} />
                 </LinearGradient>
             </TouchableOpacity>
         </Animated.View>
@@ -233,8 +232,8 @@ function AnimatedFAB({ onPress, colors }: { onPress: () => void; colors: AppColo
 
 export default function HomeScreen() {
     const nav = useNavigation<any>();
-    const { colors, syncFromProfile } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles, syncFromProfile } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [parties, setParties] = useState<PartyRow[]>([]);
     const [partiesLoaded, setPartiesLoaded] = useState(false);
@@ -402,7 +401,7 @@ export default function HomeScreen() {
                             <View style={styles.friendsCardAccent} />
                             <View style={styles.friendsCardBody}>
                                 <View style={styles.friendsCardIcon}>
-                                    <Users size={22} color="white" />
+                                    <Users size={22} color={roles.primaryText} />
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.friendsCardTitle}>Friends</Text>
@@ -518,7 +517,7 @@ export default function HomeScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         header: { paddingHorizontal: 24, paddingTop: 8 },
@@ -543,7 +542,7 @@ function makeStyles(c: AppColors) {
             borderColor: c.glassBorder,
             flexDirection: 'row',
         },
-        friendsCardAccent: { width: 4, backgroundColor: '#6C3EF4' },
+        friendsCardAccent: { width: 4, backgroundColor: r.primary },
         friendsCardBody: {
             flex: 1,
             flexDirection: 'row',
@@ -554,19 +553,19 @@ function makeStyles(c: AppColors) {
         },
         friendsCardIcon: {
             width: 44, height: 44, borderRadius: 22,
-            backgroundColor: 'rgba(108,62,244,0.2)',
+            backgroundColor: r.primarySoft,
             alignItems: 'center', justifyContent: 'center',
         },
         friendsCardTitle: { color: c.textPrimary, fontSize: 17, fontFamily: 'Inter_700Bold' },
         friendsCardSubtitle: { color: c.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 2 },
         friendsCardBadge: {
-            backgroundColor: '#FF4D5F',
+            backgroundColor: r.dangerStrong,
             minWidth: 22, height: 22, borderRadius: 11,
             paddingHorizontal: 6,
             alignItems: 'center', justifyContent: 'center',
             marginRight: 4,
         },
-        friendsCardBadgeText: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
+        friendsCardBadgeText: { color: r.onPrimary, fontSize: 12, fontFamily: 'Inter_700Bold' },
         sectionHeader: { ...typography.h2, color: c.textPrimary, marginBottom: 16, fontSize: 20 },
         emptyCard: {
             backgroundColor: c.glass,
@@ -578,7 +577,7 @@ function makeStyles(c: AppColors) {
         },
         emptyTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 16, marginBottom: 6 },
         emptyBody: { color: c.text60, fontSize: 13, textAlign: 'center', fontFamily: 'Inter_400Regular' },
-        menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+        menuOverlay: { flex: 1, backgroundColor: r.scrim, justifyContent: 'flex-end' },
         menuSheet: {
             backgroundColor: c.bg,
             borderTopLeftRadius: 24,
@@ -590,7 +589,7 @@ function makeStyles(c: AppColors) {
         },
         menuTitle: { color: c.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 16 },
         menuRow: { paddingVertical: 16, borderTopWidth: 1, borderTopColor: c.glassBorder },
-        menuDestructive: { color: '#FF4D5F', fontSize: 16, fontFamily: 'Inter_600SemiBold' },
+        menuDestructive: { color: r.danger, fontSize: 16, fontFamily: 'Inter_600SemiBold' },
         menuCancel: { color: c.text60, fontSize: 16, fontFamily: 'Inter_500Medium' },
     });
 }

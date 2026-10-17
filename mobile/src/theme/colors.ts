@@ -1,71 +1,76 @@
+import { color, palette } from './tokens';
+
+const d = color.dark;
+const l = color.light;
+
 export const darkColors = {
-    primary: '#6C3EF4',
-    primaryAlt: '#00C2FF',
-    gradient: ['#6C3EF4', '#00C2FF'] as const,
+    primary: d.primary,
+    primaryAlt: d.accent,
+    gradient: [d.primary, d.accent] as const,
 
-    bg: '#0A0A0F',
-    bgBlack: '#000000',
-    surface: '#15151F',
-    surfaceElevated: '#1F1F2E',
+    bg: d.background,
+    bgBlack: palette.black,
+    surface: d.surface,
+    surfaceElevated: d.surfaceRaised,
 
-    glass: 'rgba(255,255,255,0.05)',
-    glassStrong: 'rgba(255,255,255,0.10)',
-    glassBorder: 'rgba(255,255,255,0.10)',
-    glassBorderStrong: 'rgba(255,255,255,0.20)',
+    glass: d.fill,
+    glassStrong: d.fillStrong,
+    glassBorder: d.border,
+    glassBorderStrong: d.borderStrong,
 
-    textPrimary: '#FFFFFF',
+    textPrimary: d.text,
     text80: 'rgba(255,255,255,0.80)',
-    text60: 'rgba(255,255,255,0.60)',
-    text40: 'rgba(255,255,255,0.40)',
+    text60: d.textMuted,
+    text40: d.textFaint,
     text30: 'rgba(255,255,255,0.30)',
-    textSecondary: 'rgba(255,255,255,0.60)',
-    textMuted: 'rgba(255,255,255,0.40)',
+    textSecondary: d.textMuted,
+    textMuted: d.textFaint,
 
-    success: '#22C55E',
+    success: d.success,
     successDim: 'rgba(34,197,94,0.18)',
-    danger: '#EF4444',
-    dangerStrong: '#B91C1C',
+    danger: d.danger,
+    dangerStrong: d.dangerStrong,
     dangerDim: 'rgba(239,68,68,0.18)',
-    warning: '#FACC15',
+    warning: d.warning,
 
     confetti: ['#6C3EF4', '#00C2FF', '#FF6B9D', '#FFD93D', '#6BCF7F'] as const,
 
-    border: 'rgba(255,255,255,0.10)',
+    border: d.border,
 };
 
-export const lightColors = {
-    primary: '#6C3EF4',
-    primaryAlt: '#00C2FF',
-    gradient: ['#6C3EF4', '#00C2FF'] as const,
+export const lightColors: typeof darkColors = {
+    primary: l.primary,
+    primaryAlt: l.accent,
+    gradient: [l.primary, l.accent] as const,
 
-    bg: '#FAFAFB',
-    bgBlack: '#000000',
-    surface: '#FFFFFF',
-    surfaceElevated: '#F0F0F6',
+    bg: l.background,
+    bgBlack: palette.black,
+    surface: l.surface,
+    surfaceElevated: l.surfaceRaised,
 
-    glass: 'rgba(0,0,0,0.04)',
-    glassStrong: 'rgba(0,0,0,0.08)',
-    glassBorder: 'rgba(0,0,0,0.08)',
-    glassBorderStrong: 'rgba(0,0,0,0.15)',
+    glass: l.fill,
+    glassStrong: l.fillStrong,
+    glassBorder: l.border,
+    glassBorderStrong: l.borderStrong,
 
-    textPrimary: '#0A0A0F',
+    textPrimary: l.text,
     text80: 'rgba(10,10,15,0.80)',
-    text60: 'rgba(10,10,15,0.60)',
-    text40: 'rgba(10,10,15,0.40)',
+    text60: l.textMuted,
+    text40: l.textFaint,
     text30: 'rgba(10,10,15,0.30)',
-    textSecondary: 'rgba(10,10,15,0.60)',
-    textMuted: 'rgba(10,10,15,0.40)',
+    textSecondary: l.textMuted,
+    textMuted: l.textFaint,
 
-    success: '#10B981',
+    success: l.success,
     successDim: 'rgba(16,185,129,0.18)',
-    danger: '#EF4444',
-    dangerStrong: '#B91C1C',
+    danger: l.danger,
+    dangerStrong: l.dangerStrong,
     dangerDim: 'rgba(239,68,68,0.18)',
-    warning: '#F59E0B',
+    warning: l.warning,
 
     confetti: ['#6C3EF4', '#00C2FF', '#FF6B9D', '#FFD93D', '#6BCF7F'] as const,
 
-    border: 'rgba(0,0,0,0.08)',
+    border: l.border,
 };
 
 export type AppColors = typeof darkColors;

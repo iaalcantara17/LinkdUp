@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import MapView, { Marker, Circle } from 'react-native-maps';
-import { colors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 export interface CrewMapProps {
     members: Array<{
@@ -28,6 +29,8 @@ export default function CrewMap({
     showMidpoint = false,
     onMemberPress,
 }: CrewMapProps) {
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     const mapRef = useRef<MapView>(null);
 
     const allCoords = [
@@ -91,8 +94,8 @@ export default function CrewMap({
                     <Circle
                         center={{ latitude: midpoint.lat, longitude: midpoint.lng }}
                         radius={radiusMeters}
-                        strokeColor="rgba(108,62,244,0.6)"
-                        fillColor="rgba(108,62,244,0.08)"
+                        strokeColor={r.primary}
+                        fillColor={r.primarySoft}
                         strokeWidth={2}
                     />
                 </>
@@ -101,30 +104,32 @@ export default function CrewMap({
     );
 }
 
-const styles = StyleSheet.create({
-    empty: {
-        borderRadius: 16,
-        backgroundColor: colors.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    emptyText: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular' },
-    avatarMarker: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: 'white',
-    },
-    avatarInitial: { color: 'white', fontSize: 15, fontFamily: 'Inter_700Bold' },
-    midpointMarker: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: colors.primary,
-        borderWidth: 3,
-        borderColor: 'white',
-    },
-});
+function makeStyles(colors: AppColors, r: ColorRoles) {
+    return StyleSheet.create({
+        empty: {
+            borderRadius: 16,
+            backgroundColor: colors.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        emptyText: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular' },
+        avatarMarker: {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: r.onMedia,
+        },
+        avatarInitial: { color: r.onPrimary, fontSize: 15, fontFamily: 'Inter_700Bold' },
+        midpointMarker: {
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            backgroundColor: colors.primary,
+            borderWidth: 3,
+            borderColor: r.onMedia,
+        },
+    });
+}

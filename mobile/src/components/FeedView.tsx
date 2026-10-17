@@ -9,8 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
 import { confirm, errorText } from './dialogs';
-import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import { palette, radii } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import FeedCard, { FeedPost } from './FeedCard';
 import CommentSheet from './CommentSheet';
@@ -23,8 +23,9 @@ interface Props {
 export default function FeedView({ onBack }: Props) {
     const { height, width } = useWindowDimensions();
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
+    const { colors, roles: r } = useTheme();
     const sheetStyles = useMemo(() => makeSheetStyles(colors), [colors]);
+    const feedStyles = useMemo(() => makeFeedStyles(colors, r), [colors, r]);
 
     const [posts, setPosts] = useState<FeedPost[]>([]);
     const [loading, setLoading] = useState(true);
@@ -208,7 +209,7 @@ export default function FeedView({ onBack }: Props) {
     if (loading) {
         return (
             <View style={feedStyles.loadingRoot}>
-                <ActivityIndicator color="white" size="large" />
+                <ActivityIndicator color={r.onMedia} size="large" />
             </View>
         );
     }
@@ -221,7 +222,7 @@ export default function FeedView({ onBack }: Props) {
                     Be the first — tap + above to post
                 </Text>
                 <TouchableOpacity onPress={onBack} style={{ marginTop: 20 }}>
-                    <Text style={[feedStyles.backLink, { color: colors.primary }]}>Back to Explore</Text>
+                    <Text style={[feedStyles.backLink, { color: palette.violet300 }]}>Back to Explore</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -279,7 +280,7 @@ export default function FeedView({ onBack }: Props) {
                         onPress={onBack}
                         activeOpacity={0.8}
                     >
-                        <ChevronLeft size={20} color="white" />
+                        <ChevronLeft size={20} color={r.onMedia} />
                     </TouchableOpacity>
                     <Text style={feedStyles.topTitle}>Discover</Text>
                     <TouchableOpacity
@@ -293,7 +294,7 @@ export default function FeedView({ onBack }: Props) {
                             end={{ x: 1, y: 1 }}
                             style={feedStyles.createBtnInner}
                         >
-                            <Plus size={20} color="white" strokeWidth={2.5} />
+                            <Plus size={20} color={r.onPrimary} strokeWidth={2.5} />
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
@@ -367,116 +368,118 @@ export default function FeedView({ onBack }: Props) {
     );
 }
 
-const feedStyles = StyleSheet.create({
-    root: {
-        flex: 1,
-        backgroundColor: '#000',
-    },
-    loadingRoot: {
-        flex: 1,
-        backgroundColor: '#000',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    toast: {
-        position: 'absolute',
-        top: 90,
-        alignSelf: 'center',
-        backgroundColor: 'rgba(0,0,0,0.75)',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 20,
-        zIndex: 99,
-    },
-    toastText: {
-        color: 'white',
-        fontFamily: 'Inter_500Medium',
-        fontSize: 13,
-    },
-    topBarOuter: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 20,
-    },
-    topBarRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    backBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.40)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    topTitle: {
-        color: 'white',
-        fontFamily: 'Inter_900Black',
-        fontSize: 20,
-    },
-    dotsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 5,
-        paddingBottom: 8,
-    },
-    dot: {
-        height: 4,
-        borderRadius: 2,
-    },
-    dotCurrent: {
-        width: 24,
-        backgroundColor: 'white',
-    },
-    dotPast: {
-        width: 8,
-        backgroundColor: 'rgba(255,255,255,0.50)',
-    },
-    dotFuture: {
-        width: 8,
-        backgroundColor: 'rgba(255,255,255,0.20)',
-    },
-    emptyTitle: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 18,
-        textAlign: 'center',
-    },
-    emptySubtitle: {
-        color: 'rgba(255,255,255,0.60)',
-        fontFamily: 'Inter_400Regular',
-        fontSize: 14,
-        textAlign: 'center',
-        marginTop: 8,
-    },
-    backLink: {
-        fontFamily: 'Inter_600SemiBold',
-        fontSize: 15,
-    },
-    createBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-    },
-    createBtnInner: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    modalBackdrop: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-});
+function makeFeedStyles(colors: AppColors, r: ColorRoles) {
+    return StyleSheet.create({
+        root: {
+            flex: 1,
+            backgroundColor: palette.black,
+        },
+        loadingRoot: {
+            flex: 1,
+            backgroundColor: palette.black,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        toast: {
+            position: 'absolute',
+            top: 90,
+            alignSelf: 'center',
+            backgroundColor: r.scrimStrong,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 20,
+            zIndex: 99,
+        },
+        toastText: {
+            color: r.onMedia,
+            fontFamily: 'Inter_500Medium',
+            fontSize: 13,
+        },
+        topBarOuter: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 20,
+        },
+        topBarRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+        },
+        backBtn: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: r.scrim,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        topTitle: {
+            color: r.onMedia,
+            fontFamily: 'Inter_900Black',
+            fontSize: 20,
+        },
+        dotsRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 5,
+            paddingBottom: 8,
+        },
+        dot: {
+            height: 4,
+            borderRadius: 2,
+        },
+        dotCurrent: {
+            width: 24,
+            backgroundColor: r.onMedia,
+        },
+        dotPast: {
+            width: 8,
+            backgroundColor: r.onMediaMuted,
+        },
+        dotFuture: {
+            width: 8,
+            backgroundColor: r.onMediaFaint,
+        },
+        emptyTitle: {
+            color: r.onMedia,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 18,
+            textAlign: 'center',
+        },
+        emptySubtitle: {
+            color: r.onMediaMuted,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 14,
+            textAlign: 'center',
+            marginTop: 8,
+        },
+        backLink: {
+            fontFamily: 'Inter_600SemiBold',
+            fontSize: 15,
+        },
+        createBtn: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+        },
+        createBtnInner: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        modalBackdrop: {
+            flex: 1,
+            backgroundColor: r.scrim,
+        },
+    });
+}
 
 function makeSheetStyles(c: AppColors) {
     return StyleSheet.create({

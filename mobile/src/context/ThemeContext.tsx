@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
-import { darkColors, lightColors, AppColors } from '../theme';
+import { darkColors, lightColors, AppColors, color, ColorRoles } from '../theme';
 import { api } from '../services/api';
 
 export type ThemeMode = 'dark' | 'light' | 'system';
@@ -9,6 +9,7 @@ interface ThemeContextValue {
     mode: ThemeMode;
     isDark: boolean;
     colors: AppColors;
+    roles: ColorRoles;
     setMode: (m: ThemeMode) => Promise<void>;
     syncFromProfile: (pref: string) => void;
 }
@@ -17,6 +18,7 @@ const ThemeContext = createContext<ThemeContextValue>({
     mode: 'dark',
     isDark: true,
     colors: darkColors,
+    roles: color.dark,
     setMode: async () => {},
     syncFromProfile: () => {},
 });
@@ -40,6 +42,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const isDark = mode === 'system' ? systemScheme !== 'light' : mode === 'dark';
     const colors = isDark ? darkColors : lightColors;
+    const roles = isDark ? color.dark : color.light;
 
     const setMode = useCallback(async (m: ThemeMode) => {
         setMode_(m);
@@ -56,7 +59,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <ThemeContext.Provider value={{ mode, isDark, colors, setMode, syncFromProfile }}>
+        <ThemeContext.Provider value={{ mode, isDark, colors, roles, setMode, syncFromProfile }}>
             {children}
         </ThemeContext.Provider>
     );

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -14,7 +14,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ChevronRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
-import { colors, typography, radii } from '../theme';
+import { typography, radii, palette } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const slides = [
     {
@@ -35,6 +37,8 @@ const slides = [
 ];
 
 function SlideContent({ slide, isActive }: { slide: typeof slides[0]; isActive: boolean }) {
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     const cfg = { duration: 400, easing: Easing.out(Easing.cubic) };
 
     const imgOp = useSharedValue(isActive ? 1 : 0);
@@ -78,6 +82,8 @@ function SlideContent({ slide, isActive }: { slide: typeof slides[0]; isActive: 
 }
 
 function Splash({ onDone }: { onDone: () => void }) {
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     const containerOpacity = useSharedValue(1);
     const wordOpacity = useSharedValue(0);
     const wordScale = useSharedValue(0.85);
@@ -122,6 +128,8 @@ function Splash({ onDone }: { onDone: () => void }) {
 }
 
 export default function OnboardingScreen() {
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     const nav = useNavigation<any>();
     const { width } = useWindowDimensions();
     const [showSplash, setShowSplash] = useState(true);
@@ -189,7 +197,7 @@ export default function OnboardingScreen() {
                                 style={styles.nextBtn}
                             >
                                 <Text style={styles.nextText}>Next</Text>
-                                <ChevronRight size={20} color="white" />
+                                <ChevronRight size={20} color={r.onPrimary} />
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -201,31 +209,33 @@ export default function OnboardingScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    splashWordmark: { ...typography.wordmarkLarge, color: 'white' },
-    splashTagline: { ...typography.body, color: 'rgba(255,255,255,0.80)', marginTop: 16, fontSize: 18 },
-    progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingTop: 16 },
-    progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden' },
-    progressFill: { height: '100%' },
-    slide: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },    
-    imageWrap: {
-        width: 300,
-        height: 300,
-        borderRadius: radii.xl,
-        overflow: 'hidden',
-        marginBottom: 24,
-        shadowColor: '#000',
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
-        shadowOffset: { width: 0, height: 10 },
-    },
-    image: { width: '100%', height: '100%' },
-    title: { ...typography.h1, color: 'white', textAlign: 'center', marginBottom: 12, fontSize: 30 },
-    desc: { ...typography.body, color: colors.text60, textAlign: 'center' },
-    actions: { paddingHorizontal: 24, paddingBottom: 16, paddingTop: 8 },
-    navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    skipText: { color: colors.text40, fontFamily: 'Inter_500Medium', fontSize: 16 },
-    nextBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 28, paddingVertical: 14, borderRadius: radii.pill },
-    nextText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 },
-});
+function makeStyles(colors: AppColors, r: ColorRoles) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: colors.bg },
+        splashWordmark: { ...typography.wordmarkLarge, color: r.onMedia },
+        splashTagline: { ...typography.body, color: r.onMediaMuted, marginTop: 16, fontSize: 18 },
+        progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingTop: 16 },
+        progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: r.border, overflow: 'hidden' },
+        progressFill: { height: '100%' },
+        slide: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },    
+        imageWrap: {
+            width: 300,
+            height: 300,
+            borderRadius: radii.xl,
+            overflow: 'hidden',
+            marginBottom: 24,
+            shadowColor: palette.black,
+            shadowOpacity: 0.5,
+            shadowRadius: 20,
+            shadowOffset: { width: 0, height: 10 },
+        },
+        image: { width: '100%', height: '100%' },
+        title: { ...typography.h1, color: r.text, textAlign: 'center', marginBottom: 12, fontSize: 30 },
+        desc: { ...typography.body, color: colors.text60, textAlign: 'center' },
+        actions: { paddingHorizontal: 24, paddingBottom: 16, paddingTop: 8 },
+        navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+        skipText: { color: colors.text40, fontFamily: 'Inter_500Medium', fontSize: 16 },
+        nextBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 28, paddingVertical: 14, borderRadius: radii.pill },
+        nextText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
+    });
+}

@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { errorText } from './dialogs';
 import { useTheme } from '../context/ThemeContext';
-import { AppColors, radii } from '../theme';
+import { ColorRoles, radius, space, typeScale } from '../theme';
 
 export const SLOW_LOAD_MS = 8_000;
 
 export function LoadError({ title, error, onRetry }: { title: string; error: unknown; onRetry: () => void }) {
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { roles } = useTheme();
+    const styles = useMemo(() => makeStyles(roles), [roles]);
     return (
         <View accessibilityRole="alert" style={styles.card}>
             <Text style={styles.title}>{title}</Text>
@@ -21,8 +21,8 @@ export function LoadError({ title, error, onRetry }: { title: string; error: unk
 }
 
 export function SlowLoadNote({ loading }: { loading: boolean }) {
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { roles } = useTheme();
+    const styles = useMemo(() => makeStyles(roles), [roles]);
     const [slow, setSlow] = useState(false);
     useEffect(() => {
         setSlow(false);
@@ -38,29 +38,29 @@ export function SlowLoadNote({ loading }: { loading: boolean }) {
     );
 }
 
-function makeStyles(colors: AppColors) {
+function makeStyles(r: ColorRoles) {
     return StyleSheet.create({
         card: {
-            backgroundColor: colors.surface,
-            borderRadius: radii.lg,
-            padding: 20,
-            gap: 8,
-            marginVertical: 12,
+            backgroundColor: r.surface,
+            borderRadius: radius.lg,
+            padding: space.s5,
+            gap: space.s2,
+            marginVertical: space.s3,
         },
-        title: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
-        body: { color: colors.text60, fontSize: 14, lineHeight: 20 },
+        title: { ...typeScale.bodyStrong, color: r.text },
+        body: { ...typeScale.footnote, color: r.textMuted },
         retry: {
-            marginTop: 8,
+            marginTop: space.s2,
             minHeight: 44,
             minWidth: 44,
-            paddingHorizontal: 20,
-            borderRadius: radii.lg,
+            paddingHorizontal: space.s5,
+            borderRadius: radius.lg,
             borderWidth: 1.5,
-            borderColor: colors.primary,
+            borderColor: r.primary,
             alignItems: 'center',
             justifyContent: 'center',
         },
-        retryText: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
-        slow: { color: colors.text60, fontSize: 13, lineHeight: 18, textAlign: 'center', marginVertical: 8 },
+        retryText: { ...typeScale.bodyStrong, color: r.text },
+        slow: { ...typeScale.footnote, color: r.textMuted, textAlign: 'center', marginVertical: space.s2 },
     });
 }

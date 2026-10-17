@@ -2,15 +2,15 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { AccessibilityInfo, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import { AppColors, radii, spacing, typography } from '../theme';
+import { AppColors, ColorRoles, radius, space, typeScale } from '../theme';
 import { claimHost, dismiss, dismissToast, getSnapshot, respond, subscribe } from './dialogs';
 
 let hostSeq = 0;
 const PRESS_GUARD_MS = 250;
 
 export default function DialogHost() {
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
     const insets = useSafeAreaInsets();
     const [hostId] = useState(() => ++hostSeq);
     const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -52,7 +52,7 @@ export default function DialogHost() {
                     accessibilityHint="Dismisses this message"
                     style={styles.toast}
                 >
-                    <View style={[styles.dot, { backgroundColor: t.tone === 'success' ? colors.success : colors.primary }]} />
+                    <View style={[styles.dot, { backgroundColor: t.tone === 'success' ? roles.success : roles.primary }]} />
                     <Text style={styles.toastText}>{t.message}</Text>
                 </Pressable>
             ))}
@@ -109,64 +109,64 @@ export default function DialogHost() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         backdrop: {
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.55)',
+            backgroundColor: r.scrim,
             alignItems: 'center',
             justifyContent: 'center',
-            padding: spacing.md,
+            padding: space.s4,
         },
         card: {
             width: '100%',
             maxWidth: 400,
-            backgroundColor: c.surface,
-            borderRadius: radii.lg,
+            backgroundColor: r.surface,
+            borderRadius: radius.lg,
             borderWidth: 1,
-            borderColor: c.glassBorderStrong,
-            padding: spacing.lg,
+            borderColor: r.borderStrong,
+            padding: space.s6,
         },
-        title: { ...typography.h3, color: c.textPrimary },
-        message: { ...typography.body, color: c.textSecondary, marginTop: spacing.sm, lineHeight: 22 },
-        row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
-        stack: { gap: spacing.sm, marginTop: spacing.lg },
+        title: { ...typeScale.title, color: r.text },
+        message: { ...typeScale.body, color: r.textMuted, marginTop: space.s2 },
+        row: { flexDirection: 'row', gap: space.s2, marginTop: space.s6 },
+        stack: { gap: space.s2, marginTop: space.s6 },
         button: {
             minHeight: 48,
             minWidth: 44,
-            borderRadius: radii.md,
-            backgroundColor: c.primary,
+            borderRadius: radius.md,
+            backgroundColor: r.primary,
             alignItems: 'center',
             justifyContent: 'center',
-            paddingHorizontal: spacing.md,
+            paddingHorizontal: space.s4,
         },
         rowButton: { flex: 1 },
         cancel: { backgroundColor: c.glassStrong },
-        destructive: { backgroundColor: c.dangerStrong },
+        destructive: { backgroundColor: r.dangerStrong },
         pressed: { opacity: 0.8 },
-        buttonText: { ...typography.bodyBold, color: '#FFFFFF' },
-        cancelText: { color: c.textPrimary },
+        buttonText: { ...typeScale.bodyStrong, color: r.onPrimary },
+        cancelText: { color: r.text },
         toastLayer: {
             position: 'absolute',
-            left: spacing.md,
-            right: spacing.md,
+            left: space.s4,
+            right: space.s4,
             alignItems: 'center',
-            gap: spacing.sm,
+            gap: space.s2,
         },
         toast: {
             flexDirection: 'row',
             alignItems: 'center',
-            gap: spacing.sm,
+            gap: space.s2,
             minHeight: 44,
             maxWidth: 480,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm + 2,
-            borderRadius: radii.pill,
-            backgroundColor: c.surfaceElevated,
+            paddingHorizontal: space.s4,
+            paddingVertical: space.s2,
+            borderRadius: radius.pill,
+            backgroundColor: r.surfaceRaised,
             borderWidth: 1,
-            borderColor: c.glassBorderStrong,
+            borderColor: r.borderStrong,
         },
-        dot: { width: 8, height: 8, borderRadius: 4 },
-        toastText: { ...typography.bodyMed, color: c.textPrimary, flexShrink: 1 },
+        dot: { width: space.s2, height: space.s2, borderRadius: space.s1 },
+        toastText: { ...typeScale.body, color: r.text, flexShrink: 1 },
     });
 }

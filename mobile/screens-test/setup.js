@@ -92,9 +92,9 @@ jest.mock('@react-navigation/native', () => {
 });
 
 jest.mock('../src/context/ThemeContext', () => {
-    const { darkColors } = jest.requireActual('../src/theme');
+    const { darkColors, color } = jest.requireActual('../src/theme');
     return {
-        useTheme: () => ({ mode: 'dark', isDark: true, colors: darkColors, setMode: jest.fn(), syncFromProfile: jest.fn() }),
+        useTheme: () => ({ mode: 'dark', isDark: true, colors: darkColors, roles: color.dark, setMode: jest.fn(), syncFromProfile: jest.fn() }),
     };
 });
 
