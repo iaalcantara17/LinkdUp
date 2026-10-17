@@ -13,6 +13,8 @@ export type MenuAction = { label: string; destructive?: boolean; onPress: () => 
 
 export const TOAST_MS = 3000;
 
+export const DEMO_READ_ONLY = 'Demo mode, read only. Sign up to create your own parties.';
+
 type Pending = { dialog: Dialog; resolve: (index: number) => void };
 
 let nextId = 1;
@@ -94,6 +96,7 @@ export function confirmBlock(user: { username?: string | null; display_name?: st
 }
 
 export async function showError(title: string, message?: string): Promise<void> {
+    if (message === DEMO_READ_ONLY) return;
     await open({ role: 'alertdialog', title, message, buttons: [{ label: 'OK', style: 'default' }] });
 }
 
@@ -118,12 +121,32 @@ export function dismissToast(id: number) {
 }
 
 export function toast(message: string, tone: ToastTone = 'success') {
+    if (message === DEMO_READ_ONLY) return;
     const id = nextId++;
     emit([...snapshot.toasts, { id, message, tone }]);
     setTimeout(() => dismissToast(id), TOAST_MS);
 }
 
+let demoDialogOpen = false;
+
+export async function demoReadOnly(onSignUp: () => void): Promise<void> {
+    if (demoDialogOpen) return;
+    demoDialogOpen = true;
+    try {
+        const signUp = await confirm({
+            title: 'Demo mode, read only',
+            message: 'Sign up to create your own parties.',
+            confirmLabel: 'Sign up',
+            cancelLabel: 'Not now',
+        });
+        if (signUp) onSignUp();
+    } finally {
+        demoDialogOpen = false;
+    }
+}
+
 const FRIENDLY: Record<string, string> = {
+    demo_read_only: DEMO_READ_ONLY,
     blocked: "You can't do that with this person.",
     not_authorized: "You don't have permission to do that.",
     not_host: 'Only the party host can do that.',

@@ -5,6 +5,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MapPin, Heart, MessageCircle, Share2, Bookmark, Plus, Check, MoreVertical, Trash2 } from './icons';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { palette } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import DialogHost from './DialogHost';
@@ -71,6 +72,7 @@ export default function FeedCard({
     onLike, onComment, onShare, onBookmark, onFollow, onAddToParty, onDelete, onCreatorPress,
 }: Props) {
     const { colors, roles: r } = useTheme();
+    const { isDemo } = useAuth();
     const cardStyles = useMemo(() => makeCardStyles(colors, r), [colors, r]);
     const [menuVisible, setMenuVisible] = useState(false);
 
@@ -139,8 +141,12 @@ export default function FeedCard({
 
                 <View style={cardStyles.actionItem}>
                     <TouchableOpacity
-                        style={cardStyles.actionCircle}
+                        style={[cardStyles.actionCircle, isDemo && { opacity: 0.5 }]}
                         onPress={() => onLike(post)}
+                        disabled={isDemo}
+                        accessibilityRole="button"
+                        accessibilityLabel={post.liked_by_me ? 'Unlike post' : 'Like post'}
+                        accessibilityState={{ disabled: isDemo, selected: !!post.liked_by_me }}
                         activeOpacity={0.8}
                     >
                         <Heart

@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ChevronRight } from '../components/icons';
 import GradientButton from '../components/GradientButton';
+import TryDemo from '../components/TryDemo';
 import { typography, radii, palette } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -183,6 +184,7 @@ export default function OnboardingScreen() {
                         <GradientButton title="Get Started" onPress={() => nav.navigate('Login', { mode: 'signup' })} />
                         <View style={{ height: 16 }} />
                         <GradientButton title="Log In" variant="ghost" onPress={() => nav.navigate('Login', { mode: 'login' })} />
+                        <TryDemo />
                     </>
                 ) : (
                     <View style={styles.navRow}>

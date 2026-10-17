@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { demoReadOnly } from '../components/dialogs';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL!;
 
@@ -8,7 +9,7 @@ export const VENUE_LIMIT_MESSAGE = 'Venue lookups are paused for today, try agai
 
 export function photoUri(url: string | null | undefined): string | undefined {
     if (!url) return undefined;
-    return url.startsWith('/') ? `${BASE}${url}` : url;
+    return url.startsWith('/api/') ? `${BASE}${url}` : url;
 }
 
 async function authHeader(): Promise<Record<string, string>> {
@@ -17,7 +18,7 @@ async function authHeader(): Promise<Record<string, string>> {
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function request<T>(method: string, path: string, body?: any): Promise<T> {
+async function request<T>(method: string, path: string, body?: any, quiet = false): Promise<T> {
     const res = await fetch(`${BASE}${path}`, {
         method,
         headers: {
@@ -30,6 +31,9 @@ async function request<T>(method: string, path: string, body?: any): Promise<T> 
     let data: any;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
     if (!res.ok) {
+        if (data?.error === 'demo_read_only' && !quiet) {
+            demoReadOnly(() => { supabase.auth.signOut({ scope: 'local' }); });
+        }
         const msg = data?.error === 'venue_limit_reached'
             ? VENUE_LIMIT_MESSAGE
             : data?.error || data?.message || `HTTP ${res.status}`;
@@ -44,6 +48,10 @@ export const api = {
     signup: (b: { email: string; password: string; display_name: string; school_id?: string; graduation_year?: number }) =>
         request<any>('POST', '/api/auth/signup', b),
     login: (b: { email: string; password: string }) => request<any>('POST', '/api/auth/login', b),
+    demoAvailable: () => request<{ available: boolean }>('GET', '/api/auth/demo-available'),
+    demo: () => request<{ user: { id: string }; session: { access_token: string; refresh_token: string; expires_at: number } }>(
+        'POST', '/api/auth/demo',
+    ),
     me: () => request<any>('GET', '/api/auth/me'),
     ensureProfile: (b: { email: string; display_name: string }) =>
         request<any>('POST', '/api/auth/ensure-profile', b),
@@ -79,7 +87,7 @@ export const api = {
     updateAvatar: (image_base64: string) =>
         request<{ ok: boolean; avatar_url: string }>('PUT', '/api/user/me/avatar', { image_base64 }),
     updateLocation: (lat: number, lng: number) =>
-        request<any>('PUT', '/api/user/location', { latitude: lat, longitude: lng }),
+        request<any>('PUT', '/api/user/location', { latitude: lat, longitude: lng }, true),
     updateLocationManual: (city: string, country?: string) =>
         request<any>('PUT', '/api/user/location/manual', { city, country }),
     searchPlace: (q: string) =>
@@ -116,7 +124,7 @@ export const api = {
         request<any>('POST', '/api/user/me/location-permission', { status }),
     revokeLocation: () => request<{ ok: boolean }>('DELETE', '/api/user/me/location'),
     getSeenHints: () => request<string[]>('GET', '/api/user/me/hints'),
-    markHintSeen: (screenKey: string) => request<any>('POST', '/api/user/me/hints', { screen_key: screenKey }),
+    markHintSeen: (screenKey: string) => request<any>('POST', '/api/user/me/hints', { screen_key: screenKey }, true),
 
     generateDates: (partyId: string) => request<any>('POST', `/api/party/${partyId}/dates`),
     getDates: (partyId: string) => request<any[]>('GET', `/api/party/${partyId}/dates`),

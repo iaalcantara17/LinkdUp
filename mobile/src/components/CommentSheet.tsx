@@ -13,6 +13,7 @@ import { confirm, errorText, showError } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 interface Comment {
     id: string;
@@ -46,6 +47,7 @@ export default function CommentSheet({
     postId, visible, onClose, currentUserId, initialCommentCount, onCommentCountChange,
 }: Props) {
     const { colors, roles } = useTheme();
+    const { isDemo } = useAuth();
     const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [comments, setComments] = useState<Comment[]>([]);
@@ -216,18 +218,21 @@ export default function CommentSheet({
                             )}
                             <TouchableOpacity
                                 onPress={handleSend}
-                                disabled={!draft.trim() || posting}
+                                disabled={!draft.trim() || posting || isDemo}
+                                accessibilityRole="button"
+                                accessibilityLabel="Send comment"
+                                accessibilityState={{ disabled: !draft.trim() || posting || isDemo }}
                                 activeOpacity={0.8}
                             >
                                 <LinearGradient
-                                    colors={(!draft.trim() || posting) ? [roles.fillStrong, roles.fillStrong] : (colors.gradient as any)}
+                                    colors={(!draft.trim() || posting || isDemo) ? [roles.fillStrong, roles.fillStrong] : (colors.gradient as any)}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 0 }}
                                     style={styles.sendBtn}
                                 >
                                     {posting
                                         ? <ActivityIndicator size="small" color={roles.text} />
-                                        : <Send size={16} color={draft.trim() ? roles.onPrimary : roles.textFaint} />
+                                        : <Send size={16} color={draft.trim() && !isDemo ? roles.onPrimary : roles.textFaint} />
                                     }
                                 </LinearGradient>
                             </TouchableOpacity>

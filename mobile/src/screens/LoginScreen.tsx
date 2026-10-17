@@ -15,6 +15,7 @@ import { api } from '../services/api';
 import { errorText } from '../components/dialogs';
 import { supabase } from '../services/supabase';
 import GradientButton from '../components/GradientButton';
+import TryDemo from '../components/TryDemo';
 import { typography, spacing, radii, palette } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -396,6 +397,8 @@ export default function LoginScreen() {
                                 }}
                                 leftIcon={<GoogleIcon />}
                             />
+
+                            <TryDemo />
 
                             <Text style={styles.toggle} onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
                                 {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
