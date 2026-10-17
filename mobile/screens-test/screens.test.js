@@ -12,6 +12,8 @@ import DiscoverScreen from '../src/screens/DiscoverScreen';
 import ProfileScreen from '../src/screens/ProfileScreen';
 import CalendarConfirmationScreen from '../src/screens/CalendarConfirmationScreen';
 import WalkthroughScreen from '../src/screens/WalkthroughScreen';
+import FollowListScreen from '../src/screens/FollowListScreen';
+import * as dialogs from '../src/components/dialogs';
 import { color } from '../src/theme';
 
 jest.mock('../src/services/liveLocation', () => ({
@@ -354,6 +356,7 @@ describe('CalendarConfirmation', () => {
         await show(CalendarConfirmationScreen, { getMatch: never, getParty: never });
         expect(screen.getAllByText('Loading...').length).toBeGreaterThan(0);
         button('Add to Google Calendar');
+        button('Download .ics');
     });
 
     test('loaded shows the Link venue, locked date, time and attendees', async () => {
@@ -365,6 +368,35 @@ describe('CalendarConfirmation', () => {
         button('Add to Google Calendar');
         button('Back to Home');
         button('Share');
+    });
+
+    test('Download .ics sits beside Add to Google Calendar and says it works in any calendar app without connecting', async () => {
+        await show(CalendarConfirmationScreen);
+        button('Add to Google Calendar');
+        button('Download .ics');
+        screen.getByText('The .ics file works with any calendar app, like Apple, Outlook or Google. No connection needed.');
+    });
+
+    test('Download .ics saves the hangout as linkdup-meetup.ics without asking to connect Google', async () => {
+        const ics = 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n';
+        const saved = [];
+        URL.createObjectURL = jest.fn((blob) => { saved.push(blob); return 'blob:ics'; });
+        URL.revokeObjectURL = jest.fn();
+        const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () { saved.push(this.download, this.href); });
+        try {
+            await show(CalendarConfirmationScreen, { calendarIcs: ics });
+            fireEvent.click(button('Download .ics'));
+            await settle();
+            expect(api.calendarIcs).toHaveBeenCalledWith('p1');
+            expect(api.calendarOAuthStart).not.toHaveBeenCalled();
+            expect(click).toHaveBeenCalledTimes(1);
+            expect(saved[0].type).toBe('text/calendar');
+            const text = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsText(saved[0]); });
+            expect(text).toBe(ics);
+            expect(saved.slice(1)).toEqual(['linkdup-meetup.ics', 'blob:ics']);
+        } finally {
+            click.mockRestore();
+        }
     });
 
     test('Add to Google Calendar asks a member without Google to connect first', async () => {
@@ -392,6 +424,33 @@ describe('CalendarConfirmation', () => {
         expect(screen.queryAllByText('Loading...')).toHaveLength(0);
         await retryLoads(expectLoadError("We couldn't load your hangout details"));
         screen.getByText('Blue Bottle Cafe');
+    });
+});
+
+describe('FollowList', () => {
+    test('View profile in the long-press menu opens that person in the profile sheet instead of a missing route', async () => {
+        const menu = jest.spyOn(dialogs, 'showMenu').mockImplementation(async (title, actions) => {
+            actions.find((a) => a.label === 'View profile').onPress();
+        });
+        try {
+            await show(FollowListScreen, {
+                getFollowers: [{ id: 'bob', display_name: 'Bob Builder', username: 'bob', avatar_color: '#22C55E', avatar_url: null }],
+                getPublicUser: { id: 'bob', display_name: 'Bob Builder', username: 'bob', bio: 'Builds things', follower_count: 3, following_count: 4 },
+                getFriends: [],
+                getPendingRequests: [],
+            }, { userId: 'alice', initialTab: 'followers', username: 'alice' });
+            const row = screen.getByText('@bob');
+            fireEvent.mouseDown(row);
+            await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+            fireEvent.mouseUp(row);
+            await settle();
+            expect(menu).toHaveBeenCalledWith('Bob Builder', expect.any(Array));
+            expect(global.__navigation.navigate).not.toHaveBeenCalledWith('UserProfile', expect.anything());
+            expect(api.getPublicUser).toHaveBeenCalledWith('bob');
+            await screen.findByText('Builds things');
+        } finally {
+            menu.mockRestore();
+        }
     });
 });
 

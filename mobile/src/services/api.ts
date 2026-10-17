@@ -141,7 +141,8 @@ export const api = {
         ),
 
     calendarOAuthStart: () => request<{ url: string }>('GET', '/api/calendar/oauth/start'),
-    calendarExport: (partyId: string) => request<any>('POST', `/api/calendar/party/${partyId}/export`),
+    calendarIcs: (partyId: string) => request<string>('GET', `/api/calendar/party/${partyId}/ics`),
+    calendarExport: (partyId: string) => request<any>('POST',`/api/calendar/party/${partyId}/export`),
 
     loadMoreVenues: (partyId: string) =>
         request<{ new_venue_count: number; exhausted?: boolean }>('GET', `/api/party/${partyId}/more-venues`),

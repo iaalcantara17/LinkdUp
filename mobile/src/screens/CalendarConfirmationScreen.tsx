@@ -13,7 +13,7 @@ import Animated, {
     withTiming,
     FadeInDown,
 } from 'react-native-reanimated';
-import { Calendar as CalendarIcon, Clock, MapPin, Users } from '../components/icons';
+import { Calendar as CalendarIcon, Clock, Download, MapPin, Users } from '../components/icons';
 import IconBadge from '../components/IconBadge';
 import GradientButton from '../components/GradientButton';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
@@ -35,6 +35,14 @@ function GoogleCalIcon() {
     );
 }
 
+function IcsIcon() {
+    return (
+        <View style={{ width: 22, height: 22, backgroundColor: palette.black, borderRadius: 4, alignItems: 'center', justifyContent: 'center' }}>
+            <Download size={14} color={palette.white} />
+        </View>
+    );
+}
+
 export default function CalendarConfirmationScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
@@ -43,6 +51,7 @@ export default function CalendarConfirmationScreen() {
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [loading, setLoading] = useState(false);
+    const [icsLoading, setIcsLoading] = useState(false);
     const [googleConnected, setGoogleConnected] = useState(false);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -214,6 +223,29 @@ export default function CalendarConfirmationScreen() {
             } catch (e: any) {
                 if ((e as any)?.name !== 'AbortError') console.error('[share]', e);
             }
+        }
+    };
+
+    const handleDownloadIcs = async () => {
+        if (Platform.OS !== 'web') {
+            showInfo('Download it on the web', 'Open LinkdUp in a browser to download the .ics file.');
+            return;
+        }
+        setIcsLoading(true);
+        try {
+            const ics = await api.calendarIcs(partyId);
+            const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'linkdup-meetup.ics';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url));
+            toast('Downloaded. Open the file to add it to your calendar.');
+        } catch (e: any) {
+            console.error('[ics]', e);
+            showError("Couldn't download the .ics file", errorText(e, 'Try again in a moment.'));
+        } finally {
+            setIcsLoading(false);
         }
     };
 
@@ -397,6 +429,17 @@ export default function CalendarConfirmationScreen() {
                             loading={loading}
                             leftIcon={<GoogleCalIcon />}
                         />
+                        <GradientButton
+                            title="Download .ics"
+                            variant="white"
+                            onPress={handleDownloadIcs}
+                            loading={icsLoading}
+                            leftIcon={<IcsIcon />}
+                            style={{ marginTop: 12 }}
+                        />
+                        <Text style={styles.calendarNote}>
+                            The .ics file works with any calendar app, like Apple, Outlook or Google. No connection needed.
+                        </Text>
 
                         <View style={styles.bottomButtons}>
                             <View style={{ flex: 1 }}>
@@ -445,6 +488,7 @@ function makeStyles(c: AppColors) {
         rowValue: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
         attendeeAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: c.bg },
 
+        calendarNote: { color: c.text60, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 12, fontFamily: 'Inter_400Regular' },
         bottomButtons: { flexDirection: 'row', gap: 12, marginTop: 16 },
     });
 }

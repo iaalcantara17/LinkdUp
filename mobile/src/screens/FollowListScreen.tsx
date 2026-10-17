@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ArrowLeft } from '../components/icons';
 import AvatarBubble from '../components/AvatarBubble';
+import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
 import { confirm, confirmBlock, errorText, showError, showMenu, type MenuAction } from '../components/dialogs';
 import { useTheme } from '../context/ThemeContext';
@@ -29,6 +30,7 @@ export default function FollowListScreen() {
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [actionBusy, setActionBusy] = useState<Record<string, boolean>>({});
+    const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
     const isOwn = userProfile?.id === userId;
 
@@ -113,7 +115,7 @@ export default function FollowListScreen() {
 
     const handleLongPress = (item: any) => {
         const actions: MenuAction[] = [
-            { label: 'View profile', onPress: () => nav.navigate('UserProfile', { userId: item.id }) },
+            { label: 'View profile', onPress: () => setProfileUserId(item.id) },
             { label: 'Block', destructive: true, onPress: () => handleBlock(item) },
         ];
         if (isOwn && activeTab === 'followers') {
@@ -266,6 +268,11 @@ export default function FollowListScreen() {
                     />
                 )}
             </SafeAreaView>
+            <UserProfileSheet
+                userId={profileUserId}
+                visible={!!profileUserId}
+                onClose={() => setProfileUserId(null)}
+            />
         </View>
     );
 }
