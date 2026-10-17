@@ -32,7 +32,7 @@ function contrast(fg, bg) {
 
 for (const theme of ['dark', 'light']) {
     const c = color[theme];
-    for (const role of ['text', 'textMuted', 'textFaint']) {
+    for (const role of ['text', 'textMuted', 'textFaint', 'primaryText', 'success', 'warning']) {
         for (const bg of ['background', 'surface', 'surfaceRaised']) {
             test(`${theme} ${role} on ${bg} meets WCAG AA 4.5:1`, () => {
                 const ratio = contrast(c[role], c[bg]);
@@ -40,9 +40,9 @@ for (const theme of ['dark', 'light']) {
             });
         }
     }
-    test(`${theme} primaryText on primary meets WCAG AA 4.5:1`, () => {
-        const ratio = contrast(c.primaryText, c.primary);
-        assert.ok(ratio >= 4.5, `${theme} primaryText on primary is ${ratio.toFixed(2)}:1`);
+    test(`${theme} onPrimary on primary meets WCAG AA 4.5:1`, () => {
+        const ratio = contrast(c.onPrimary, c.primary);
+        assert.ok(ratio >= 4.5, `${theme} onPrimary on primary is ${ratio.toFixed(2)}:1`);
     });
 }
 

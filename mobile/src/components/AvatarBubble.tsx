@@ -56,7 +56,7 @@ export default function AvatarBubble({ name, color, size = 40, status, avatarUrl
                         accessibilityRole="image"
                     />
                 ) : (
-                    <Text style={[styles.text, { fontSize: size * 0.36, color: roles.primaryText }]}>{initials}</Text>
+                    <Text style={[styles.text, { fontSize: size * 0.36, color: roles.onPrimary }]}>{initials}</Text>
                 )}
             </View>
         </View>

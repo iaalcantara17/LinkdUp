@@ -122,7 +122,7 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
             borderWidth: 2,
             borderColor: r.onMedia,
         },
-        avatarInitial: { color: r.primaryText, fontSize: 15, fontFamily: 'Inter_700Bold' },
+        avatarInitial: { color: r.onPrimary, fontSize: 15, fontFamily: 'Inter_700Bold' },
         midpointMarker: {
             width: 20,
             height: 20,

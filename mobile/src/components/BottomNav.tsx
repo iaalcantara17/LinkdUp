@@ -26,7 +26,7 @@ export default function BottomNav() {
                 <View style={styles.inner} accessibilityRole="tablist">
                     {items.map((item) => {
                         const active = route.name === item.key;
-                        const color = active ? roles.primary : roles.textFaint;
+                        const color = active ? roles.primaryText : roles.textFaint;
                         return (
                             <TouchableOpacity key={item.key} style={styles.item} onPress={item.onPress} activeOpacity={0.7} accessibilityRole="tab" accessibilityState={{ selected: active }}>
                                 <item.Icon size={24} color={color} />

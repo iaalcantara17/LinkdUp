@@ -197,7 +197,7 @@ export default function OnboardingScreen() {
                                 style={styles.nextBtn}
                             >
                                 <Text style={styles.nextText}>Next</Text>
-                                <ChevronRight size={20} color={r.primaryText} />
+                                <ChevronRight size={20} color={r.onPrimary} />
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -236,6 +236,6 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
         navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
         skipText: { color: colors.text40, fontFamily: 'Inter_500Medium', fontSize: 16 },
         nextBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 28, paddingVertical: 14, borderRadius: radii.pill },
-        nextText: { color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 16 },
+        nextText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
     });
 }

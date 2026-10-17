@@ -367,7 +367,7 @@ export default function LoginScreen() {
                                 onPress={handleSubmit}
                                 loading={loading}
                                 disabled={!canSubmit || loading}
-                                rightIcon={<ArrowRight size={20} color={r.primaryText} />}
+                                rightIcon={<ArrowRight size={20} color={r.onPrimary} />}
                             />
 
                             <View style={styles.divider}>

@@ -68,7 +68,7 @@ function StackedAvatars({ avatars, colors }: { avatars: MemberAvatar[]; colors: 
                         <Image source={{ uri: a.avatar_url }} style={{ width: 32, height: 32, borderRadius: 14 }} />
                     ) : (
                         <View style={{ width: 32, height: 32, borderRadius: 14, backgroundColor: a.avatar_color ?? colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 11 }}>{a.initial}</Text>
+                            <Text style={{ color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 11 }}>{a.initial}</Text>
                         </View>
                     )}
                 </View>
@@ -150,7 +150,7 @@ function PartyCard({ party, onPress, onMenuPress, colors }: { party: PartyRow; o
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     {isMatched && (
                         <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: radii.pill, backgroundColor: r.successFill }}>
-                            <Text style={{ color: r.primaryText, fontFamily: 'Inter_900Black', fontSize: 11 }}>MATCHED! 🎉</Text>
+                            <Text style={{ color: r.onPrimary, fontFamily: 'Inter_900Black', fontSize: 11 }}>MATCHED! 🎉</Text>
                         </View>
                     )}
                     <TouchableOpacity
@@ -193,7 +193,7 @@ function OnlineFriendBubble({ friend, onPress, index, colors }: { friend: any; o
                         <Image source={{ uri: friend.avatar_url }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: colors.glassBorder }} />
                     ) : (
                         <View style={{ width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.glassBorder, backgroundColor: friend.avatar_color ?? colors.primary }}>
-                            <Text style={{ color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 18 }}>{initials}</Text>
+                            <Text style={{ color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 18 }}>{initials}</Text>
                         </View>
                     )}
                     <View style={{ position: 'absolute', bottom: 1, right: 1, width: 16, height: 16, borderRadius: 8, backgroundColor: r.success, borderWidth: 2, borderColor: colors.bg }} />
@@ -223,7 +223,7 @@ function AnimatedFAB({ onPress, colors }: { onPress: () => void; colors: AppColo
                     end={{ x: 1, y: 1 }}
                     style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}
                 >
-                    <Plus size={28} color={r.primaryText} strokeWidth={3} />
+                    <Plus size={28} color={r.onPrimary} strokeWidth={3} />
                 </LinearGradient>
             </TouchableOpacity>
         </Animated.View>
@@ -401,7 +401,7 @@ export default function HomeScreen() {
                             <View style={styles.friendsCardAccent} />
                             <View style={styles.friendsCardBody}>
                                 <View style={styles.friendsCardIcon}>
-                                    <Users size={22} color={roles.primary} />
+                                    <Users size={22} color={roles.primaryText} />
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.friendsCardTitle}>Friends</Text>
@@ -565,7 +565,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             alignItems: 'center', justifyContent: 'center',
             marginRight: 4,
         },
-        friendsCardBadgeText: { color: r.primaryText, fontSize: 12, fontFamily: 'Inter_700Bold' },
+        friendsCardBadgeText: { color: r.onPrimary, fontSize: 12, fontFamily: 'Inter_700Bold' },
         sectionHeader: { ...typography.h2, color: c.textPrimary, marginBottom: 16, fontSize: 20 },
         emptyCard: {
             backgroundColor: c.glass,

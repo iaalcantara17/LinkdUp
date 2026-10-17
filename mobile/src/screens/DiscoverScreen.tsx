@@ -340,7 +340,7 @@ function PartyCard({ party, onJoin, joining }: { party: DiscoverParty; onJoin: (
     const { colors, roles: r } = useTheme();
     const partyCardStyles = useMemo(() => makePartyCardStyles(colors, r), [colors, r]);
     const label = party.name ?? `${party.host_display_name}'s party`;
-    const statusColor = party.status === 'swiping' ? colors.primary : colors.success;
+    const statusColor = party.status === 'swiping' ? r.primaryText : r.success;
     const statusLabel = party.status === 'swiping' ? 'SWIPING NOW' : 'OPEN';
 
     return (
@@ -723,8 +723,8 @@ export default function DiscoverScreen() {
                         >
                             <Heart
                                 size={13}
-                                color={activeTab === 'likes' ? r.primaryText : colors.text60}
-                                fill={activeTab === 'likes' ? r.primaryText : 'transparent'}
+                                color={activeTab === 'likes' ? r.onPrimary : colors.text60}
+                                fill={activeTab === 'likes' ? r.onPrimary : 'transparent'}
                                 style={{ marginRight: 5 }}
                             />
                             <Text style={[styles.tabText, activeTab === 'likes' && styles.tabTextActive]}>
@@ -911,8 +911,8 @@ export default function DiscoverScreen() {
                                                             >
                                                                 <Heart
                                                                     size={24}
-                                                                    color={r.primaryText}
-                                                                    fill={likedPlaceIds.has(venues[featuredIndex]?.google_place_id) ? r.primaryText : 'transparent'}
+                                                                    color={r.onPrimary}
+                                                                    fill={likedPlaceIds.has(venues[featuredIndex]?.google_place_id) ? r.onPrimary : 'transparent'}
                                                                 />
                                                             </LinearGradient>
                                                         </TouchableOpacity>
@@ -1122,7 +1122,7 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
             fontFamily: 'Inter_600SemiBold',
             fontSize: 14,
         },
-        tabTextActive: { color: r.primaryText },
+        tabTextActive: { color: r.onPrimary },
 
         header: { paddingTop: 8, paddingBottom: 24 },
         title: { color: r.text, fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 4 },
@@ -1130,7 +1130,7 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
         sourceLine: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 6 },
         linkRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 },
         link: { minHeight: 44, justifyContent: 'center' },
-        linkText: { color: colors.primaryAlt, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+        linkText: { color: r.primaryText, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
         issue: {
             color: r.text,
             fontFamily: 'Inter_500Medium',
@@ -1432,7 +1432,7 @@ function makePartyCardStyles(colors: AppColors, r: ColorRoles) {
             borderColor: r.primaryBorder,
         },
         friendBadgeText: {
-            color: colors.primary,
+            color: r.primaryText,
             fontFamily: 'Inter_700Bold',
             fontSize: 10,
             letterSpacing: 0.3,
@@ -1450,7 +1450,7 @@ function makePartyCardStyles(colors: AppColors, r: ColorRoles) {
         metaText: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular' },
         joinBtn: { borderRadius: radii.md, overflow: 'hidden', alignSelf: 'flex-start' },
         joinGradient: { paddingHorizontal: 24, paddingVertical: 10, alignItems: 'center' },
-        joinText: { color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 14 },
+        joinText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
     });
 }
 
@@ -1540,7 +1540,7 @@ function makeModalStyles(colors: AppColors, r: ColorRoles) {
             borderColor: r.primaryBorder,
         },
         pitchBtnText: {
-            color: colors.primary,
+            color: r.primaryText,
             fontFamily: 'Inter_600SemiBold',
             fontSize: 14,
         },

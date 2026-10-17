@@ -119,6 +119,6 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             paddingVertical: 12,
             alignItems: 'center',
         },
-        doneBtnText: { color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 15 },
+        doneBtnText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
     });
 }

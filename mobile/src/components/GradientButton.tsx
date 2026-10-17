@@ -36,7 +36,7 @@ export default function GradientButton({
         <View style={styles.inner}>
             {leftIcon}
             {loading ? (
-                <ActivityIndicator color={variant === 'white' ? palette.black : roles.primaryText} />
+                <ActivityIndicator color={variant === 'white' ? palette.black : roles.onPrimary} />
             ) : (
                 <Text
                     style={[
@@ -121,7 +121,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
         text: {
             ...typeScale.subtitle,
-            color: r.primaryText,
+            color: r.onPrimary,
         },
     });
 }

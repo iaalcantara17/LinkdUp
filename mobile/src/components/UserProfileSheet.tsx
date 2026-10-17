@@ -267,7 +267,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                                     }
                                                 }}
                                             >
-                                                <UserPlus size={18} color={roles.primaryText} />
+                                                <UserPlus size={18} color={roles.onPrimary} />
                                                 <Text style={styles.friendBtnText}>Add friend</Text>
                                             </TouchableOpacity>
                                         )}
@@ -293,7 +293,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                                     }
                                                 }}
                                             >
-                                                <UserCheck size={18} color={roles.primaryText} />
+                                                <UserCheck size={18} color={roles.onPrimary} />
                                                 <Text style={styles.friendBtnText}>Accept request</Text>
                                             </TouchableOpacity>
                                         )}
@@ -481,7 +481,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             borderRadius: radii.md,
             paddingVertical: 12,
         },
-        friendBtnText: { color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 15 },
+        friendBtnText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
         friendPending: {
             flexDirection: 'row',
             alignItems: 'center',

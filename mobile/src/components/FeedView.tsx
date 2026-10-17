@@ -222,7 +222,7 @@ export default function FeedView({ onBack }: Props) {
                     Be the first — tap + above to post
                 </Text>
                 <TouchableOpacity onPress={onBack} style={{ marginTop: 20 }}>
-                    <Text style={[feedStyles.backLink, { color: colors.primary }]}>Back to Explore</Text>
+                    <Text style={[feedStyles.backLink, { color: palette.violet300 }]}>Back to Explore</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -294,7 +294,7 @@ export default function FeedView({ onBack }: Props) {
                             end={{ x: 1, y: 1 }}
                             style={feedStyles.createBtnInner}
                         >
-                            <Plus size={20} color={r.primaryText} strokeWidth={2.5} />
+                            <Plus size={20} color={r.onPrimary} strokeWidth={2.5} />
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>

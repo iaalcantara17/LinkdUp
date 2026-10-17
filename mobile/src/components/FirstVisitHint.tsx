@@ -105,6 +105,6 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             paddingVertical: 8,
             borderRadius: radii.pill,
         },
-        btnText: { color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 14 },
+        btnText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
     });
 }

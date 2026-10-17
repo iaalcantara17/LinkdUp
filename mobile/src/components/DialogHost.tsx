@@ -144,7 +144,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         cancel: { backgroundColor: c.glassStrong },
         destructive: { backgroundColor: r.dangerStrong },
         pressed: { opacity: 0.8 },
-        buttonText: { ...typeScale.bodyStrong, color: r.primaryText },
+        buttonText: { ...typeScale.bodyStrong, color: r.onPrimary },
         cancelText: { color: r.text },
         toastLayer: {
             position: 'absolute',
