@@ -71,6 +71,19 @@ Run this after every deploy. It takes about 15 minutes and follows the same path
 1. Turn on airplane mode (or block the API in devtools) and reload Home, Friends, the lobby and Swipe. Write down what each shows. Known issue: they show their empty state or stay on "Loading..." instead of an error (see the skipped `BUG:` tests).
 2. Signed out, open a party link directly. You are sent to sign in, not shown party data.
 
+## 10. Demo mode
+
+Only when demo mode is set up (see "Demo mode" in `docs/DEPLOYMENT.md`). Use a private window that is signed out.
+
+1. Login and the last Onboarding slide show **Try the demo** with "Look around with sample data. No sign up needed." Tap it. You land on Home as Demo Guest without typing anything.
+2. A slim banner at the top says "Demo mode, read only. Sign up to create your own parties." on every screen.
+3. Home lists Demo: Friday Trivia Night (waiting), Demo: Saturday Brunch (swiping) and Demo: Rooftop Hangout (locked). Venue photos and avatars load, and the browser devtools Network tab shows no request to googleapis.com.
+4. Open Trivia Night. The lobby map shows the crew. Open Saturday Brunch. Swipe shows card 3 of 6 with the Like and Skip buttons disabled. Dragging a card snaps it back and shows the demo dialog.
+5. Open Rooftop Hangout. The Link and the locked date show.
+6. Discover shows the demo venues and says "Using: Chosen city". It does not ask for your location. Feed shows the demo posts, and the like buttons are disabled.
+7. Try to create a party, follow someone and edit your profile. Each shows the "Demo mode, read only" dialog with **Not now** and **Sign up**, never a raw error. **Not now** closes it.
+8. Tap **Sign up** in the banner. You are signed out and back on Onboarding. In a second window that is still in the demo, the demo keeps working.
+
 ## Results
 
 | Step | Pass | Notes |
@@ -84,3 +97,4 @@ Run this after every deploy. It takes about 15 minutes and follows the same path
 | 7 Lock | | |
 | 8 Calendar | | |
 | 9 Failures | | |
+| 10 Demo mode | | |
