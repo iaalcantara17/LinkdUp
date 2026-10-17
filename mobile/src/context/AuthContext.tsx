@@ -4,7 +4,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 import { api } from '../services/api';
 
-export interface UserProfile {
+interface UserProfile {
     id: string;
     email: string;
     display_name: string | null;

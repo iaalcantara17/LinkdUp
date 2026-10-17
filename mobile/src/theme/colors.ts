@@ -73,4 +73,3 @@ export const lightColors: typeof darkColors = {
 
 export type AppColors = typeof darkColors;
 
-export const colors = darkColors;

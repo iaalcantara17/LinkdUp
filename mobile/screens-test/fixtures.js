@@ -1,6 +1,6 @@
 export const party = { id: 'p1', name: 'Friday Crew', code: 'ABC234', status: 'waiting', host_user_id: 'alice', midpoint_lat: null, midpoint_lng: null, locked_date_id: 'd1', current_card_index: 0, voting_round: 1 };
 
-export const users = {
+const users = {
     alice: { id: 'alice', display_name: 'Alice', avatar_color: '#6C3EF4', avatar_url: null },
     bob: { id: 'bob', display_name: 'Bob', avatar_color: '#22C55E', avatar_url: null },
 };

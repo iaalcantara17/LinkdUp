@@ -20,7 +20,7 @@ interface Props {
     accessibilityLabel?: string;
 }
 
-export function buttonColors(variant: Variant, disabled: boolean, c: AppColors, r: ColorRoles) {
+function buttonColors(variant: Variant, disabled: boolean, c: AppColors, r: ColorRoles) {
     if (variant === 'white') return { fill: [palette.white, palette.white], text: palette.black };
     if (variant === 'ghost') return { fill: [c.glass, c.glass], text: disabled ? r.textFaint : r.text };
     return disabled ? { fill: [c.glassStrong, c.glassStrong], text: r.textFaint } : { fill: [...c.gradient], text: r.onPrimary };

@@ -1,14 +1,14 @@
-export type ButtonStyle = 'default' | 'cancel' | 'destructive';
-export type DialogButton = { label: string; style: ButtonStyle };
-export type Dialog = {
+type ButtonStyle = 'default' | 'cancel' | 'destructive';
+type DialogButton = { label: string; style: ButtonStyle };
+type Dialog = {
     id: number;
     role: 'dialog' | 'alertdialog';
     title: string;
     message?: string;
     buttons: DialogButton[];
 };
-export type ToastTone = 'success' | 'info';
-export type Toast = { id: number; message: string; tone: ToastTone };
+type ToastTone = 'success' | 'info';
+type Toast = { id: number; message: string; tone: ToastTone };
 export type MenuAction = { label: string; destructive?: boolean; onPress: () => void };
 
 export const TOAST_MS = 3000;
