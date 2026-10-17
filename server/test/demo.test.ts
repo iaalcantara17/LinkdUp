@@ -1,6 +1,7 @@
 import './env';
 import { test, before, after, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 import type express from 'express';
 import { bootApp, client, freshWorld, mockGoogle, tok } from './flowApp';
@@ -13,7 +14,7 @@ const DEMO = 'de300000-0000-4000-8000-0000000000d1';
 const PARTY = 'de300000-0000-4000-8000-0000000000a1';
 const OTHER_PARTY = 'de300000-0000-4000-8000-0000000000a2';
 const DEMO_EMAIL = 'demo@linkdup.app';
-const DEMO_PASSWORD = 'demo-secret-pw-123';
+const DEMO_PASSWORD = randomUUID();
 
 let server: Server;
 let base = '';

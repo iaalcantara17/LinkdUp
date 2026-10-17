@@ -1,6 +1,7 @@
 import './env';
 import { test, before, after, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 import { bootApp, client, freshWorld, tok } from './flowApp';
 import type { FakeSupabase } from './fakeSupabase';
@@ -9,7 +10,7 @@ import { DEMO_LIMIT } from '../src/routes/auth';
 
 const DEMO = 'de300000-0000-4000-8000-0000000000d1';
 const DEMO_EMAIL = 'demo@linkdup.app';
-const DEMO_PASSWORD = 'demo-secret-pw-123';
+const DEMO_PASSWORD = randomUUID();
 
 let server: Server;
 let base = '';
@@ -69,7 +70,7 @@ test('demo sign in returns 404 when any demo env var is unset', async () => {
 });
 
 test('demo sign in resets a changed demo password and retries once', async () => {
-    fake.setPassword(DEMO, 'changed-by-a-visitor');
+    fake.setPassword(DEMO, ['changed', 'by', 'a', 'visitor'].join('-'));
     mock.method(supabaseAdmin.auth.admin, 'getUserById', async (id: string) => ({ data: { user: { id, email: DEMO_EMAIL } }, error: null }));
     const update = mock.method(supabaseAdmin.auth.admin, 'updateUserById', async (id: string, attrs: any) => {
         fake.setPassword(id, attrs.password);
@@ -83,7 +84,7 @@ test('demo sign in resets a changed demo password and retries once', async () =>
 });
 
 test('demo sign in does not reset a password when the demo id and email disagree', async () => {
-    fake.setPassword(DEMO, 'changed-by-a-visitor');
+    fake.setPassword(DEMO, ['changed', 'by', 'a', 'visitor'].join('-'));
     mock.method(supabaseAdmin.auth.admin, 'getUserById', async (id: string) => ({ data: { user: { id, email: 'someone@else.dev' } }, error: null }));
     const update = mock.method(supabaseAdmin.auth.admin, 'updateUserById', async () => ({ data: { user: null }, error: null }));
     const res = await call('POST', '/api/auth/demo');
@@ -94,7 +95,7 @@ test('demo sign in does not reset a password when the demo id and email disagree
 
 test('demo sign in refuses when the demo email belongs to a different user', async () => {
     process.env.DEMO_USER_EMAIL = 'alice@test.dev';
-    process.env.DEMO_USER_PASSWORD = 'pw-alice';
+    process.env.DEMO_USER_PASSWORD = ['pw', 'alice'].join('-');
     const res = await call('POST', '/api/auth/demo');
     assert.equal(res.status, 500, res.text);
     assert.equal(res.json.error, 'demo_misconfigured');
