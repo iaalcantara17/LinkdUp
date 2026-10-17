@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { Search } from 'lucide-react-native';
+import { Search } from './icons';
 import GradientButton from './GradientButton';
 import { useTheme } from '../context/ThemeContext';
 import type { AppColors } from '../theme';

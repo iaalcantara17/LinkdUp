@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Home as HomeIcon, Compass, Users, Calendar, User } from 'lucide-react-native';
+import { Home as HomeIcon, Compass, Users, Calendar, User } from './icons';
 import { useTheme } from '../context/ThemeContext';
 import { ColorRoles, space, typeScale } from '../theme';
 

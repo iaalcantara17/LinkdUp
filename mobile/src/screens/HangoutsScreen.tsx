@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Calendar, Clock, MapPin, Users, ExternalLink, MoreVertical } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, Users, ExternalLink, MoreVertical } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';

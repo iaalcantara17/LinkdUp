@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import { X, MapPin, ImagePlus } from 'lucide-react-native';
+import { X, MapPin, ImagePlus } from '../components/icons';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';

@@ -4,7 +4,7 @@ import { Chip, ScreenHeader, Tap } from '../components/kit';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Maximize2 } from 'lucide-react-native';
+import { Maximize2 } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import GlassCard from '../components/GlassCard';
 import AvatarBubble from '../components/AvatarBubble';

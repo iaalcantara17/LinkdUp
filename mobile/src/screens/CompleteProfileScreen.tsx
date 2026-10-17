@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowRight, Check, X, AlertTriangle } from 'lucide-react-native';
+import { ArrowRight, Check, X, AlertTriangle } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';

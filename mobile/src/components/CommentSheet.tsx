@@ -5,7 +5,7 @@ import {
     KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Trash2, Send } from 'lucide-react-native';
+import { X, Trash2, Send } from './icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
 import DialogHost from './DialogHost';

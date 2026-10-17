@@ -9,7 +9,7 @@ import Animated, {
     cancelAnimation,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, Heart } from 'lucide-react-native';
+import { X, Heart } from '../icons';
 import { radii } from '../../theme';
 import type { AppColors, ColorRoles } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';

@@ -4,7 +4,7 @@ import {
     TextInput, TextInputProps, TextStyle, View, ViewStyle,
 } from 'react-native';
 import Reanimated, { FadeIn } from 'react-native-reanimated';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft } from './icons';
 import { useTheme } from '../context/ThemeContext';
 import { control, duration, MotionName, motion, press, radii, radius, space, stagger, typeScale, typography } from '../theme';
 

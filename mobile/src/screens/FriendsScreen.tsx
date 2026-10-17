@@ -8,7 +8,7 @@ import GradientButton from '../components/GradientButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Animated from 'react-native-reanimated';
-import { UserPlus, UserCheck, UserX, Search, Users, Ban } from 'lucide-react-native';
+import { UserPlus, UserCheck, UserX, Search, Users, Ban } from '../components/icons';
 import HelpButton from '../components/HelpButton';
 import { api } from '../services/api';
 import { confirm, confirmBlock, errorText, showError } from '../components/dialogs';

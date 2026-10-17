@@ -4,7 +4,7 @@ import {
     StyleSheet, useWindowDimensions, Share, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Plus, X } from 'lucide-react-native';
+import { ChevronLeft, Plus, X } from './icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';

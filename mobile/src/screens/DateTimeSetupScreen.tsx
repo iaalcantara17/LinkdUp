@@ -11,7 +11,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
     CalendarPlus, Check, ChevronLeft, ChevronRight,
     Clock, Lock, Trash2, X,
-} from 'lucide-react-native';
+} from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';

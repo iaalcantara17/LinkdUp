@@ -12,7 +12,7 @@ import Animated, {
     withTiming,
     FadeIn,
 } from 'react-native-reanimated';
-import { MapPin, Navigation } from 'lucide-react-native';
+import { MapPin, Navigation } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import IconBadge from '../components/IconBadge';
 import { api } from '../services/api';

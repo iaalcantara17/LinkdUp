@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensio
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import SlideOneVisual   from '../components/walkthrough/SlideOneVisual';
 import SlideTwoVisual   from '../components/walkthrough/SlideTwoVisual';

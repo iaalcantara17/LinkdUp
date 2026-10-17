@@ -63,7 +63,7 @@ jest.mock('../src/services/api', () => {
 
 jest.mock('../src/components/CrewMap', () => () => null);
 
-jest.mock('lucide-react-native', () => new Proxy({ __esModule: true }, {
+jest.mock('../src/components/icons', () => new Proxy({ __esModule: true }, {
     get: (target, name) => (name in target ? target[name] : () => null),
 }));
 

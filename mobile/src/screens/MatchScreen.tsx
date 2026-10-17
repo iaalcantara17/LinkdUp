@@ -14,7 +14,7 @@ import Animated, {
     Easing,
     FadeInDown,
 } from 'react-native-reanimated';
-import { Sparkles, Calendar, ArrowRight, MapPin, Star } from 'lucide-react-native';
+import { Sparkles, Calendar, ArrowRight, MapPin, Star } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';

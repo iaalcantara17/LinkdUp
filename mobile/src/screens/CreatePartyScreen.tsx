@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInRight } from 'react-native-reanimated';
-import { Copy, Check, ArrowRight } from 'lucide-react-native';
+import { Copy, Check, ArrowRight } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import AppSwitch from '../components/AppSwitch';
 import GlassCard from '../components/GlassCard';
