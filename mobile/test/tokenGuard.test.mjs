@@ -11,24 +11,6 @@ const migrated = [
     'src/components/BottomNav.tsx',
     'src/components/GradientButton.tsx',
 ];
-const lightMode = [
-    ...migrated,
-    'src/screens/LoginScreen.tsx',
-    'src/screens/OnboardingScreen.tsx',
-    'src/screens/HomeScreen.tsx',
-    'src/screens/DiscoverScreen.tsx',
-    'src/screens/PartyLobbyScreen.tsx',
-    'src/components/HelpButton.tsx',
-    'src/components/AnchoredHint.tsx',
-    'src/components/FeedView.tsx',
-    'src/components/FirstVisitHint.tsx',
-    'src/components/PlaceSearch.tsx',
-    'src/components/GlassCard.tsx',
-    'src/components/AvatarBubble.tsx',
-    'src/components/UserProfileSheet.tsx',
-    'src/components/CrewMap.tsx',
-    'src/components/LocationSourceCard.tsx',
-];
 const allSrc = readdirSync(root + 'src', { recursive: true })
     .map((p) => `src/${p.replaceAll('\\', '/')}`)
     .filter((p) => /\.tsx?$/.test(p) && !p.startsWith('src/theme/'));
@@ -54,8 +36,9 @@ test('no file uses the 30% text colour, which fails WCAG AA for placeholders and
     assert.deepEqual(found, [], `Use textFaint or textMuted:\n${found.join('\n')}`);
 });
 
-test('migrated files take colours from the theme, not the static dark palette', () => {
-    const found = hits(/import\s*\{[^}]*\bcolors\b[^}]*\}\s*from\s*'\.\.\/theme'/, () => true, lightMode);
+test('every file takes colours from the theme, not a static palette', () => {
+    const files = ['App.tsx', ...allSrc.filter((f) => f !== 'src/context/ThemeContext.tsx')];
+    const found = hits(/import\s*\{[^}]*\b(colors|darkColors|lightColors)\b[^}]*\}\s*from\s*'(\.\.?\/)+(src\/)?theme'/, () => true, files);
     assert.deepEqual(found, [], `Use useTheme() so light mode applies:\n${found.join('\n')}`);
 });
 
