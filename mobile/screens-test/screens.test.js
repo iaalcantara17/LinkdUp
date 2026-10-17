@@ -11,6 +11,8 @@ import SwipeScreen from '../src/screens/SwipeScreen';
 import DiscoverScreen from '../src/screens/DiscoverScreen';
 import ProfileScreen from '../src/screens/ProfileScreen';
 import CalendarConfirmationScreen from '../src/screens/CalendarConfirmationScreen';
+import WalkthroughScreen from '../src/screens/WalkthroughScreen';
+import { color } from '../src/theme';
 
 jest.mock('../src/services/liveLocation', () => ({
     getLiveLocation: jest.fn(),
@@ -42,8 +44,9 @@ const loaded = {
 async function show(Screen, overrides = {}, params = { partyId: 'p1' }) {
     global.__route = { params };
     global.__api.reset(fx.routes({ ...loaded, ...overrides }));
-    mount(Screen);
+    const view = mount(Screen);
     await settle();
+    return view;
 }
 
 function mount(Screen) {
@@ -111,7 +114,7 @@ describe('Home', () => {
         screen.getByText('Friday Crew');
     });
 
-    test.skip('BUG: Join a party, Friends and Help have no button role, so they have no accessible name as buttons', async () => {
+    test('Join a party, Friends and Help are named buttons', async () => {
         await show(HomeScreen);
         button(/Join a party/);
         button(/Friends/);
@@ -155,7 +158,7 @@ describe('Friends', () => {
         screen.getByText('No pending requests');
     });
 
-    test.skip('BUG: Find Friends and the Friends, Requests and Search tabs have no accessible role', async () => {
+    test('Find Friends is a button and Requests is a tab', async () => {
         await show(FriendsScreen, { getFriends: [] });
         button('Find Friends');
         screen.getByRole('tab', { name: 'Requests' });
@@ -218,7 +221,7 @@ describe('PartyLobby', () => {
         }
     });
 
-    test.skip('BUG: the back arrow, Invite friends tab and join code share have no accessible role or name', async () => {
+    test('the back arrow and join code share are named buttons and Invite friends is a tab', async () => {
         await show(PartyLobbyScreen);
         button(/back/i);
         screen.getByRole('tab', { name: 'Invite friends' });
@@ -307,7 +310,7 @@ describe('Discover', () => {
         expect(screen.getAllByText('Hudson Taproom').length).toBeGreaterThan(0);
     });
 
-    test.skip('BUG: the Explore, Feed and Your Likes switch has no tab role', async () => {
+    test('the Explore, Feed and Your Likes switch is a set of tabs', async () => {
         at(46.0);
         await show(DiscoverScreen);
         screen.getByRole('tab', { name: 'Feed' });
@@ -338,7 +341,7 @@ describe('Profile', () => {
         screen.getByText('Alice Liddell');
     });
 
-    test.skip('BUG: Sign out, Delete account and Edit photo have no button role', async () => {
+    test('Sign out, Delete account and Edit photo are buttons', async () => {
         await show(ProfileScreen);
         button('Sign out');
         button('Delete account');
@@ -389,6 +392,22 @@ describe('CalendarConfirmation', () => {
         expect(screen.queryAllByText('Loading...')).toHaveLength(0);
         await retryLoads(expectLoadError("We couldn't load your hangout details"));
         screen.getByText('Blue Bottle Cafe');
+    });
+});
+
+describe('Walkthrough', () => {
+    afterEach(() => {
+        global.__theme = undefined;
+    });
+
+    test('from signup in light mode paints no dark theme background on any slide', async () => {
+        global.__theme = 'light';
+        const { container } = await show(WalkthroughScreen, {}, { fromSignup: true });
+        const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+        const dark = [color.dark.background, color.dark.surface, color.dark.surfaceRaised].map(rgb);
+        const painted = [...container.querySelectorAll('*')].map((el) => getComputedStyle(el).backgroundColor);
+        expect(painted).toContain(rgb(color.light.background));
+        expect(painted.filter((bg) => dark.includes(bg))).toEqual([]);
     });
 });
 

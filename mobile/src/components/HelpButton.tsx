@@ -23,6 +23,8 @@ export default function HelpButton({ items }: Props) {
             <TouchableOpacity
                 style={styles.btn}
                 onPress={() => setVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Help"
                 activeOpacity={0.75}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >

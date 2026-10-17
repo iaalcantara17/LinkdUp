@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Share } from 'react-native';
+import { Chip, ScreenHeader, Tap } from '../components/kit';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, Maximize2 } from 'lucide-react-native';
+import { Maximize2 } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import GlassCard from '../components/GlassCard';
 import AvatarBubble from '../components/AvatarBubble';
@@ -25,7 +26,7 @@ import LocationSourceCard from '../components/LocationSourceCard';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { startGate } from '../services/locationChoice';
 import { supabase } from '../services/supabase';
-import { typography, radii } from '../theme';
+import { radii, motion } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { pollWhileVisible, LOBBY_POLL_MS } from '../hooks/pollWhileVisible';
@@ -135,13 +136,7 @@ export default function PartyLobbyScreen() {
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
-                        <ArrowLeft size={24} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Party Lobby</Text>
-                    <HelpButton items={LOBBY_HELP} />
-                </View>
+                <ScreenHeader title="Party Lobby" onBack={() => nav.goBack()} right={<HelpButton items={LOBBY_HELP} />} />
 
                 <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
                     {!party && loadError ? (
@@ -154,27 +149,17 @@ export default function PartyLobbyScreen() {
                             }}
                         />
                     ) : (
-                    <Animated.View entering={FadeInDown.duration(400)}>
+                    <Animated.View entering={FadeInDown.duration(motion.base)}>
                         <Text style={styles.title}>{party?.name ?? 'Loading...'}</Text>
                         {!party && <SlowLoadNote loading />}
                         <Text style={styles.sub}>Status: {party?.status ?? '...'}</Text>
-                        <Text style={[styles.sub, { marginTop: 2, color: colors.text40 }]}>
+                        <Text style={[styles.sub, { marginTop: 4, color: colors.text40 }]}>
                             Swipe together — 10 spots, then pick the winner
                         </Text>
 
                         <View style={styles.tabRow}>
-                            <TouchableOpacity
-                                style={[styles.tabPill, lobbyTab === 'party' && styles.tabPillOn]}
-                                onPress={() => setLobbyTab('party')}
-                            >
-                                <Text style={[styles.tabPillText, lobbyTab === 'party' && styles.tabPillTextOn]}>Party</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.tabPill, lobbyTab === 'invite' && styles.tabPillOn]}
-                                onPress={() => setLobbyTab('invite')}
-                            >
-                                <Text style={[styles.tabPillText, lobbyTab === 'invite' && styles.tabPillTextOn]}>Invite friends</Text>
-                            </TouchableOpacity>
+                            <Chip label="Party" selected={lobbyTab === 'party'} onPress={() => setLobbyTab('party')} style={{ flex: 1 }} />
+                            <Chip label="Invite friends" selected={lobbyTab === 'invite'} onPress={() => setLobbyTab('invite')} style={{ flex: 1 }} />
                         </View>
 
                         {lobbyTab === 'invite' ? (
@@ -184,9 +169,9 @@ export default function PartyLobbyScreen() {
                                 </Text>
                                 <GlassCard style={{ marginBottom: 16, alignItems: 'center' }}>
                                     <Text style={styles.codeLabel}>CODE</Text>
-                                    <TouchableOpacity onPress={handleShare} activeOpacity={0.8}>
+                                    <Tap onPress={handleShare} accessibilityLabel={`Share join code ${party?.code ?? ''}`} activeOpacity={0.8}>
                                         <Text style={styles.code}>{party?.code ?? '------'}</Text>
-                                    </TouchableOpacity>
+                                    </Tap>
                                 </GlassCard>
                                 <Text style={styles.crewLabel}>Your friends</Text>
                                 {friendsList.length === 0 ? (
@@ -207,9 +192,9 @@ export default function PartyLobbyScreen() {
                         <View ref={codeCardRef}>
                         <GlassCard style={{ marginVertical: 24, alignItems: 'center' }}>
                             <Text style={styles.codeLabel}>JOIN CODE</Text>
-                            <TouchableOpacity onPress={handleShare} activeOpacity={0.8}>
+                            <Tap onPress={handleShare} accessibilityLabel={`Share join code ${party?.code ?? ''}`} activeOpacity={0.8}>
                                 <Text style={styles.code}>{party?.code ?? '------'}</Text>
-                            </TouchableOpacity>
+                            </Tap>
                             <Text style={styles.tapHint}>tap to share</Text>
                         </GlassCard>
                         </View>
@@ -250,11 +235,12 @@ export default function PartyLobbyScreen() {
                                 <View style={{ marginBottom: 24 }}>
                                     <Text style={[styles.crewLabel, { marginBottom: 4 }]}>Where everyone's at</Text>
                                     <Text style={styles.mapPrivacyNote}>Locations are approximate for privacy.</Text>
-                                    <TouchableOpacity
-                                        onPress={() => nav.navigate('CrewMapFullscreen', { partyId })}
-                                        activeOpacity={0.92}
-                                    >
-                                        <View style={{ position: 'relative' }}>
+                                    <View style={{ position: 'relative' }}>
+                                        <Tap
+                                            onPress={() => nav.navigate('CrewMapFullscreen', { partyId })}
+                                            accessibilityRole="none"
+                                            activeOpacity={1}
+                                        >
                                             <CrewMap
                                                 members={mapMembers}
                                                 midpoint={mapMidpoint}
@@ -263,11 +249,16 @@ export default function PartyLobbyScreen() {
                                                 showMidpoint={isSwiping || isMatched}
                                                 onMemberPress={(id) => setProfileUserId(id)}
                                             />
-                                            <View style={styles.mapExpandBtn}>
-                                                <Maximize2 size={14} color={roles.onMedia} />
-                                            </View>
-                                        </View>
-                                    </TouchableOpacity>
+                                        </Tap>
+                                        <Tap
+                                            style={styles.mapExpandBtn}
+                                            onPress={() => nav.navigate('CrewMapFullscreen', { partyId })}
+                                            accessibilityLabel="Expand map"
+                                            hitSlop={8}
+                                        >
+                                            <Maximize2 size={14} color={roles.onMedia} />
+                                        </Tap>
+                                    </View>
                                     <Text style={styles.tapToExpand}>Tap to expand</Text>
                                 </View>
                             );
@@ -326,8 +317,6 @@ export default function PartyLobbyScreen() {
 function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
-        header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
-        headerTitle: { ...typography.h3, color: c.textPrimary },
         title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 32 },
         sub: { color: c.text60, fontSize: 13, marginTop: 4, fontFamily: 'Inter_400Regular' },
         codeLabel: { color: c.text60, fontSize: 11, letterSpacing: 1, marginBottom: 8, fontFamily: 'Inter_700Bold' },
@@ -337,18 +326,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         crew: { flexDirection: 'row', flexWrap: 'wrap' },
         crewName: { color: c.textPrimary, fontSize: 12, marginTop: 4, fontFamily: 'Inter_500Medium' },
         waiting: { color: c.text60, textAlign: 'center', marginTop: 32, fontFamily: 'Inter_500Medium' },
-        tabRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
-        tabPill: {
-            flex: 1,
-            paddingVertical: 10,
-            borderRadius: radii.pill,
-            borderWidth: 1,
-            borderColor: c.glassBorder,
-            alignItems: 'center',
-        },
-        tabPillOn: { borderColor: c.primary, backgroundColor: r.primarySoft },
-        tabPillText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
-        tabPillTextOn: { color: c.textPrimary },
+        tabRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
         inviteHint: { color: c.text60, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19, marginBottom: 8 },
         friendRow: {
             paddingVertical: 12,
@@ -356,14 +334,14 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             borderBottomColor: c.glassBorder,
         },
         friendName: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
-        friendMeta: { color: c.text40, fontSize: 12, marginTop: 2, fontFamily: 'Inter_400Regular' },
+        friendMeta: { color: c.text40, fontSize: 12, marginTop: 4, fontFamily: 'Inter_400Regular' },
         mapPrivacyNote: { color: c.text40, fontSize: 11, fontFamily: 'Inter_400Regular', marginBottom: 12 },
         mapExpandBtn: {
             position: 'absolute',
             top: 10,
             right: 10,
             backgroundColor: r.scrim,
-            padding: 6,
+            padding: 8,
             borderRadius: radii.sm,
         },
         tapToExpand: {
@@ -371,7 +349,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             fontSize: 12,
             fontFamily: 'Inter_500Medium',
             textAlign: 'center',
-            marginTop: 6,
+            marginTop: 8,
         },
     });
 }

@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "build:web": "expo export --platform web --output-dir dist",
+    "shots": "npm --prefix shots install --no-audit --no-fund && npm --prefix shots exec -- playwright install chromium && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON shots/shots.mjs",
     "test": "npm run test:logic && npm run test:screens",
     "test:logic": "node --import ./test/tz.mjs --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning --test \"test/*.test.mjs\"",
     "test:screens": "jest",

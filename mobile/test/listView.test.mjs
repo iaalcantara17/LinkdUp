@@ -33,7 +33,7 @@ test('list screens start in loading and render through listView', () => {
     assert.match(discover, /const \[loadingVenues, setLoadingVenues\] = useState\(true\)/);
     assert.match(discover, /const \[loadingParties, setLoadingParties\] = useState\(true\)/);
     assert.doesNotMatch(discover, /useState<\w+\[\]>\(_\w+Cache/);
-    assert.match(read('screens/HomeScreen.tsx'), /=== 'loading' \?[\s\S]{0,80}<ActivityIndicator/);
+    assert.match(read('screens/HomeScreen.tsx'), /=== 'loading' \?[\s\S]{0,80}<SkeletonList/);
     assert.match(read('screens/HangoutsScreen.tsx'), /=== 'loading' \?[\s\S]{0,80}<ActivityIndicator/);
 });
 

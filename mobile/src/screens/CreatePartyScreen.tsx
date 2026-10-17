@@ -1,16 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, Share } from 'react-native';
+import { ScreenHeader, Tap } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInRight } from 'react-native-reanimated';
-import { ArrowLeft, Copy, Check, ArrowRight } from 'lucide-react-native';
+import { Copy, Check, ArrowRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import AppSwitch from '../components/AppSwitch';
 import GlassCard from '../components/GlassCard';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
-import { typography, radii } from '../theme';
+import { typography, radii, motion } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -84,13 +85,7 @@ export default function CreatePartyScreen() {
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
-                        <ArrowLeft size={24} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Create a Party</Text>
-                    <View style={{ width: 40 }} />
-                </View>
+                <ScreenHeader title="Create a Party" onBack={() => nav.goBack()} />
 
                 <View style={styles.progressRow}>
                     <LinearGradient
@@ -113,7 +108,7 @@ export default function CreatePartyScreen() {
 
                 <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
                     {step === 'name' ? (
-                        <Animated.View entering={FadeInRight.duration(300)}>
+                        <Animated.View entering={FadeInRight.duration(motion.base)}>
                             <Text style={styles.stepTitle}>Name your party</Text>
                             <Text style={styles.stepSub}>Give your crew a memorable name</Text>
 
@@ -146,13 +141,13 @@ export default function CreatePartyScreen() {
                             <Text style={styles.suggestLabel}>Quick suggestions:</Text>
                             <View style={styles.suggestWrap}>
                                 {SUGGESTIONS.map((s) => (
-                                    <TouchableOpacity
+                                    <Tap
                                         key={s}
                                         onPress={() => { setPartyName(s); setNameTouched(false); }}
                                         style={styles.suggestPill}
                                     >
                                         <Text style={styles.suggestText}>{s}</Text>
-                                    </TouchableOpacity>
+                                    </Tap>
                                 ))}
                             </View>
 
@@ -180,14 +175,14 @@ export default function CreatePartyScreen() {
                             </GlassCard>
                         </Animated.View>
                     ) : (
-                        <Animated.View entering={FadeInRight.duration(300)}>
+                        <Animated.View entering={FadeInRight.duration(motion.base)}>
                             <Text style={styles.stepTitle}>Invite your crew</Text>
                             <Text style={styles.stepSub}>Share this code so friends can join</Text>
 
                             <View style={styles.shareCard}>
                                 <View style={styles.shareCardHeader}>
                                     <Text style={styles.shareLabel}>Share invite code</Text>
-                                    <TouchableOpacity onPress={handleCopy} activeOpacity={0.85}>
+                                    <Tap onPress={handleCopy} activeOpacity={0.85}>
                                         <LinearGradient
                                             colors={colors.gradient as any}
                                             start={{ x: 0, y: 0 }}
@@ -197,7 +192,7 @@ export default function CreatePartyScreen() {
                                             {copied ? <Check size={16} color={roles.onPrimary} /> : <Copy size={16} color={roles.onPrimary} />}
                                             <Text style={styles.copyText}>{copied ? 'Shared!' : 'Share'}</Text>
                                         </LinearGradient>
-                                    </TouchableOpacity>
+                                    </Tap>
                                 </View>
                                 <View style={styles.codeBox}>
                                     <Text style={styles.codeText}>{partyCode ?? '------'}</Text>
@@ -239,13 +234,11 @@ export default function CreatePartyScreen() {
 function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
-        header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
-        headerTitle: { ...typography.h3, color: c.textPrimary },
 
         progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, marginTop: 12, marginBottom: 8 },
         progressBar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.glassStrong, overflow: 'hidden' },
 
-        stepTitle: { ...typography.h1, color: c.textPrimary, marginBottom: 6, fontSize: 28 },
+        stepTitle: { ...typography.h1, color: c.textPrimary, marginBottom: 8, fontSize: 28 },
         stepSub: { ...typography.body, color: c.text60, marginBottom: 24 },
 
         nameInput: {
@@ -266,7 +259,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginTop: 6,
+            marginTop: 8,
             marginBottom: 16,
             minHeight: 18,
         },
@@ -283,10 +276,10 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             marginLeft: 8,
         },
 
-        suggestLabel: { color: c.text40, fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 10 },
+        suggestLabel: { color: c.text40, fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 8 },
         suggestWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
         suggestPill: {
-            paddingHorizontal: 14,
+            paddingHorizontal: 16,
             paddingVertical: 8,
             borderRadius: radii.pill,
             backgroundColor: c.glass,
@@ -308,8 +301,8 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         copyBtn: {
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 6,
-            paddingHorizontal: 14,
+            gap: 8,
+            paddingHorizontal: 16,
             paddingVertical: 8,
             borderRadius: radii.pill,
         },
@@ -317,7 +310,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         codeBox: {
             backgroundColor: c.glassStrong,
             borderRadius: radii.md,
-            paddingVertical: 18,
+            paddingVertical: 16,
             alignItems: 'center',
             marginBottom: 12,
         },
@@ -325,10 +318,10 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         hint: { color: c.text60, fontSize: 12, textAlign: 'center', fontFamily: 'Inter_400Regular' },
 
         visibilityTitle: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
-        visibilitySub: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 2 },
+        visibilitySub: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 4 },
         disclaimerBanner: {
             marginTop: 12,
-            padding: 10,
+            padding: 8,
             borderRadius: 10,
             backgroundColor: r.warningSoft,
             borderWidth: 1,

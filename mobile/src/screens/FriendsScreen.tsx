@@ -1,17 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    TextInput, ActivityIndicator, Image, RefreshControl,
+    View, Text, StyleSheet, ScrollView,
+    ActivityIndicator, Image, RefreshControl,
 } from 'react-native';
+import { Chip, EmptyState, IconButton, ListRow, ScreenHeader, SkeletonList, TextField, useEntering } from '../components/kit';
+import GradientButton from '../components/GradientButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, UserPlus, UserCheck, UserX, Search, Users, Ban } from 'lucide-react-native';
+import Animated from 'react-native-reanimated';
+import { UserPlus, UserCheck, UserX, Search, Users, Ban } from 'lucide-react-native';
 import HelpButton from '../components/HelpButton';
-import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
 import { confirm, confirmBlock, errorText, showError } from '../components/dialogs';
-import { radii } from '../theme';
+import { typeScale } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { listView } from '../hooks/listView';
@@ -156,29 +157,28 @@ export default function FriendsScreen() {
     const friendsView = listView(friends, loadingFriends);
     const pendingView = listView(pending, loadingPending);
 
+    const enter = useEntering();
+    const loadingRows = (label: string) => (
+        <>
+            <SkeletonList count={3} height={76} label={label} />
+            <SlowLoadNote loading />
+        </>
+    );
+
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn} activeOpacity={0.8}>
-                        <ArrowLeft size={22} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.title}>Friends</Text>
-                    <HelpButton items={FRIENDS_HELP} />
-                </View>
+                <ScreenHeader title="Friends" onBack={() => nav.goBack()} right={<HelpButton items={FRIENDS_HELP} />} />
 
                 <View style={styles.tabBar}>
                     {(['friends', 'requests', 'search'] as FriendTab[]).map((tab) => (
-                        <TouchableOpacity
+                        <Chip
                             key={tab}
-                            style={[styles.tab, activeTab === tab && styles.tabActive]}
+                            label={tab === 'friends' ? 'Friends' : tab === 'requests' ? `Requests${pending.length > 0 ? ` (${pending.length})` : ''}` : 'Search'}
+                            selected={activeTab === tab}
                             onPress={() => setActiveTab(tab)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                                {tab === 'friends' ? 'Friends' : tab === 'requests' ? `Requests${pending.length > 0 ? ` (${pending.length})` : ''}` : 'Search'}
-                            </Text>
-                        </TouchableOpacity>
+                            style={{ flex: 1 }}
+                        />
                     ))}
                 </View>
 
@@ -192,47 +192,32 @@ export default function FriendsScreen() {
                             {friendsError && friends.length === 0 && !loadingFriends ? (
                                 <LoadError title="We couldn't load your friends" error={friendsError} onRetry={loadFriends} />
                             ) : friendsView === 'loading' ? (
-                                <>
-                                    <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-                                    <SlowLoadNote loading />
-                                </>
+                                loadingRows('Loading friends')
                             ) : friendsView === 'empty' ? (
-                                <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
-                                    <Text style={{ fontSize: 48, marginBottom: 12 }}>👋</Text>
-                                    <Text style={styles.emptyTitle}>No friends yet</Text>
-                                    <Text style={styles.emptyBody}>Search for people you know and send a friend request.</Text>
-                                    <TouchableOpacity style={{ marginTop: 20, alignSelf: 'stretch' }} onPress={() => setActiveTab('search')} activeOpacity={0.8}>
-                                        <LinearGradient colors={colors.gradient as any} style={{ paddingVertical: 14, borderRadius: radii.lg, alignItems: 'center' }}>
-                                            <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>Find Friends</Text>
-                                        </LinearGradient>
-                                    </TouchableOpacity>
-                                </Animated.View>
+                                <EmptyState
+                                    emoji="👋"
+                                    title="No friends yet"
+                                    body="Search for people you know and send a friend request."
+                                    action={<GradientButton title="Find Friends" size="md" onPress={() => setActiveTab('search')} />}
+                                />
                             ) : (
-                                <View style={{ gap: 10 }}>
-                                    {friends.map((f) => (
-                                        <Animated.View key={f.id} entering={FadeInDown.duration(300)} style={styles.friendRow}>
-                                            <Avatar user={f} colors={colors} />
-                                            <View style={{ flex: 1, marginLeft: 12 }}>
-                                                <Text style={styles.userName}>{f.display_name}</Text>
-                                            </View>
-                                            <TouchableOpacity
-                                                onPress={() => handleRemoveFriend(f.id, f.display_name)}
-                                                style={styles.iconBtn}
-                                                activeOpacity={0.7}
-                                                accessibilityRole="button"
-                                                accessibilityLabel={`Remove ${f.display_name}`}
-                                            >
-                                                <UserX size={18} color={colors.text40} />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                onPress={() => handleBlock(f)}
-                                                style={[styles.iconBtn, { marginLeft: 8 }]}
-                                                activeOpacity={0.7}
-                                                accessibilityRole="button"
-                                                accessibilityLabel={`Block ${f.display_name}`}
-                                            >
-                                                <Ban size={18} color={colors.text40} />
-                                            </TouchableOpacity>
+                                <View style={{ gap: 12 }}>
+                                    {friends.map((f, i) => (
+                                        <Animated.View key={f.id} entering={enter(i)}>
+                                            <ListRow
+                                                left={<Avatar user={f} colors={colors} />}
+                                                title={f.display_name}
+                                                right={
+                                                    <View style={styles.actions}>
+                                                        <IconButton label={`Remove ${f.display_name}`} onPress={() => handleRemoveFriend(f.id, f.display_name)}>
+                                                            <UserX size={18} color={colors.text40} />
+                                                        </IconButton>
+                                                        <IconButton label={`Block ${f.display_name}`} onPress={() => handleBlock(f)}>
+                                                            <Ban size={18} color={colors.text40} />
+                                                        </IconButton>
+                                                    </View>
+                                                }
+                                            />
                                         </Animated.View>
                                     ))}
                                 </View>
@@ -245,33 +230,32 @@ export default function FriendsScreen() {
                             {pendingError && pending.length === 0 && !loadingPending ? (
                                 <LoadError title="We couldn't load your friend requests" error={pendingError} onRetry={loadPending} />
                             ) : pendingView === 'loading' ? (
-                                <>
-                                    <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-                                    <SlowLoadNote loading />
-                                </>
+                                loadingRows('Loading friend requests')
                             ) : pendingView === 'empty' ? (
-                                <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
-                                    <Text style={{ fontSize: 48, marginBottom: 12 }}>📭</Text>
-                                    <Text style={styles.emptyTitle}>No pending requests</Text>
-                                    <Text style={styles.emptyBody}>When someone sends you a friend request it'll show here.</Text>
-                                </Animated.View>
+                                <EmptyState
+                                    emoji="📭"
+                                    title="No pending requests"
+                                    body="When someone sends you a friend request it'll show here."
+                                />
                             ) : (
-                                <View style={{ gap: 10 }}>
-                                    {pending.map((r) => (
-                                        <Animated.View key={r.friendship_id} entering={FadeInDown.duration(300)} style={styles.friendRow}>
-                                            <Avatar user={r.user ?? {}} colors={colors} />
-                                            <View style={{ flex: 1, marginLeft: 12 }}>
-                                                <Text style={styles.userName}>{r.user?.display_name ?? '?'}</Text>
-                                                <Text style={styles.userSub}>Wants to be friends</Text>
-                                            </View>
-                                            <View style={{ flexDirection: 'row', gap: 8 }}>
-                                                <TouchableOpacity onPress={() => handleDecline(r.friendship_id)} style={[styles.iconBtn, { backgroundColor: roles.dangerSoft }]} activeOpacity={0.7}>
-                                                    <UserX size={18} color={colors.danger} />
-                                                </TouchableOpacity>
-                                                <TouchableOpacity onPress={() => handleAccept(r.friendship_id)} style={[styles.iconBtn, { backgroundColor: roles.primarySoft }]} activeOpacity={0.7}>
-                                                    <UserCheck size={18} color={colors.primary} />
-                                                </TouchableOpacity>
-                                            </View>
+                                <View style={{ gap: 12 }}>
+                                    {pending.map((r, i) => (
+                                        <Animated.View key={r.friendship_id} entering={enter(i)}>
+                                            <ListRow
+                                                left={<Avatar user={r.user ?? {}} colors={colors} />}
+                                                title={r.user?.display_name ?? '?'}
+                                                subtitle="Wants to be friends"
+                                                right={
+                                                    <View style={styles.actions}>
+                                                        <IconButton tone="danger" label={`Decline ${r.user?.display_name ?? 'request'}`} onPress={() => handleDecline(r.friendship_id)}>
+                                                            <UserX size={18} color={colors.danger} />
+                                                        </IconButton>
+                                                        <IconButton tone="primary" label={`Accept ${r.user?.display_name ?? 'request'}`} onPress={() => handleAccept(r.friendship_id)}>
+                                                            <UserCheck size={18} color={colors.primary} />
+                                                        </IconButton>
+                                                    </View>
+                                                }
+                                            />
                                         </Animated.View>
                                     ))}
                                 </View>
@@ -281,40 +265,43 @@ export default function FriendsScreen() {
 
                     {activeTab === 'search' && (
                         <>
-                            <View style={styles.searchBox}>
-                                <Search size={16} color={colors.text40} />
-                                <TextInput
-                                    style={styles.searchInput}
-                                    placeholder="Search by name or @username"
-                                    placeholderTextColor={colors.textMuted}
-                                    value={searchQ}
-                                    onChangeText={setSearchQ}
-                                    autoFocus
-                                    returnKeyType="search"
-                                />
-                                {searching && <ActivityIndicator color={colors.primary} size="small" />}
-                            </View>
+                            <TextField
+                                left={<Search size={16} color={colors.text40} />}
+                                right={searching ? <ActivityIndicator color={colors.primary} size="small" /> : null}
+                                placeholder="Search by name or @username"
+                                accessibilityLabel="Search by name or @username"
+                                value={searchQ}
+                                onChangeText={setSearchQ}
+                                autoFocus
+                                returnKeyType="search"
+                            />
 
                             {searchResults.length > 0 && (
-                                <View style={{ gap: 10, marginTop: 12 }}>
-                                    {searchResults.map((u) => {
+                                <View style={{ gap: 12, marginTop: 12 }}>
+                                    {searchResults.map((u, i) => {
                                         const fs = u.friendship;
                                         const isFriend = fs?.status === 'accepted';
                                         const isPending = fs?.status === 'pending';
                                         return (
-                                            <Animated.View key={u.id} entering={FadeInDown.duration(250)} style={styles.friendRow}>
-                                                <Avatar user={u} colors={colors} />
-                                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                                    <Text style={styles.userName}>{u.display_name}</Text>
-                                                    {u.username ? <Text style={styles.userSub}>@{u.username}</Text> : null}
-                                                    {isFriend && <Text style={[styles.userSub, { color: colors.success }]}>Friends ✓</Text>}
-                                                    {isPending && <Text style={[styles.userSub, { color: colors.text40 }]}>Request sent</Text>}
-                                                </View>
-                                                {!isFriend && !isPending && (
-                                                    <TouchableOpacity onPress={() => handleSendRequest(u.id)} style={[styles.iconBtn, { backgroundColor: roles.primarySoft }]} activeOpacity={0.7}>
-                                                        <UserPlus size={18} color={colors.primary} />
-                                                    </TouchableOpacity>
-                                                )}
+                                            <Animated.View key={u.id} entering={enter(i, 'fast')}>
+                                                <ListRow
+                                                    left={<Avatar user={u} colors={colors} />}
+                                                    title={u.display_name}
+                                                    subtitle={
+                                                        <>
+                                                            {u.username ? <Text style={styles.userSub}>@{u.username}</Text> : null}
+                                                            {isFriend && <Text style={[styles.userSub, { color: colors.success }]}>Friends ✓</Text>}
+                                                            {isPending && <Text style={styles.userSub}>Request sent</Text>}
+                                                        </>
+                                                    }
+                                                    right={
+                                                        !isFriend && !isPending ? (
+                                                            <IconButton tone="primary" label={`Send friend request to ${u.display_name}`} onPress={() => handleSendRequest(u.id)}>
+                                                                <UserPlus size={18} color={colors.primary} />
+                                                            </IconButton>
+                                                        ) : null
+                                                    }
+                                                />
                                             </Animated.View>
                                         );
                                     })}
@@ -326,9 +313,9 @@ export default function FriendsScreen() {
                             )}
 
                             {!searchQ && (
-                                <View style={styles.emptyState}>
+                                <View style={styles.searchHint}>
                                     <Users size={40} color={colors.textMuted} />
-                                    <Text style={[styles.emptyBody, { marginTop: 12 }]}>Type a name to find people you know.</Text>
+                                    <Text style={styles.emptyBody}>Type a name to find people you know.</Text>
                                 </View>
                             )}
                         </>
@@ -342,66 +329,11 @@ export default function FriendsScreen() {
 function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingTop: 8,
-            paddingBottom: 12,
-        },
-        backBtn: {
-            width: 40, height: 40,
-            borderRadius: 20,
-            backgroundColor: c.glass,
-            alignItems: 'center', justifyContent: 'center',
-        },
-        title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 22 },
-        tabBar: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 4 },
-        tab: {
-            flex: 1,
-            paddingVertical: 10,
-            borderRadius: radii.pill,
-            backgroundColor: c.glass,
-            alignItems: 'center',
-            borderWidth: 1,
-            borderColor: c.glassBorder,
-        },
-        tabActive: { backgroundColor: c.primary, borderColor: c.primary },
-        tabText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
-        tabTextActive: { color: r.onPrimary },
-        friendRow: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: 14,
-            borderRadius: 14,
-            backgroundColor: c.glass,
-            borderWidth: 1,
-            borderColor: c.glassBorder,
-        },
-        userName: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
-        userSub: { color: c.text40, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 2 },
-        iconBtn: {
-            width: 44, height: 44,
-            borderRadius: 22,
-            backgroundColor: c.glass,
-            alignItems: 'center', justifyContent: 'center',
-        },
-        searchBox: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: c.glass,
-            borderRadius: 12,
-            paddingHorizontal: 14,
-            paddingVertical: 12,
-            gap: 10,
-            borderWidth: 1,
-            borderColor: c.glassBorder,
-        },
-        searchInput: { flex: 1, color: c.textPrimary, fontFamily: 'Inter_400Regular', fontSize: 15 },
-        noResults: { color: c.text40, fontFamily: 'Inter_400Regular', fontSize: 14, textAlign: 'center', marginTop: 32 },
-        emptyState: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 16 },
-        emptyTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 20, marginBottom: 8 },
-        emptyBody: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 14, textAlign: 'center', lineHeight: 20 },
+        tabBar: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginTop: 8, marginBottom: 4 },
+        actions: { flexDirection: 'row', gap: 8 },
+        userSub: { ...typeScale.caption, color: c.text40 },
+        noResults: { ...typeScale.footnote, color: c.text40, textAlign: 'center', marginTop: 32 },
+        searchHint: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 16, gap: 12 },
+        emptyBody: { ...typeScale.footnote, color: r.textMuted, textAlign: 'center' },
     });
 }

@@ -14,10 +14,11 @@ interface Props {
 export default function GlassCard({ children, style, padding = 20, radius = radii.xl }: Props) {
     const { isDark, colors } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { alignItems, justifyContent, ...outer } = StyleSheet.flatten(style) ?? {};
 
     return (
-        <BlurView intensity={20} tint={isDark ? 'dark' : 'light'} style={[styles.card, { borderRadius: radius }, style]}>
-            <View style={{ padding, borderRadius: radius, backgroundColor: colors.glass }}>{children}</View>
+        <BlurView intensity={20} tint={isDark ? 'dark' : 'light'} style={[styles.card, { borderRadius: radius }, outer]}>
+            <View style={{ padding, borderRadius: radius, backgroundColor: colors.glass, alignItems, justifyContent }}>{children}</View>
         </BlurView>
     );
 }

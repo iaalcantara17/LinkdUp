@@ -4,14 +4,14 @@ import {
     Text,
     StyleSheet,
     Image,
-    TouchableOpacity,
     ScrollView,
     ActivityIndicator,
 } from 'react-native';
+import { ScreenHeader, Tap } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Check, X, Star } from 'lucide-react-native';
+import { Check, X, Star } from 'lucide-react-native';
 import { api, photoUri } from '../services/api';
 import { supabase } from '../services/supabase';
 import AvatarBubble from '../components/AvatarBubble';
@@ -233,18 +233,7 @@ export default function ProposalScreen() {
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
-                        <ArrowLeft size={22} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text style={styles.headerTitle}>The group's top pick</Text>
-                        {partyName ? (
-                            <Text style={styles.headerSub}>{partyName}</Text>
-                        ) : null}
-                    </View>
-                    <View style={{ width: 40 }} />
-                </View>
+                <ScreenHeader title="The group's top pick" subtitle={partyName} onBack={() => nav.goBack()} />
 
                 <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
                     {venue ? (
@@ -333,21 +322,21 @@ export default function ProposalScreen() {
 
                     {hasResponded ? (
                         <View style={styles.waitingBanner}>
-                            <ActivityIndicator color={colors.primary} size="small" style={{ marginRight: 10 }} />
+                            <ActivityIndicator color={colors.primary} size="small" style={{ marginRight: 8 }} />
                             <Text style={styles.waitingBannerText}>Waiting for the rest of the group...</Text>
                         </View>
                     ) : (
                         <View style={styles.actionRow}>
-                            <TouchableOpacity
+                            <Tap
                                 style={[styles.noBtn, responding && { opacity: 0.5 }]}
                                 onPress={() => handleRespond(false)}
                                 disabled={responding}
                                 activeOpacity={0.85}
                             >
                                 <Text style={styles.noBtnText}>No, show me the next one</Text>
-                            </TouchableOpacity>
+                            </Tap>
 
-                            <TouchableOpacity
+                            <Tap
                                 onPress={() => handleRespond(true)}
                                 disabled={responding}
                                 activeOpacity={0.85}
@@ -360,7 +349,7 @@ export default function ProposalScreen() {
                                 >
                                     <Text style={styles.yesBtnText}>Yes, let's go! 🎉</Text>
                                 </LinearGradient>
-                            </TouchableOpacity>
+                            </Tap>
                         </View>
                     )}
                 </ScrollView>
@@ -373,32 +362,6 @@ function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
 
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: c.glassBorder,
-        },
-        backBtn: {
-            width: 40,
-            height: 40,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 20,
-        },
-        headerTitle: {
-            color: c.textPrimary,
-            fontFamily: 'Inter_700Bold',
-            fontSize: 16,
-        },
-        headerSub: {
-            color: c.text60,
-            fontFamily: 'Inter_400Regular',
-            fontSize: 12,
-            marginTop: 2,
-        },
 
         heroCard: {
             height: 300,
@@ -423,7 +386,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         categoryPill: {
             alignSelf: 'flex-start',
             backgroundColor: r.primary,
-            paddingHorizontal: 10,
+            paddingHorizontal: 8,
             paddingVertical: 4,
             borderRadius: radii.pill,
             marginBottom: 8,
@@ -433,9 +396,9 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             color: r.onMedia,
             fontFamily: 'Inter_900Black',
             fontSize: 26,
-            marginBottom: 6,
+            marginBottom: 8,
         },
-        venueMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+        venueMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
         metaText: { color: r.onMediaMuted, fontSize: 13, fontFamily: 'Inter_400Regular' },
         metaDot: { color: r.onMediaFaint },
 
@@ -451,7 +414,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             color: c.text60,
             fontFamily: 'Inter_600SemiBold',
             fontSize: 12,
-            marginBottom: 14,
+            marginBottom: 16,
             textTransform: 'uppercase',
             letterSpacing: 0.5,
         },
@@ -520,7 +483,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
 
         actionRow: { gap: 12 },
         yesBtn: {
-            paddingVertical: 18,
+            paddingVertical: 16,
             borderRadius: radii.lg,
             alignItems: 'center',
         },

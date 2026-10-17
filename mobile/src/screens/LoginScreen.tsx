@@ -26,7 +26,7 @@ function GradientWordmark() {
     const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     try {
         return (
-            <MaskedView maskElement={<Text style={[styles.wordmark, { color: palette.white }]}>LINKDUP</Text>}>
+            <MaskedView maskElement={<Text style={[styles.wordmark, { color: r.text }]}>LINKDUP</Text>}>
                 <LinearGradient colors={colors.gradient as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                     <Text style={[styles.wordmark, { opacity: 0 }]}>LINKDUP</Text>
                 </LinearGradient>
