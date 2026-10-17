@@ -8,6 +8,7 @@ import axios from 'axios';
 import { google } from 'googleapis';
 import { realFetch } from './supabaseMock';
 import { createFakeSupabase, type FakeSupabase } from './fakeSupabase';
+import { clearNearbyMemory } from '../src/services/places';
 
 export type Sent = { method: string; path: string; status: number; text: string };
 
@@ -84,6 +85,7 @@ export function client(base: string, sent: Sent[] = []) {
 }
 
 export function freshWorld() {
+    clearNearbyMemory();
     const fake: FakeSupabase = createFakeSupabase();
     for (const id of ['alice', 'bob', 'carol', 'dave', 'mallory']) fake.addUser(id);
     fake.install();

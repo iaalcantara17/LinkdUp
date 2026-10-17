@@ -94,6 +94,10 @@ const NEARBY_MEMORY_TTL_MS = 15 * 60_000;
 export const NEARBY_MEMORY_MAX = 100;
 const nearbyMemory = new Map<string, { venues: PlaceCandidate[]; expiresAt: number }>();
 
+export function clearNearbyMemory(): void {
+    nearbyMemory.clear();
+}
+
 async function nearbyVenues(center: LatLng, radiusMeters: number, types: string[], page: number | 'base'): Promise<PlaceCandidate[]> {
     const cell = gridCell(center);
     const radius = Math.max(1, Math.round(radiusMeters / 1000)) * 1000;
