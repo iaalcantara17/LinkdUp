@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { darkColors as colors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 /**
  * 48x48 (or custom) rounded square with the brand gradient background.
@@ -19,6 +19,7 @@ export default function IconBadge({
     radius?: number;
     style?: ViewStyle;
 }) {
+    const { colors } = useTheme();
     return (
         <LinearGradient
             colors={colors.gradient as any}

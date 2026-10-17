@@ -18,7 +18,6 @@ import { HintsProvider } from './src/context/HintsContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import DialogHost from './src/components/DialogHost';
-import { darkColors } from './src/theme';
 import { settleFinishedAnimations } from './src/services/webAnimations';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') settleFinishedAnimations(document);
@@ -57,6 +56,15 @@ function AppInner() {
     );
 }
 
+function FontLoading() {
+    const { colors } = useTheme();
+    return (
+        <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color={colors.primary} />
+        </View>
+    );
+}
+
 export default function App() {
     const [fontsLoaded] = useFonts({
         Inter_400Regular,
@@ -66,26 +74,22 @@ export default function App() {
         Inter_900Black,
     });
 
-    if (!fontsLoaded) {
-        return (
-            <View style={{ flex: 1, backgroundColor: darkColors.bg, alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator color={darkColors.primary} />
-            </View>
-        );
-    }
-
     return (
         <ThemeProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-                <SafeAreaProvider>
-                    <AuthProvider>
-                        <HintsProvider>
-                            <AppInner />
-                            <DialogHost />
-                        </HintsProvider>
-                    </AuthProvider>
-                </SafeAreaProvider>
-            </GestureHandlerRootView>
+            {fontsLoaded ? (
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                    <SafeAreaProvider>
+                        <AuthProvider>
+                            <HintsProvider>
+                                <AppInner />
+                                <DialogHost />
+                            </HintsProvider>
+                        </AuthProvider>
+                    </SafeAreaProvider>
+                </GestureHandlerRootView>
+            ) : (
+                <FontLoading />
+            )}
         </ThemeProvider>
     );
 }
