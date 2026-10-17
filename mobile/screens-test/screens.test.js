@@ -12,6 +12,8 @@ import DiscoverScreen from '../src/screens/DiscoverScreen';
 import ProfileScreen from '../src/screens/ProfileScreen';
 import CalendarConfirmationScreen from '../src/screens/CalendarConfirmationScreen';
 import WalkthroughScreen from '../src/screens/WalkthroughScreen';
+import FollowListScreen from '../src/screens/FollowListScreen';
+import * as dialogs from '../src/components/dialogs';
 import { color } from '../src/theme';
 
 jest.mock('../src/services/liveLocation', () => ({
@@ -422,6 +424,33 @@ describe('CalendarConfirmation', () => {
         expect(screen.queryAllByText('Loading...')).toHaveLength(0);
         await retryLoads(expectLoadError("We couldn't load your hangout details"));
         screen.getByText('Blue Bottle Cafe');
+    });
+});
+
+describe('FollowList', () => {
+    test('View profile in the long-press menu opens that person in the profile sheet instead of a missing route', async () => {
+        const menu = jest.spyOn(dialogs, 'showMenu').mockImplementation(async (title, actions) => {
+            actions.find((a) => a.label === 'View profile').onPress();
+        });
+        try {
+            await show(FollowListScreen, {
+                getFollowers: [{ id: 'bob', display_name: 'Bob Builder', username: 'bob', avatar_color: '#22C55E', avatar_url: null }],
+                getPublicUser: { id: 'bob', display_name: 'Bob Builder', username: 'bob', bio: 'Builds things', follower_count: 3, following_count: 4 },
+                getFriends: [],
+                getPendingRequests: [],
+            }, { userId: 'alice', initialTab: 'followers', username: 'alice' });
+            const row = screen.getByText('@bob');
+            fireEvent.mouseDown(row);
+            await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+            fireEvent.mouseUp(row);
+            await settle();
+            expect(menu).toHaveBeenCalledWith('Bob Builder', expect.any(Array));
+            expect(global.__navigation.navigate).not.toHaveBeenCalledWith('UserProfile', expect.anything());
+            expect(api.getPublicUser).toHaveBeenCalledWith('bob');
+            await screen.findByText('Builds things');
+        } finally {
+            menu.mockRestore();
+        }
     });
 });
 
