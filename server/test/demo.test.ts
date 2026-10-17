@@ -103,10 +103,10 @@ test('the route list is generated from the router', () => {
     assert.ok(all.some((r) => label(r) === 'DELETE /api/user/me'));
 });
 
-test('the only mutating routes without sign in are signup, login and school lookup', () => {
+test('the only mutating routes without sign in are signup, login, demo and school lookup', () => {
     assert.deepEqual(
         writes().filter((r) => !r.authed).map(label).sort(),
-        ['POST /api/auth/login', 'POST /api/auth/signup', 'POST /api/schools/lookup'],
+        ['POST /api/auth/demo', 'POST /api/auth/login', 'POST /api/auth/signup', 'POST /api/schools/lookup'],
     );
 });
 
