@@ -153,15 +153,7 @@ Prerequisites: Node.js 22, a Supabase project, and a Google Cloud project with P
 
 ## Credits and context
 
-LinkdUp was built by a five-person team for the NJIT CS/IT 491 capstone and placed 2nd. Israel Alcantara was the lead developer.
-
-| Name | Role |
-|---|---|
-| Luis Duarte | Project Manager |
-| Israel Alcantara | Lead Developer |
-| Joshua Hernandez | Frontend Developer |
-| Nekhi Glover | QA and Integration |
-| Yash Amin | UX Designer |
+Built by a five-person team for the NJIT CS/IT 491 capstone (Spring 2026, 2nd place). Israel Alcantara was the backend engineer. Luis Duarte led the team and managed the project. Yash Amin, Joshua Hernandez and Nekhi Glover helped test and debug before the showcase and produced the midterm video.
 
 The app is built and tested on the web. Vercel Analytics is enabled on the web app for page views. Open issues are listed in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
