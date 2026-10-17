@@ -1,5 +1,7 @@
 import { Response, NextFunction } from 'express';
 import type { AuthedRequest } from './auth';
+import { supabaseAdmin } from '../db';
+import { HttpError } from './error';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -19,6 +21,20 @@ export function demoUserId(): string | null {
 export function isDemoUser(id: string | undefined): boolean {
     const demo = demoUserId();
     return !!demo && !!id && id.toLowerCase() === demo;
+}
+
+export async function hiddenDemoUserIds(viewerId: string): Promise<Set<string>> {
+    const demo = demoUserId();
+    if (!demo || isDemoUser(viewerId)) return new Set();
+    const { data, error } = await supabaseAdmin
+        .from('friendships')
+        .select('requester_id, addressee_id')
+        .eq('status', 'accepted')
+        .or(`requester_id.eq.${demo},addressee_id.eq.${demo}`);
+    if (error) throw new HttpError(500, 'demo_lookup_failed', error.message);
+    const ids = new Set([demo]);
+    for (const f of data ?? []) ids.add(f.requester_id === demo ? f.addressee_id : f.requester_id);
+    return ids;
 }
 
 export function demoReadOnly(req: AuthedRequest, res: Response, next: NextFunction) {

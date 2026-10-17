@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { hiddenDemoUserIds } from '../middleware/demo';
 import { HttpError } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
 import { geocodeCity } from '../services/places';
@@ -640,7 +641,8 @@ router.get('/:id/followers', requireAuth, async (req: AuthedRequest, res, next) 
         const { data: follows, error } = await query;
         if (error) throw new HttpError(500, 'fetch_followers_failed', error.message);
 
-        const followerIds = (follows ?? []).map((f: any) => f.follower_id);
+        const hidden = await hiddenDemoUserIds(me);
+        const followerIds = (follows ?? []).map((f: any) => f.follower_id).filter((id: string) => !hidden.has(id));
         if (followerIds.length === 0) return res.json([]);
 
         const [usersRes, followsBackRes, blocksRes] = await Promise.all([
@@ -681,7 +683,8 @@ router.get('/:id/following', requireAuth, async (req: AuthedRequest, res, next) 
         const { data: follows, error } = await query;
         if (error) throw new HttpError(500, 'fetch_following_failed', error.message);
 
-        const followedIds = (follows ?? []).map((f: any) => f.followed_id);
+        const hidden = await hiddenDemoUserIds(me);
+        const followedIds = (follows ?? []).map((f: any) => f.followed_id).filter((id: string) => !hidden.has(id));
         if (followedIds.length === 0) return res.json([]);
 
         const [usersRes, followsBackRes, blocksRes] = await Promise.all([

@@ -8,7 +8,7 @@ import { generateVenuePitch, FALLBACK_PITCH } from '../services/aiPitch';
 import { distanceMiles, LatLng } from '../services/midpoint';
 import { fuzzedLocation, MEMBER_LOCATION_COLUMNS } from '../services/memberLocation';
 import { config } from '../config';
-import { isDemoUser } from '../middleware/demo';
+import { isDemoUser, hiddenDemoUserIds } from '../middleware/demo';
 
 const router = Router();
 
@@ -130,7 +130,8 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
             .eq('is_public', true);
         if (partyErr) throw new HttpError(500, 'parties_query_failed', partyErr.message);
 
-        const openParties = (parties ?? []).filter((p: any) => !myPartyIds.has(p.id));
+        const hidden = await hiddenDemoUserIds(me);
+        const openParties = (parties ?? []).filter((p: any) => !myPartyIds.has(p.id) && !hidden.has(p.host_user_id));
         if (openParties.length === 0) return res.json([]);
 
         const openPartyIds = openParties.map((p: any) => p.id);

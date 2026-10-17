@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { hiddenDemoUserIds } from '../middleware/demo';
 import { HttpError } from '../middleware/error';
 
 const router = Router();
@@ -206,14 +207,16 @@ router.get('/search', requireAuth, async (req: AuthedRequest, res, next) => {
             ? `username.ilike.%${safe}%`
             : `display_name.ilike.%${safe}%,email.ilike.%${safe}%,username.ilike.%${safe}%`;
 
-        const { data: users, error } = await supabaseAdmin
+        const { data: found, error } = await supabaseAdmin
             .from('users')
             .select('id, display_name, username, avatar_url, avatar_color')
             .or(orCondition)
             .neq('id', me)
             .limit(20);
         if (error) throw error;
-        if (!users || users.length === 0) return res.json([]);
+        const hidden = await hiddenDemoUserIds(me);
+        const users = (found ?? []).filter((u: any) => !hidden.has(u.id));
+        if (users.length === 0) return res.json([]);
 
         const userIds = users.map((u: any) => u.id);
 

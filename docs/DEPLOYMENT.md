@@ -103,7 +103,7 @@ Notes:
 - The demo password stays on Render. It is never sent to the browser or logged. If a visitor changes it through Supabase directly, the next **Try the demo** resets it, but only when the stored UID and email match.
 - `POST /api/auth/demo` is limited to 10 tries per IP every 15 minutes.
 - Demo photos and avatars are static files in `mobile/public/demo/`, served by Vercel. They don't use `/api/photo`.
-- Demo feed posts and the demo friends are ordinary rows, so signed-in users can see them in the feed and in friend search. They are marked "(demo)" or "Demo post".
+- Only the demo account sees demo data. For everyone else the server hides the demo user and its accepted friends from the feed, friend search, followers and following lists, and Discover parties.
 - To turn demo mode off, delete `DEMO_USER_ID` on Render.
 
 ## 8. Railway (retired)
