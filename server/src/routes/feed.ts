@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { hiddenDemoUserIds } from '../middleware/demo';
 import { HttpError } from '../middleware/error';
 import { supabaseAdmin } from '../db';
 import { distanceMiles } from '../services/midpoint';
@@ -22,7 +23,7 @@ router.get('/feed', requireAuth, async (req: AuthedRequest, res, next) => {
             .from('user_blocks')
             .select('blocker_id, blocked_id')
             .or(`blocker_id.eq.${me},blocked_id.eq.${me}`);
-        const blockedCreatorIds = new Set<string>();
+        const blockedCreatorIds = await hiddenDemoUserIds(me);
         for (const row of blockRows ?? []) {
             blockedCreatorIds.add(row.blocker_id === me ? row.blocked_id : row.blocker_id);
         }

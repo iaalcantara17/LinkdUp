@@ -33,6 +33,7 @@ import PlaceSearch, { Place } from '../components/PlaceSearch';
 import { radii, motion } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { listView } from '../hooks/listView';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 
@@ -413,8 +414,12 @@ export default function DiscoverScreen() {
     const [userLat, setUserLat] = useState<number | null>(null);
     const [userLng, setUserLng] = useState<number | null>(null);
     const [noLocation, setNoLocation] = useState(false);
-    const picked = useRef<Place | null>(null);
-    const [pickedLabel, setPickedLabel] = useState<string | null>(null);
+    const { isDemo, userProfile } = useAuth();
+    const demoPlace: Place | null = isDemo && userProfile?.latitude != null && userProfile?.longitude != null
+        ? { latitude: userProfile.latitude, longitude: userProfile.longitude, label: 'Demo location' }
+        : null;
+    const picked = useRef<Place | null>(demoPlace);
+    const [pickedLabel, setPickedLabel] = useState<string | null>(demoPlace?.label ?? null);
     const [cityOpen, setCityOpen] = useState(false);
     const [locationIssue, setLocationIssue] = useState<AskReason | null>(null);
     const [locating, setLocating] = useState(false);

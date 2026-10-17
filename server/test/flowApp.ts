@@ -12,7 +12,7 @@ import { clearNearbyMemory } from '../src/services/places';
 
 export type Sent = { method: string; path: string; status: number; text: string };
 
-export async function bootApp(): Promise<{ server: Server; base: string }> {
+export async function bootApp(): Promise<{ server: Server; base: string; app: express.Express }> {
     let app: express.Express | undefined;
     const listen = mock.method(express.application, 'listen', function (this: express.Express) {
         app = this;
@@ -26,7 +26,7 @@ export async function bootApp(): Promise<{ server: Server; base: string }> {
     if (!app) throw new Error('src/index.ts did not call app.listen');
     const server = createServer(app).listen(0);
     await once(server, 'listening');
-    return { server, base: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
+    return { server, base: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, app };
 }
 
 export function venue(i: number) {

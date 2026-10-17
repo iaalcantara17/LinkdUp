@@ -8,9 +8,10 @@ import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoi
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
 import { fuzzedLocation, myLocationView, MEMBER_LOCATION_COLUMNS } from '../services/memberLocation';
-import { generateVenuePitch } from '../services/aiPitch';
+import { generateVenuePitch, FALLBACK_PITCH } from '../services/aiPitch';
 import { evaluateProposal } from '../services/matchEngine';
 import { assertMember, assertHost } from '../services/membership';
+import { isDemoUser } from '../middleware/demo';
 
 const router = Router();
 
@@ -366,6 +367,7 @@ router.get('/:id/pitch', requireAuth, async (req: AuthedRequest, res, next) => {
         if (!venueId) throw new HttpError(400, 'missing_venue_id');
 
         await assertMember(partyId, req.user!.id);
+        if (isDemoUser(req.user!.id)) return res.json({ pitch: FALLBACK_PITCH });
 
         const [venueRes, memberRes, partyRes] = await Promise.all([
             supabaseAdmin
@@ -407,6 +409,7 @@ router.get('/:id/more-venues', requireAuth, async (req: AuthedRequest, res, next
     try {
         const partyId = req.params.id;
         await assertMember(partyId, req.user!.id);
+        if (isDemoUser(req.user!.id)) return res.json({ new_venue_count: 0, exhausted: true });
 
         const { data: party } = await supabaseAdmin
             .from('parties')

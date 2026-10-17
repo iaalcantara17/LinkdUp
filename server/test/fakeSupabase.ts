@@ -296,6 +296,9 @@ export function createFakeSupabase(seed: Partial<FakeDb> = {}) {
             passwords.set(id, `pw-${id}`);
             return user;
         },
+        setPassword(id: string, password: string) {
+            passwords.set(id, password);
+        },
     };
 }
 

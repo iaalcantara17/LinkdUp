@@ -23,6 +23,7 @@ interface UserProfile {
     theme_preference: 'dark' | 'light' | 'system';
     google_calendar_connected: boolean;
     age: number | null;
+    is_demo?: boolean;
 }
 
 interface AuthContextValue {
@@ -30,6 +31,7 @@ interface AuthContextValue {
     loading: boolean;
     userProfile: UserProfile | null;
     profileLoading: boolean;
+    isDemo: boolean;
     refreshProfile: () => Promise<void>;
     signOut: () => Promise<void>;
 }
@@ -39,6 +41,7 @@ const AuthContext = createContext<AuthContextValue>({
     loading: true,
     userProfile: null,
     profileLoading: false,
+    isDemo: false,
     refreshProfile: async () => {},
     signOut: async () => {},
 });
@@ -118,12 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => { sub.subscription.unsubscribe(); };
     }, []);
 
+    const isDemo = !!userProfile?.is_demo;
+
     const signOut = async () => {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut(isDemo ? { scope: 'local' } : undefined);
     };
 
     return (
-        <AuthContext.Provider value={{ session, loading, userProfile, profileLoading, refreshProfile, signOut }}>
+        <AuthContext.Provider value={{ session, loading, userProfile, profileLoading, isDemo, refreshProfile, signOut }}>
             {children}
         </AuthContext.Provider>
     );

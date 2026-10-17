@@ -15,7 +15,7 @@ export interface PartyPitchContext {
     party_name?: string | null;
 }
 
-const FALLBACK =
+export const FALLBACK_PITCH =
     "Looks like a solid pick — check the photos and see if the vibe matches what your crew's into.";
 
 const pitchCache = new Map<string, string>();
@@ -28,7 +28,7 @@ export async function generateVenuePitch(
     venue: VenuePitchInput,
     partyCtx: PartyPitchContext,
 ): Promise<{ pitch: string }> {
-    if (!config.features.geminiPitches) return { pitch: FALLBACK };
+    if (!config.features.geminiPitches) return { pitch: FALLBACK_PITCH };
 
     const key = cacheKey(venue, partyCtx);
     const cached = pitchCache.get(key);
@@ -36,7 +36,7 @@ export async function generateVenuePitch(
 
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || '';
 
-    if (!apiKey) return { pitch: FALLBACK };
+    if (!apiKey) return { pitch: FALLBACK_PITCH };
 
     const reviews = venue.user_ratings_total != null
         ? `${venue.user_ratings_total.toLocaleString()} reviews`
@@ -85,13 +85,13 @@ export async function generateVenuePitch(
         const candidates = res.data?.candidates ?? [];
         const firstText: string =
             candidates[0]?.content?.parts?.[0]?.text?.trim?.() ?? '';
-        const pitch = firstText || FALLBACK;
+        const pitch = firstText || FALLBACK_PITCH;
         pitchCache.set(key, pitch);
         return { pitch };
     } catch (e: any) {
         const status = e?.response?.status;
         const body = e?.response?.data;
         console.error('[aiPitch] Gemini error', status, body ?? e?.message);
-        return { pitch: FALLBACK };
+        return { pitch: FALLBACK_PITCH };
     }
 }

@@ -29,6 +29,7 @@ jest.mock('../src/services/supabase', () => {
                 getUser: jest.fn(async () => ({ data: { user: { id: 'alice', email: 'alice@test.dev' } } })),
                 onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
                 signOut: jest.fn(async () => ({ error: null })),
+                setSession: jest.fn(async () => ({ error: null })),
             },
             channel: jest.fn(() => channel),
             removeChannel: jest.fn(),
@@ -125,14 +126,17 @@ global.__profile = {
     age: null,
 };
 
+global.__signOut = jest.fn(async () => {});
+
 jest.mock('../src/context/AuthContext', () => ({
     useAuth: () => ({
         session: { access_token: 'tok-alice', user: { id: 'alice', email: 'alice@test.dev' } },
         loading: false,
         userProfile: global.__profile,
         profileLoading: false,
+        isDemo: !!global.__profile?.is_demo,
         refreshProfile: jest.fn(async () => {}),
-        signOut: jest.fn(async () => {}),
+        signOut: global.__signOut,
     }),
 }));
 

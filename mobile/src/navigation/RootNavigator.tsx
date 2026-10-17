@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'rea
 import { useAuth } from '../context/AuthContext';
 import AuthStack from './AuthStack';
 import MainStack from './MainStack';
+import DemoBanner from '../components/DemoBanner';
 import { typography, radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -63,11 +64,20 @@ export default function RootNavigator() {
         }
     }
 
-    return <MainStack key="main" startScreen={startScreen} />;
+    return (
+        <View style={styles.mainRoot}>
+            <DemoBanner />
+            <View style={styles.main}>
+                <MainStack key="main" startScreen={startScreen} />
+            </View>
+        </View>
+    );
 }
 
 function makeStyles(colors: AppColors, r: ColorRoles) {
     return StyleSheet.create({
+        mainRoot: { flex: 1, backgroundColor: colors.bg },
+        main: { flex: 1 },
         center: {
             flex: 1,
             backgroundColor: colors.bg,

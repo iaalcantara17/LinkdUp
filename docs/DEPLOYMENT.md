@@ -65,6 +65,47 @@ Render's free web services go to sleep after about 15 minutes with no traffic. T
 
 Supabase's free plan pauses a project after about a week with no database activity. `GET /api/health/db` runs one tiny query and returns `{"ok":true}` (no login, no data, limited to 10 calls a minute per IP). Point a free external pinger such as UptimeRobot or cron-job.org at `https://<your-service>.onrender.com/api/health/db` once a week to keep both awake.
 
-## 7. Railway (retired)
+## 7. Demo mode
+
+"Try the demo" lets visitors look around without signing up. Everyone shares one demo account. The server refuses every write from it with `403 demo_read_only`, plus the lookups that spend Google quota (`/api/calendar/oauth/start`, `/api/discover/places/search`, `/api/user/location/search`). Discover, extra swipe cards and venue pitches answer the demo account from stored rows only, so no Places or Gemini call is made. Demo mode is off, and the button hidden, until all three env vars below are set.
+
+Do these in order:
+
+1. **Supabase → Authentication → Users → Add user → Create new user.** Tick **Auto Confirm User**. Create six users, each with its own long random password:
+   - the demo login, for example `demo@linkdup.app` (keep this password, Render needs it)
+   - `demo-maya@linkdup.app`, `demo-theo@linkdup.app`, `demo-priya@linkdup.app`, `demo-jordan@linkdup.app`, `demo-sam@linkdup.app` (the demo friends; nobody signs in as them)
+
+   The friends have to be real auth users because `public.users.id` references `auth.users`. The seed never writes to auth tables.
+2. Copy each user's **UID** from the Users list.
+3. Open `server/src/db/seed/demo_seed.sql` and replace the six placeholders in the `demo_people` insert near the top:
+
+   | Placeholder | Replace with the UID of |
+   | --- | --- |
+   | `REPLACE_ME_DEMO_USER_ID` | the demo login |
+   | `REPLACE_ME_FRIEND_1_ID` | `demo-maya@linkdup.app` |
+   | `REPLACE_ME_FRIEND_2_ID` | `demo-theo@linkdup.app` |
+   | `REPLACE_ME_FRIEND_3_ID` | `demo-priya@linkdup.app` |
+   | `REPLACE_ME_FRIEND_4_ID` | `demo-jordan@linkdup.app` |
+   | `REPLACE_ME_FRIEND_5_ID` | `demo-sam@linkdup.app` |
+
+   Don't commit the edited copy.
+4. Run the whole file in the **Supabase SQL editor**. The last query should show `6` users, `3` parties, `10` venues and `5` posts. It is safe to run again: rerunning resets the demo parties and moves the locked date back to a week from today. If it stops with "Create these demo users in Supabase Auth first", one of the UIDs is wrong or missing.
+5. **Render → linkdup-api → Environment**, add:
+   - `DEMO_USER_ID` = the demo login's UID
+   - `DEMO_USER_EMAIL` = the demo login's email
+   - `DEMO_USER_PASSWORD` = the demo login's password
+
+   Save, and let Render redeploy.
+6. Check `https://<your-service>.onrender.com/api/auth/demo-available` returns `{"available":true}`, then run "Demo mode" in `docs/CORE_FLOW_CHECKLIST.md`.
+
+Notes:
+
+- The demo password stays on Render. It is never sent to the browser or logged. If a visitor changes it through Supabase directly, the next **Try the demo** resets it, but only when the stored UID and email match.
+- `POST /api/auth/demo` is limited to 10 tries per IP every 15 minutes.
+- Demo photos and avatars are static files in `mobile/public/demo/`, served by Vercel. They don't use `/api/photo`.
+- Only the demo account sees demo data. For everyone else the server hides the demo user and its accepted friends from the feed, friend search, followers and following lists, and Discover parties.
+- To turn demo mode off, delete `DEMO_USER_ID` on Render.
+
+## 8. Railway (retired)
 
 The old Railway backend is gone. `server/railway.json` was deleted. Ignore Railway steps in older planning docs.

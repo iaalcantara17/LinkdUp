@@ -4,6 +4,7 @@ import { supabaseAdmin, supabaseSignIn } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
+import { demoUserId, isDemoUser } from '../middleware/demo';
 import { SELF_PROFILE_SELECT, profileDbError, toSelfProfile } from '../services/userProfile';
 
 const router = Router();
@@ -116,9 +117,55 @@ router.post('/login', rateLimit(LOGIN_LIMIT, 15 * 60_000), async (req, res, next
     }
 });
 
+export const DEMO_LIMIT = 10;
+
+function demoCredentials() {
+    const id = demoUserId();
+    const email = process.env.DEMO_USER_EMAIL?.trim();
+    const password = process.env.DEMO_USER_PASSWORD;
+    return id && email && password ? { id, email, password } : null;
+}
+
+router.get('/demo-available', (_req, res) => {
+    res.json({ available: demoCredentials() !== null });
+});
+
+router.post('/demo', rateLimit(DEMO_LIMIT, 15 * 60_000), async (_req, res, next) => {
+    try {
+        const demo = demoCredentials();
+        if (!demo) throw new HttpError(404, 'not_found');
+
+        let { data, error } = await supabaseSignIn(demo.email, demo.password);
+        if (error || !data.session) {
+            const { data: found } = await supabaseAdmin.auth.admin.getUserById(demo.id);
+            if (found?.user?.email?.toLowerCase() !== demo.email.toLowerCase()) {
+                throw new HttpError(500, 'demo_misconfigured');
+            }
+            const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(demo.id, { password: demo.password });
+            if (resetErr) throw new HttpError(503, 'demo_unavailable');
+            ({ data, error } = await supabaseSignIn(demo.email, demo.password));
+        }
+        if (error || !data.session) throw new HttpError(503, 'demo_unavailable');
+        if (data.user?.id !== demo.id) {
+            await supabaseAdmin.auth.admin.signOut(data.session.access_token).catch(() => {});
+            throw new HttpError(500, 'demo_misconfigured');
+        }
+        res.json({
+            user: { id: demo.id },
+            session: {
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+                expires_at: data.session.expires_at,
+            },
+        });
+    } catch (e) {
+        next(e);
+    }
+});
+
 router.post('/logout', authLimit, requireAuth, async (req: AuthedRequest, res, next) => {
     try {
-        if (req.accessToken) {
+        if (req.accessToken && !isDemoUser(req.user!.id)) {
             await supabaseAdmin.auth.admin.signOut(req.accessToken);
         }
         res.json({ ok: true });
@@ -165,7 +212,7 @@ router.get('/me', authLimit, requireAuth, async (req: AuthedRequest, res, next) 
         if (error) throw profileDbError(error, new HttpError(404, 'profile_not_found'));
         const token = (data as any)?.google_calendar_refresh;
         const google_calendar_connected = token !== null && token !== undefined && String(token).trim() !== '';
-        res.json({ ...toSelfProfile(data), google_calendar_connected });
+        res.json({ ...toSelfProfile(data), google_calendar_connected, is_demo: isDemoUser(req.user!.id) });
     } catch (e) {
         next(e);
     }

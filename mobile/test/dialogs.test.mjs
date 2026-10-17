@@ -173,3 +173,33 @@ test('block confirm uses the same wording everywhere', async () => {
     respond(1);
     assert.equal(await p, true);
 });
+
+test('a demo refusal opens one friendly dialog with Sign up, and Sign up runs the sign up action', async () => {
+    const { demoReadOnly } = await import('../src/components/dialogs.ts');
+    let signedUp = 0;
+    const first = demoReadOnly(() => { signedUp += 1; });
+    const second = demoReadOnly(() => { signedUp += 1; });
+    const d = current();
+    assert.equal(d.title, 'Demo mode, read only');
+    assert.equal(d.message, 'Sign up to create your own parties.');
+    assert.deepEqual(d.buttons.map((b) => [b.label, b.style]), [['Not now', 'cancel'], ['Sign up', 'default']]);
+    respond(1);
+    await Promise.all([first, second]);
+    assert.equal(current(), null);
+    assert.equal(signedUp, 1);
+    const again = demoReadOnly(() => { signedUp += 1; });
+    respond(0);
+    await again;
+    assert.equal(signedUp, 1);
+});
+
+test('demo_read_only has the banner wording and is never shown again as a raw error or toast', async () => {
+    const { DEMO_READ_ONLY } = await import('../src/components/dialogs.ts');
+    assert.equal(DEMO_READ_ONLY, 'Demo mode, read only. Sign up to create your own parties.');
+    const text = errorText(new Error('demo_read_only'), 'fallback');
+    assert.equal(text, DEMO_READ_ONLY);
+    await showError("Couldn't like that post", text);
+    assert.equal(current(), null);
+    toast(text);
+    assert.deepEqual(getSnapshot().toasts.filter((t) => t.message === text), []);
+});

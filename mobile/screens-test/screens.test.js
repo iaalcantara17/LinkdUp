@@ -13,6 +13,11 @@ import ProfileScreen from '../src/screens/ProfileScreen';
 import CalendarConfirmationScreen from '../src/screens/CalendarConfirmationScreen';
 import WalkthroughScreen from '../src/screens/WalkthroughScreen';
 import FollowListScreen from '../src/screens/FollowListScreen';
+import LoginScreen from '../src/screens/LoginScreen';
+import OnboardingScreen from '../src/screens/OnboardingScreen';
+import DemoBanner from '../src/components/DemoBanner';
+import CommentSheet from '../src/components/CommentSheet';
+import { supabase } from '../src/services/supabase';
 import * as dialogs from '../src/components/dialogs';
 import { color } from '../src/theme';
 
@@ -502,4 +507,118 @@ describe('slow loads', () => {
             expect(screen.getByRole('status').textContent).toBe(SLOW);
         });
     }
+});
+
+describe('Demo mode', () => {
+    const plainProfile = global.__profile;
+    const actual = jest.requireActual('../src/services/api');
+    const realFetch = global.fetch;
+    const demoText = 'Demo mode, read only. Sign up to create your own parties.';
+    const demo = { available: true };
+    const session = { user: { id: 'demo' }, session: { access_token: 'tok-demo', refresh_token: 'refresh-demo', expires_at: 1 } };
+
+    afterEach(() => {
+        global.__profile = plainProfile;
+        global.fetch = realFetch;
+        while (dialogs.getSnapshot().dialog) dialogs.dismiss();
+    });
+
+    test('Login offers Try the demo with a one line explanation when the server has a demo, and it signs in with the demo session', async () => {
+        await show(LoginScreen, { demoAvailable: demo, demo: session }, {});
+        screen.getByText('Look around with sample data. No sign up needed.');
+        fireEvent.click(button('Try the demo'));
+        await settle();
+        expect(api.demo).toHaveBeenCalled();
+        expect(supabase.auth.setSession).toHaveBeenCalledWith({ access_token: 'tok-demo', refresh_token: 'refresh-demo' });
+    });
+
+    test('Login hides Try the demo when the server has no demo or cannot be reached', async () => {
+        await show(LoginScreen, { demoAvailable: { available: false } }, {});
+        expect(screen.queryByRole('button', { name: 'Try the demo' })).toBeNull();
+        await show(LoginScreen, { demoAvailable: failed }, {});
+        expect(screen.queryByRole('button', { name: 'Try the demo' })).toBeNull();
+    });
+
+    test('a failed demo sign in shows a friendly message', async () => {
+        await show(LoginScreen, { demoAvailable: demo, demo: new Error('rate_limited') }, {});
+        fireEvent.click(button('Try the demo'));
+        await settle();
+        screen.getByText('Too many tries. Wait a minute and try again.');
+    });
+
+    test('the last Onboarding slide offers Try the demo', async () => {
+        await show(OnboardingScreen, { demoAvailable: demo }, {});
+        fireEvent.click(screen.getByText('Skip'));
+        await settle();
+        button('Get Started');
+        button('Try the demo');
+    });
+
+    test('the demo banner says it is read only and Sign up signs out', async () => {
+        global.__profile = { ...plainProfile, is_demo: true };
+        await show(DemoBanner, {}, {});
+        screen.getByText(demoText);
+        fireEvent.click(button('Sign up'));
+        expect(global.__signOut).toHaveBeenCalled();
+    });
+
+    test('the demo banner is hidden for normal accounts', async () => {
+        await show(DemoBanner, {}, {});
+        expect(screen.queryByText(demoText)).toBeNull();
+    });
+
+    test('a demo_read_only answer opens the demo dialog once, and Sign up signs out only this device', async () => {
+        global.fetch = jest.fn(async () => ({ ok: false, status: 403, text: async () => JSON.stringify({ error: 'demo_read_only' }) }));
+        await expect(actual.api.vote('p1', 'l1', true)).rejects.toThrow('demo_read_only');
+        await expect(actual.api.likeFeedPost('post1')).rejects.toThrow('demo_read_only');
+        expect(dialogs.getSnapshot().dialog.title).toBe('Demo mode, read only');
+        dialogs.respond(1);
+        await settle();
+        expect(dialogs.getSnapshot().dialog).toBeNull();
+        expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    });
+
+    test('background saves refused in demo mode stay quiet', async () => {
+        global.fetch = jest.fn(async () => ({ ok: false, status: 403, text: async () => JSON.stringify({ error: 'demo_read_only' }) }));
+        await expect(actual.api.markHintSeen('home')).rejects.toThrow('demo_read_only');
+        await expect(actual.api.updateLocation(40.7, -74)).rejects.toThrow('demo_read_only');
+        expect(dialogs.getSnapshot().dialog).toBeNull();
+    });
+
+    test('server photo paths go to the API and demo photos stay on the web app', () => {
+        expect(actual.photoUri('/api/photo?name=places%2Fx')).toBe('http://api.test/api/photo?name=places%2Fx');
+        expect(actual.photoUri('/demo/venue-harbor-light.jpg')).toBe('/demo/venue-harbor-light.jpg');
+        expect(actual.photoUri('https://cdn.test/a.jpg')).toBe('https://cdn.test/a.jpg');
+    });
+
+    test('demo Discover uses the stored demo location instead of asking for live location', async () => {
+        global.__profile = { ...plainProfile, is_demo: true, latitude: 47.5, longitude: -74.03 };
+        getLiveLocation.mockClear();
+        await show(DiscoverScreen);
+        expect((await screen.findAllByText('Hudson Taproom')).length).toBeGreaterThan(0);
+        expect(api.discoverVenues).toHaveBeenCalledWith(47.5, -74.03);
+        expect(getLiveLocation).not.toHaveBeenCalled();
+        expect(api.updateLocation).not.toHaveBeenCalled();
+        screen.getByText('Using: Chosen city');
+    });
+
+    test('demo vote buttons are disabled', async () => {
+        global.__profile = { ...plainProfile, is_demo: true };
+        await show(SwipeScreen);
+        expect(button('Like Blue Bottle Cafe').getAttribute('aria-disabled')).toBe('true');
+        fireEvent.click(button('Like Blue Bottle Cafe'));
+        await settle();
+        expect(api.vote).not.toHaveBeenCalled();
+    });
+
+    test('demo comment send is disabled', async () => {
+        global.__profile = { ...plainProfile, is_demo: true };
+        global.__api.reset(fx.routes({ getFeedComments: [] }));
+        mount(() => <CommentSheet visible postId="post1" onClose={() => {}} currentUserId="alice" initialCommentCount={0} onCommentCountChange={() => {}} />);
+        await settle();
+        const input = screen.getByPlaceholderText('Add a comment…');
+        fireEvent.change(input, { target: { value: 'hi' } });
+        await settle();
+        expect(button('Send comment').getAttribute('aria-disabled')).toBe('true');
+    });
 });

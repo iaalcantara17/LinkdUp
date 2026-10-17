@@ -96,7 +96,7 @@ for (const [name, run] of selfEndpoints) {
         const { status, text } = await run();
         assert.equal(status, 200, text);
         assertNoSecrets(text);
-        const keys = Object.keys(JSON.parse(text)).filter((k) => k !== 'google_calendar_connected').sort();
+        const keys = Object.keys(JSON.parse(text)).filter((k) => k !== 'google_calendar_connected' && k !== 'is_demo').sort();
         assert.deepEqual(keys, SELF_KEYS);
     });
 }

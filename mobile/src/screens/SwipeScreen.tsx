@@ -37,6 +37,7 @@ import UserProfileSheet from '../components/UserProfileSheet';
 import { typography, radii, palette, motion } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
@@ -98,6 +99,7 @@ export default function SwipeScreen() {
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
     const { colors, roles, isDark } = useTheme();
+    const { isDemo: readOnly } = useAuth();
     const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
     const isDemo = partyId === 'demo';
 
@@ -544,7 +546,7 @@ export default function SwipeScreen() {
         });
     };
 
-    const buttonsLocked = !isDemo && hasVotedCurrentCard && votedCardIndexRef.current === serverIndex;
+    const buttonsLocked = readOnly || (!isDemo && hasVotedCurrentCard && votedCardIndexRef.current === serverIndex);
 
     const pan = Gesture.Pan()
         .onUpdate((e) => {
@@ -940,6 +942,7 @@ export default function SwipeScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Skip ${current?.name ?? 'this spot'}`}
                             accessibilityState={{ disabled: buttonsLocked }}
+                            disabled={buttonsLocked}
                             activeOpacity={buttonsLocked ? 1 : 0.85}
                             style={{ opacity: buttonsLocked ? 0.3 : 1 }}
                         >
@@ -952,6 +955,7 @@ export default function SwipeScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Like ${current?.name ?? 'this spot'}`}
                             accessibilityState={{ disabled: buttonsLocked }}
+                            disabled={buttonsLocked}
                             activeOpacity={buttonsLocked ? 1 : 0.85}
                             style={{ opacity: buttonsLocked ? 0.3 : 1 }}
                         >
@@ -972,6 +976,7 @@ export default function SwipeScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Skip ${current?.name ?? 'this spot'}`}
                             accessibilityState={{ disabled: buttonsLocked }}
+                            disabled={buttonsLocked}
                             activeOpacity={buttonsLocked ? 1 : 0.85}
                             style={[styles.webPassBtn, buttonsLocked && { opacity: 0.3 }]}
                         >
@@ -982,6 +987,7 @@ export default function SwipeScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={`Like ${current?.name ?? 'this spot'}`}
                             accessibilityState={{ disabled: buttonsLocked }}
+                            disabled={buttonsLocked}
                             activeOpacity={buttonsLocked ? 1 : 0.85}
                             style={[{ opacity: buttonsLocked ? 0.3 : 1 }]}
                         >

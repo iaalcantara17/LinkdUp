@@ -3,17 +3,33 @@ import axios from 'axios';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
 import { supabaseAdmin } from '../db';
-import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
-import { generateVenuePitch } from '../services/aiPitch';
+import { searchNearbyVenues, getVenuesWithRotation, PlaceCandidate } from '../services/places';
+import { generateVenuePitch, FALLBACK_PITCH } from '../services/aiPitch';
 import { distanceMiles, LatLng } from '../services/midpoint';
 import { fuzzedLocation, MEMBER_LOCATION_COLUMNS } from '../services/memberLocation';
 import { config } from '../config';
+import { isDemoUser, hiddenDemoUserIds } from '../middleware/demo';
 
 const router = Router();
 
 const NEARBY_PARTY_RADIUS_MILES = 50;
 
 const discoverRotationSeeds = new Map<string, number>();
+
+async function storedVenues(userId: string): Promise<PlaceCandidate[]> {
+    const { data: memberships, error: memberErr } = await supabaseAdmin.from('party_members').select('party_id').eq('user_id', userId);
+    if (memberErr) throw new HttpError(500, 'memberships_query_failed', memberErr.message);
+    const partyIds = (memberships ?? []).map((m: any) => m.party_id);
+    if (partyIds.length === 0) return [];
+    const { data, error } = await supabaseAdmin
+        .from('locations')
+        .select('google_place_id, name, address, latitude, longitude, photo_url, rating, user_ratings_total, category, price_level')
+        .in('party_id', partyIds)
+        .order('rating', { ascending: false, nullsFirst: false })
+        .limit(40);
+    if (error) throw new HttpError(500, 'venues_query_failed', error.message);
+    return [...new Map((data ?? []).map((v: any) => [v.google_place_id, v as PlaceCandidate])).values()].slice(0, 20);
+}
 
 router.get('/venues', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
@@ -22,7 +38,9 @@ router.get('/venues', requireAuth, async (req: AuthedRequest, res, next) => {
         if (isNaN(lat) || isNaN(lng)) throw new HttpError(400, 'invalid_coordinates');
 
         const center = { latitude: lat, longitude: lng };
-        const venues = await searchNearbyVenues(center, 8000, 20);
+        const venues = isDemoUser(req.user!.id)
+            ? await storedVenues(req.user!.id)
+            : await searchNearbyVenues(center, 8000, 20);
 
         const callerLoc: LatLng = { latitude: lat, longitude: lng };
         const enriched = venues.map((v) => ({
@@ -47,6 +65,7 @@ router.get('/venues/more', requireAuth, async (req: AuthedRequest, res, next) =>
         if (isNaN(lat) || isNaN(lng)) throw new HttpError(400, 'invalid_coordinates');
 
         const userId = req.user!.id;
+        if (isDemoUser(userId)) return res.json({ venues: [], hasMore: false, exhausted: true, newToken: false });
         const rotationSeed = discoverRotationSeeds.get(userId) ?? 0;
         const center = { latitude: lat, longitude: lng };
 
@@ -111,7 +130,8 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
             .eq('is_public', true);
         if (partyErr) throw new HttpError(500, 'parties_query_failed', partyErr.message);
 
-        const openParties = (parties ?? []).filter((p: any) => !myPartyIds.has(p.id));
+        const hidden = await hiddenDemoUserIds(me);
+        const openParties = (parties ?? []).filter((p: any) => !myPartyIds.has(p.id) && !hidden.has(p.host_user_id));
         if (openParties.length === 0) return res.json([]);
 
         const openPartyIds = openParties.map((p: any) => p.id);
@@ -229,6 +249,7 @@ router.get('/pitch', requireAuth, async (req: AuthedRequest, res, next) => {
         const q = req.query as Record<string, string>;
         const { name, category, rating, price_level, address, user_ratings_total } = q;
         if (!name) throw new HttpError(400, 'missing_name');
+        if (isDemoUser(req.user!.id)) return res.json({ pitch: FALLBACK_PITCH });
         const result = await generateVenuePitch(
             {
                 name,
