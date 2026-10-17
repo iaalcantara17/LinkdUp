@@ -90,14 +90,14 @@ export default function MainStack({ startScreen = 'Home' }: MainStackProps) {
                 <Stack.Screen name="Hangouts" component={withScreenFade(HangoutsScreen)} />
                 <Stack.Screen name="AuthCallback" component={withScreenFade(AuthCallbackScreen)} />
                 <Stack.Screen name="CompleteProfile" component={withScreenFade(CompleteProfileScreen)} options={{ animation: anim('slide_from_bottom'), gestureEnabled: false }} />
-                <Stack.Screen name="Friends" component={withScreenFade(FriendsScreen)} options={{ animation: anim('slide_from_right') }} />
+                <Stack.Screen name="Friends" component={withScreenFade(FriendsScreen)} />
                 <Stack.Screen name="CrewMapFullscreen" component={withScreenFade(CrewMapFullscreenScreen)} options={{ animation: anim('slide_from_bottom') }} />
                 <Stack.Screen name="Walkthrough" component={withScreenFade(WalkthroughScreen)} options={{ animation: anim('fade'), gestureEnabled: false }} />
                 <Stack.Screen name="CreatePost" component={withScreenFade(CreatePostScreen)} options={{ animation: anim('slide_from_bottom') }} />
-                <Stack.Screen name="MyPosts" component={withScreenFade(MyPostsScreen)} options={{ animation: anim('slide_from_right') }} />
-                <Stack.Screen name="Saved" component={withScreenFade(SavedScreen)} options={{ animation: anim('slide_from_right') }} />
-                <Stack.Screen name="FollowList" component={withScreenFade(FollowListScreen)} options={{ animation: anim('slide_from_right') }} />
-                <Stack.Screen name="BlockedUsers" component={withScreenFade(BlockedUsersScreen)} options={{ animation: anim('slide_from_right') }} />
+                <Stack.Screen name="MyPosts" component={withScreenFade(MyPostsScreen)} />
+                <Stack.Screen name="Saved" component={withScreenFade(SavedScreen)} />
+                <Stack.Screen name="FollowList" component={withScreenFade(FollowListScreen)} />
+                <Stack.Screen name="BlockedUsers" component={withScreenFade(BlockedUsersScreen)} />
             </Stack.Navigator>
         </View>
     );
