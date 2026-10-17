@@ -11,7 +11,7 @@ import GlassCard from '../components/GlassCard';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
 import { typography, radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 const SUGGESTIONS = ['Weekend Warriors', 'Alumni Hangout', 'Study Group Reunion', 'Friday Night Crew'];
@@ -20,8 +20,8 @@ const MIN_NAME = 2;
 
 export default function CreatePartyScreen() {
     const nav = useNavigation<any>();
-    const { colors, isDark } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [step, setStep] = useState<'name' | 'invite'>('name');
     const [partyName, setPartyName] = useState('');
@@ -167,7 +167,7 @@ export default function CreatePartyScreen() {
                                         onValueChange={setIsPublic}
                                         trackOnColor={colors.primary}
                                         trackOffColor={colors.glassStrong}
-                                        thumbColor={isDark ? '#FFFFFF' : '#E8E8E8'}
+                                        thumbColor={roles.switchThumb}
                                     />
                                 </View>
                                 {isPublic && (
@@ -194,7 +194,7 @@ export default function CreatePartyScreen() {
                                             end={{ x: 1, y: 0 }}
                                             style={styles.copyBtn}
                                         >
-                                            {copied ? <Check size={16} color="white" /> : <Copy size={16} color="white" />}
+                                            {copied ? <Check size={16} color={roles.onPrimary} /> : <Copy size={16} color={roles.onPrimary} />}
                                             <Text style={styles.copyText}>{copied ? 'Shared!' : 'Share'}</Text>
                                         </LinearGradient>
                                     </TouchableOpacity>
@@ -228,7 +228,7 @@ export default function CreatePartyScreen() {
                     onPress={handleNext}
                     disabled={continueDisabled}
                     loading={loading}
-                    rightIcon={<ArrowRight size={20} color="white" />}
+                    rightIcon={<ArrowRight size={20} color={roles.onPrimary} />}
                 />
             </LinearGradient>
 
@@ -236,7 +236,7 @@ export default function CreatePartyScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
@@ -260,7 +260,7 @@ function makeStyles(c: AppColors) {
             fontFamily: 'Inter_400Regular',
         },
         nameInputError: {
-            borderColor: '#EF4444',
+            borderColor: r.danger,
         },
         nameFooterRow: {
             flexDirection: 'row',
@@ -271,7 +271,7 @@ function makeStyles(c: AppColors) {
             minHeight: 18,
         },
         nameError: {
-            color: '#EF4444',
+            color: r.danger,
             fontSize: 12,
             fontFamily: 'Inter_400Regular',
             flex: 1,
@@ -313,7 +313,7 @@ function makeStyles(c: AppColors) {
             paddingVertical: 8,
             borderRadius: radii.pill,
         },
-        copyText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 13 },
+        copyText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 13 },
         codeBox: {
             backgroundColor: c.glassStrong,
             borderRadius: radii.md,
@@ -330,18 +330,18 @@ function makeStyles(c: AppColors) {
             marginTop: 12,
             padding: 10,
             borderRadius: 10,
-            backgroundColor: 'rgba(245,158,11,0.10)',
+            backgroundColor: r.warningSoft,
             borderWidth: 1,
-            borderColor: 'rgba(245,158,11,0.25)',
+            borderColor: r.warningBorder,
         },
         disclaimerText: { color: c.text80, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18 },
 
         nextStep: {
             padding: 16,
             borderRadius: radii.lg,
-            backgroundColor: 'rgba(108,62,244,0.10)',
+            backgroundColor: r.primarySoft,
             borderWidth: 1,
-            borderColor: 'rgba(108,62,244,0.20)',
+            borderColor: r.primaryBorder,
         },
         nextStepTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 14, marginBottom: 4 },
         nextStepBody: { color: c.text60, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },

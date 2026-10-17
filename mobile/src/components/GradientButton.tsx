@@ -36,12 +36,13 @@ export default function GradientButton({
         <View style={styles.inner}>
             {leftIcon}
             {loading ? (
-                <ActivityIndicator color={variant === 'white' ? palette.black : roles.onPrimary} />
+                <ActivityIndicator color={variant === 'white' ? palette.black : variant === 'ghost' ? roles.text : roles.onPrimary} />
             ) : (
                 <Text
                     style={[
                         styles.text,
                         variant === 'white' && { color: palette.black },
+                        variant === 'ghost' && { color: roles.text },
                         isDisabled && variant !== 'white' && { color: roles.textFaint },
                     ]}
                 >

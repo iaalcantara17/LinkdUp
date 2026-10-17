@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import AuthStack from './AuthStack';
 import MainStack from './MainStack';
-import { colors, typography, radii } from '../theme';
+import { typography, radii } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 function AccountErrorScreen({ onSignOut }: { onSignOut: () => void }) {
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     return (
         <View style={styles.errorRoot}>
             <View style={styles.errorCard}>
@@ -23,6 +27,8 @@ function AccountErrorScreen({ onSignOut }: { onSignOut: () => void }) {
 
 export default function RootNavigator() {
     const { session, loading, userProfile, profileLoading, signOut } = useAuth();
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
 
     if (loading || (session && profileLoading && userProfile === null)) {
         return (
@@ -60,52 +66,54 @@ export default function RootNavigator() {
     return <MainStack key="main" startScreen={startScreen} />;
 }
 
-const styles = StyleSheet.create({
-    center: {
-        flex: 1,
-        backgroundColor: colors.bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    errorRoot: {
-        flex: 1,
-        backgroundColor: colors.bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-    },
-    errorCard: {
-        backgroundColor: colors.surface,
-        borderRadius: radii.xl,
-        padding: 28,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-        alignItems: 'center',
-        maxWidth: 340,
-        width: '100%',
-    },
-    errorTitle: {
-        ...typography.h2,
-        color: colors.textPrimary,
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    errorBody: {
-        ...typography.body,
-        color: colors.text60,
-        textAlign: 'center',
-        marginBottom: 24,
-        lineHeight: 22,
-    },
-    signOutBtn: {
-        backgroundColor: colors.danger,
-        borderRadius: radii.pill,
-        paddingHorizontal: 28,
-        paddingVertical: 12,
-    },
-    signOutText: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 15,
-    },
-});
+function makeStyles(colors: AppColors, r: ColorRoles) {
+    return StyleSheet.create({
+        center: {
+            flex: 1,
+            backgroundColor: colors.bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        errorRoot: {
+            flex: 1,
+            backgroundColor: colors.bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+        },
+        errorCard: {
+            backgroundColor: colors.surface,
+            borderRadius: radii.xl,
+            padding: 28,
+            borderWidth: 1,
+            borderColor: colors.glassBorder,
+            alignItems: 'center',
+            maxWidth: 340,
+            width: '100%',
+        },
+        errorTitle: {
+            ...typography.h2,
+            color: colors.textPrimary,
+            marginBottom: 12,
+            textAlign: 'center',
+        },
+        errorBody: {
+            ...typography.body,
+            color: colors.text60,
+            textAlign: 'center',
+            marginBottom: 24,
+            lineHeight: 22,
+        },
+        signOutBtn: {
+            backgroundColor: r.dangerStrong,
+            borderRadius: radii.pill,
+            paddingHorizontal: 28,
+            paddingVertical: 12,
+        },
+        signOutText: {
+            color: r.onPrimary,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 15,
+        },
+    });
+}

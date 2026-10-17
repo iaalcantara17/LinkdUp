@@ -18,7 +18,7 @@ import GradientButton from '../components/GradientButton';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { api } from '../services/api';
 import { errorText, showError, showInfo, toast } from '../components/dialogs';
-import { typography, spacing, radii } from '../theme';
+import { typography, spacing, radii, palette } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -28,8 +28,8 @@ type Attendee = { id: string; name: string; color?: string; avatarUrl?: string }
 
 function GoogleCalIcon() {
     return (
-        <View style={{ width: 22, height: 22, backgroundColor: 'black', borderRadius: 4, alignItems: 'center', justifyContent: 'center' }}>
-            <CalendarIcon size={14} color="white" />
+        <View style={{ width: 22, height: 22, backgroundColor: palette.black, borderRadius: 4, alignItems: 'center', justifyContent: 'center' }}>
+            <CalendarIcon size={14} color={palette.white} />
         </View>
     );
 }
@@ -38,7 +38,7 @@ export default function CalendarConfirmationScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
-    const { colors } = useTheme();
+    const { colors, roles } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [loading, setLoading] = useState(false);
@@ -311,7 +311,7 @@ export default function CalendarConfirmationScreen() {
                     <Animated.View entering={FadeInDown.duration(500)} style={{ alignItems: 'center', marginBottom: 24 }}>
                         <Animated.View style={badgeStyle}>
                             <IconBadge size={80} radius={40}>
-                                <CalendarIcon size={40} color="white" />
+                                <CalendarIcon size={40} color={roles.onPrimary} />
                             </IconBadge>
                         </Animated.View>
                         <Text style={styles.title}>You're all set! 🎉</Text>
@@ -342,7 +342,7 @@ export default function CalendarConfirmationScreen() {
 
                         <View style={styles.row}>
                             <IconBadge>
-                                <CalendarIcon size={22} color="white" />
+                                <CalendarIcon size={22} color={roles.onPrimary} />
                             </IconBadge>
                             <View style={{ flex: 1, marginLeft: 16 }}>
                                 <Text style={styles.rowLabel}>Date</Text>
@@ -361,7 +361,7 @@ export default function CalendarConfirmationScreen() {
 
                         <View style={styles.row}>
                             <IconBadge>
-                                <Clock size={22} color="white" />
+                                <Clock size={22} color={roles.onPrimary} />
                             </IconBadge>
                             <View style={{ flex: 1, marginLeft: 16 }}>
                                 <Text style={styles.rowLabel}>Time</Text>
@@ -378,7 +378,7 @@ export default function CalendarConfirmationScreen() {
 
                         <View style={styles.row}>
                             <IconBadge>
-                                <Users size={22} color="white" />
+                                <Users size={22} color={roles.onPrimary} />
                             </IconBadge>
                             <View style={{ flex: 1, marginLeft: 16 }}>
                                 <Text style={styles.rowLabel}>Attendees ({attendees.length})</Text>

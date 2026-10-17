@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -12,7 +12,9 @@ import SlideFourVisual  from '../components/walkthrough/SlideFourVisual';
 import SlideFiveVisual  from '../components/walkthrough/SlideFiveVisual';
 import SlideSixVisual   from '../components/walkthrough/SlideSixVisual';
 import { api } from '../services/api';
-import { colors, radii } from '../theme';
+import { radii } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 const SLIDES = [
     {
@@ -51,6 +53,8 @@ const VISUALS = [
 ];
 
 export default function WalkthroughScreen() {
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const fromSignup: boolean = route.params?.fromSignup ?? true;
@@ -128,7 +132,7 @@ export default function WalkthroughScreen() {
                                 style={styles.nextBtn}
                             >
                                 <Text style={styles.nextText}>Next</Text>
-                                <ChevronRight size={20} color="white" />
+                                <ChevronRight size={20} color={r.onPrimary} />
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -138,46 +142,48 @@ export default function WalkthroughScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
-    progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingTop: 16 },
-    progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden' },
-    progressFill: { height: '100%' },
-    slide: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 36,
-    },
-    visualArea: {
-        height: 220,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 28,
-    },
-    title: {
-        color: 'white',
-        fontFamily: 'Inter_900Black',
-        fontSize: 26,
-        textAlign: 'center',
-        marginBottom: 14,
-    },
-    body: {
-        color: 'rgba(255,255,255,0.62)',
-        fontFamily: 'Inter_400Regular',
-        fontSize: 15,
-        textAlign: 'center',
-        lineHeight: 23,
-    },
-    actions: { paddingHorizontal: 24, paddingBottom: 16, paddingTop: 8 },
-    navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    skipText: { color: 'rgba(255,255,255,0.38)', fontFamily: 'Inter_500Medium', fontSize: 16 },
-    nextBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 28,
-        paddingVertical: 14,
-        borderRadius: radii.pill,
-    },
-    nextText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 },
-});
+function makeStyles(colors: AppColors, r: ColorRoles) {
+    return StyleSheet.create({
+        root: { flex: 1, backgroundColor: colors.bg },
+        progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingTop: 16 },
+        progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: r.border, overflow: 'hidden' },
+        progressFill: { height: '100%' },
+        slide: {
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 36,
+        },
+        visualArea: {
+            height: 220,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 28,
+        },
+        title: {
+            color: r.text,
+            fontFamily: 'Inter_900Black',
+            fontSize: 26,
+            textAlign: 'center',
+            marginBottom: 14,
+        },
+        body: {
+            color: r.textMuted,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 15,
+            textAlign: 'center',
+            lineHeight: 23,
+        },
+        actions: { paddingHorizontal: 24, paddingBottom: 16, paddingTop: 8 },
+        navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+        skipText: { color: r.textFaint, fontFamily: 'Inter_500Medium', fontSize: 16 },
+        nextBtn: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: 28,
+            paddingVertical: 14,
+            borderRadius: radii.pill,
+        },
+        nextText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
+    });
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { typeScale } from '../src/theme/tokens.ts';
 
@@ -29,6 +29,9 @@ const lightMode = [
     'src/components/CrewMap.tsx',
     'src/components/LocationSourceCard.tsx',
 ];
+const allSrc = readdirSync(root + 'src', { recursive: true })
+    .map((p) => `src/${p.replaceAll('\\', '/')}`)
+    .filter((p) => /\.tsx?$/.test(p) && !p.startsWith('src/theme/'));
 const scale = new Set(Object.values(typeScale).map((t) => t.fontSize));
 
 function hits(pattern, keep = () => true, files = migrated) {
@@ -41,8 +44,8 @@ function hits(pattern, keep = () => true, files = migrated) {
     );
 }
 
-test('migrated files use colour tokens, not hard-coded colours', () => {
-    const found = hits(/#[0-9a-fA-F]{3,8}\b|rgba?\(|(?:[:?]\s*|\|\|\s*|\[\s*|,\s*|(?:[cC]olor|fill|stroke)=\{?\s*)(['"])(white|black)\1/, () => true, lightMode);
+test('every file outside the theme uses colour tokens, not hard-coded colours', () => {
+    const found = hits(/#[0-9a-fA-F]{3,8}\b|rgba?\(|(?:[:?]\s*|\|\|\s*|\[\s*|,\s*|(?:[cC]olor|fill|stroke)=\{?\s*)(['"])(white|black)\1/, () => true, allSrc);
     assert.deepEqual(found, [], `Use roles or palette from src/theme/tokens:\n${found.join('\n')}`);
 });
 

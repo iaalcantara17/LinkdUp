@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -10,15 +10,19 @@ import Animated, {
     cancelAnimation,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, radii } from '../../theme';
+import { palette, radii } from '../../theme';
+import type { AppColors, ColorRoles } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 
 const AVATARS = [
-    { initial: 'A', color: '#6C3EF4', style: { top: 18, left: 18 } },
-    { initial: 'J', color: '#00C2FF', style: { bottom: 18, left: 30 } },
-    { initial: 'S', color: '#FF6B9D', style: { top: 50, right: 22 } },
+    { initial: 'A', color: palette.violet, style: { top: 18, left: 18 } },
+    { initial: 'J', color: palette.cyan, style: { bottom: 18, left: 30 } },
+    { initial: 'S', color: palette.pink400, style: { top: 50, right: 22 } },
 ];
 
 export default function SlideThreeVisual() {
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     const pinY       = useSharedValue(-32);
     const pinOpacity = useSharedValue(0);
     const ringOpacity = useSharedValue(0);
@@ -92,69 +96,71 @@ export default function SlideThreeVisual() {
     );
 }
 
-const styles = StyleSheet.create({
-    map: {
-        width: 260,
-        height: 175,
-        borderRadius: radii.xl,
-        backgroundColor: '#0D1117',
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    gridH: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        height: 1,
-        backgroundColor: 'rgba(255,255,255,0.04)',
-    },
-    gridV: {
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        width: 1,
-        backgroundColor: 'rgba(255,255,255,0.04)',
-    },
-    radiusRing: {
-        position: 'absolute',
-        width: 110,
-        height: 110,
-        borderRadius: 55,
-        top: 32,
-        left: 75,
-        borderWidth: 1.5,
-        borderColor: 'rgba(108,62,244,0.7)',
-        backgroundColor: 'rgba(108,62,244,0.07)',
-    },
-    pinWrap: {
-        position: 'absolute',
-        top: 80,
-        left: 124,
-        alignItems: 'center',
-    },
-    pinDot: {
-        width: 14,
-        height: 14,
-        borderRadius: 7,
-        borderWidth: 2,
-        borderColor: 'white',
-    },
-    pinStem: {
-        width: 2,
-        height: 7,
-        backgroundColor: 'rgba(255,255,255,0.75)',
-        marginTop: -1,
-    },
-    avatar: {
-        position: 'absolute',
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: 'white',
-    },
-    avatarText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 11 },
-});
+function makeStyles(colors: AppColors, r: ColorRoles) {
+    return StyleSheet.create({
+        map: {
+            width: 260,
+            height: 175,
+            borderRadius: radii.xl,
+            backgroundColor: r.surfaceRaised,
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: colors.glassBorder,
+        },
+        gridH: {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            height: 1,
+            backgroundColor: r.fill,
+        },
+        gridV: {
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            width: 1,
+            backgroundColor: r.fill,
+        },
+        radiusRing: {
+            position: 'absolute',
+            width: 110,
+            height: 110,
+            borderRadius: 55,
+            top: 32,
+            left: 75,
+            borderWidth: 1.5,
+            borderColor: r.primary,
+            backgroundColor: r.primarySoft,
+        },
+        pinWrap: {
+            position: 'absolute',
+            top: 80,
+            left: 124,
+            alignItems: 'center',
+        },
+        pinDot: {
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            borderWidth: 2,
+            borderColor: r.onMedia,
+        },
+        pinStem: {
+            width: 2,
+            height: 7,
+            backgroundColor: r.textMuted,
+            marginTop: -1,
+        },
+        avatar: {
+            position: 'absolute',
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: r.onMedia,
+        },
+        avatarText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 11 },
+    });
+}

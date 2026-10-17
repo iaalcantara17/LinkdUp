@@ -22,7 +22,7 @@ import DialogHost from '../components/DialogHost';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { confirm, errorText, showError, toast } from '../components/dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import type { ThemeMode } from '../context/ThemeContext';
 
@@ -88,8 +88,8 @@ const CLEAR_SCOPE_NOTE = (Platform.OS === 'web'
 export default function ProfileScreen() {
     const { signOut, refreshProfile } = useAuth();
     const nav = useNavigation<any>();
-    const { colors, isDark, mode: themeMode, setMode: setThemeMode } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles, mode: themeMode, setMode: setThemeMode } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [me, setMe] = useState<any>(null);
 
@@ -543,7 +543,7 @@ export default function ProfileScreen() {
                                     }}
                                     trackOnColor={colors.primary}
                                     trackOffColor={colors.glassStrong}
-                                    thumbColor={isDark ? '#FFFFFF' : '#E8E8E8'}
+                                    thumbColor={roles.switchThumb}
                                 />
                             </View>
 
@@ -676,7 +676,7 @@ export default function ProfileScreen() {
                                         onPress={() => setEditValue(p)}
                                         activeOpacity={0.75}
                                     >
-                                        <Text style={[styles.chipText, editValue === p && { color: 'white' }]}>{p}</Text>
+                                        <Text style={[styles.chipText, editValue === p && { color: roles.primaryText }]}>{p}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -705,7 +705,7 @@ export default function ProfileScreen() {
 
             {/* ── Birthday picker ── */}
             <Modal visible={bdayPickerOpen !== null} transparent animationType="slide" onRequestClose={() => setBdayPickerOpen(null)}>
-                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: roles.scrim }}>
                     <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setBdayPickerOpen(null)} />
                     <View style={styles.bdayPickerSheet}>
                         <Text style={styles.bdayPickerTitle}>
@@ -762,12 +762,12 @@ export default function ProfileScreen() {
                             editable={!deleting}
                         />
                         <TouchableOpacity
-                            style={[{ marginTop: 20, backgroundColor: colors.danger, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }, (deleteTyped !== 'DELETE' || deleting) && { opacity: 0.4 }]}
+                            style={[{ marginTop: 20, backgroundColor: roles.dangerStrong, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }, (deleteTyped !== 'DELETE' || deleting) && { opacity: 0.4 }]}
                             onPress={handleDeleteAccount}
                             disabled={deleteTyped !== 'DELETE' || deleting}
                             activeOpacity={0.85}
                         >
-                            {deleting ? <ActivityIndicator color="white" size="small" /> : <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 }}>Delete my account</Text>}
+                            {deleting ? <ActivityIndicator color={roles.onPrimary} size="small" /> : <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>Delete my account</Text>}
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => !deleting && setDeleteModal(false)} style={{ alignItems: 'center', marginTop: 12, paddingVertical: 10 }} disabled={deleting}>
                             <Text style={{ color: colors.text60, fontSize: 15, fontFamily: 'Inter_500Medium' }}>Cancel</Text>
@@ -783,14 +783,14 @@ export default function ProfileScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 0 },
         tipBanner: {
-            backgroundColor: 'rgba(108,62,244,0.12)',
+            backgroundColor: r.primarySoft,
             borderWidth: 1,
-            borderColor: 'rgba(108,62,244,0.30)',
+            borderColor: r.primaryBorder,
             borderRadius: 12,
             padding: 12,
             marginBottom: 20,
@@ -804,9 +804,9 @@ function makeStyles(c: AppColors) {
             paddingHorizontal: 14,
             paddingVertical: 5,
             borderRadius: 12,
-            backgroundColor: 'rgba(108,62,244,0.20)',
+            backgroundColor: r.primarySoft,
             borderWidth: 1,
-            borderColor: 'rgba(108,62,244,0.40)',
+            borderColor: r.primaryBorder,
         },
         editPhotoText: { color: c.primary, fontSize: 13, fontFamily: 'Inter_500Medium' },
         fieldHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
@@ -869,8 +869,8 @@ function makeStyles(c: AppColors) {
         bdayDropdownHint: { position: 'absolute', right: 14, top: '50%', marginTop: -8, color: c.text40, fontSize: 12, fontFamily: 'Inter_500Medium' },
         bdayPreview: {
             color: c.text60, fontSize: 13, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 14,
-            paddingVertical: 8, paddingHorizontal: 12, backgroundColor: 'rgba(108,62,244,0.10)',
-            borderRadius: 10, borderWidth: 1, borderColor: 'rgba(108,62,244,0.20)',
+            paddingVertical: 8, paddingHorizontal: 12, backgroundColor: r.primarySoft,
+            borderRadius: 10, borderWidth: 1, borderColor: r.primaryBorder,
         },
         bdayPickerSheet: {
             backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
@@ -883,7 +883,7 @@ function makeStyles(c: AppColors) {
             paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
             backgroundColor: c.glass, borderWidth: 1, borderColor: c.glassBorder,
         },
-        chipActive: { backgroundColor: 'rgba(108,62,244,0.30)', borderColor: 'rgba(108,62,244,0.60)' },
+        chipActive: { backgroundColor: r.primarySoft, borderColor: r.primaryBorder },
         chipText: { color: c.text60, fontSize: 13, fontFamily: 'Inter_500Medium' },
     });
 }

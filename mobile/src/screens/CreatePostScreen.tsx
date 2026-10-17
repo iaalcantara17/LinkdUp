@@ -11,7 +11,7 @@ import { X, MapPin, ImagePlus } from 'lucide-react-native';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface VenueResult {
@@ -24,8 +24,8 @@ interface VenueResult {
 
 export default function CreatePostScreen() {
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [photo, setPhoto] = useState<{ uri: string; blob?: Blob | File } | null>(null);
     const [caption, setCaption] = useState('');
@@ -250,14 +250,14 @@ export default function CreatePostScreen() {
                     style={{ width: '100%' }}
                 >
                     <LinearGradient
-                        colors={canPost ? (colors.gradient as any) : (['#333', '#333'] as any)}
+                        colors={canPost ? (colors.gradient as any) : [roles.fillStrong, roles.fillStrong]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.postBtn}
                     >
                         {posting
-                            ? <ActivityIndicator color="white" />
-                            : <Text style={styles.postBtnText}>Post</Text>
+                            ? <ActivityIndicator color={roles.onPrimary} />
+                            : <Text style={[styles.postBtnText, !canPost && { color: roles.textFaint }]}>Post</Text>
                         }
                     </LinearGradient>
                 </TouchableOpacity>
@@ -266,7 +266,7 @@ export default function CreatePostScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: {
             flex: 1,
@@ -315,13 +315,13 @@ function makeStyles(c: AppColors) {
             position: 'absolute',
             bottom: 12,
             right: 12,
-            backgroundColor: 'rgba(0,0,0,0.6)',
+            backgroundColor: r.scrim,
             paddingHorizontal: 12,
             paddingVertical: 6,
             borderRadius: 20,
         },
         photoEditText: {
-            color: 'white',
+            color: r.onMedia,
             fontFamily: 'Inter_600SemiBold',
             fontSize: 13,
         },
@@ -451,7 +451,7 @@ function makeStyles(c: AppColors) {
             justifyContent: 'center',
         },
         postBtnText: {
-            color: 'white',
+            color: r.onPrimary,
             fontFamily: 'Inter_700Bold',
             fontSize: 16,
         },
@@ -459,14 +459,14 @@ function makeStyles(c: AppColors) {
             position: 'absolute',
             top: 80,
             alignSelf: 'center',
-            backgroundColor: 'rgba(0,0,0,0.75)',
+            backgroundColor: r.scrimStrong,
             paddingHorizontal: 20,
             paddingVertical: 10,
             borderRadius: 20,
             zIndex: 99,
         },
         toastText: {
-            color: 'white',
+            color: r.onMedia,
             fontFamily: 'Inter_500Medium',
             fontSize: 13,
         },

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     View, Text, Image, TouchableOpacity, StyleSheet, Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MapPin, Heart, MessageCircle, Share2, Bookmark, Plus, Check, MoreVertical, Trash2 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
+import { palette } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import DialogHost from './DialogHost';
 
 export interface FeedPost {
@@ -50,6 +52,8 @@ function formatCount(n: number): string {
 }
 
 function CaptionText({ text }: { text: string }) {
+    const { colors, roles: r } = useTheme();
+    const cardStyles = useMemo(() => makeCardStyles(colors, r), [colors, r]);
     const tokens = text.split(/(\s+)/);
     return (
         <Text style={cardStyles.caption}>
@@ -66,7 +70,8 @@ export default function FeedCard({
     post, cardHeight, cardWidth, currentUserId,
     onLike, onComment, onShare, onBookmark, onFollow, onAddToParty, onDelete, onCreatorPress,
 }: Props) {
-    const { colors } = useTheme();
+    const { colors, roles: r } = useTheme();
+    const cardStyles = useMemo(() => makeCardStyles(colors, r), [colors, r]);
     const [menuVisible, setMenuVisible] = useState(false);
 
     const username = post.creator_username
@@ -75,7 +80,7 @@ export default function FeedCard({
     const isSelf = currentUserId != null && post.creator_id === currentUserId;
 
     return (
-        <View style={{ width: cardWidth, height: cardHeight, backgroundColor: '#000' }}>
+        <View style={{ width: cardWidth, height: cardHeight, backgroundColor: palette.black }}>
             <Image
                 source={{ uri: post.image_url }}
                 style={StyleSheet.absoluteFill}
@@ -85,7 +90,7 @@ export default function FeedCard({
             />
 
             <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.92)']}
+                colors={['transparent', r.scrimStrong]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={cardStyles.bottomGradient}
@@ -118,14 +123,14 @@ export default function FeedCard({
                         >
                             {post.follows_creator ? (
                                 <View style={[cardStyles.plusCircleInner, cardStyles.followingBg]}>
-                                    <Check size={10} color="white" strokeWidth={3} />
+                                    <Check size={10} color={r.onMedia} strokeWidth={3} />
                                 </View>
                             ) : (
                                 <LinearGradient
                                     colors={colors.gradient as any}
                                     style={cardStyles.plusCircleInner}
                                 >
-                                    <Plus size={10} color="white" strokeWidth={3} />
+                                    <Plus size={10} color={r.onPrimary} strokeWidth={3} />
                                 </LinearGradient>
                             )}
                         </TouchableOpacity>
@@ -140,8 +145,8 @@ export default function FeedCard({
                     >
                         <Heart
                             size={24}
-                            color={post.liked_by_me ? '#FF3B5C' : 'white'}
-                            fill={post.liked_by_me ? '#FF3B5C' : 'transparent'}
+                            color={post.liked_by_me ? palette.red500 : r.onMedia}
+                            fill={post.liked_by_me ? palette.red500 : 'transparent'}
                         />
                     </TouchableOpacity>
                     <Text style={cardStyles.actionLabel}>{formatCount(post.like_count)}</Text>
@@ -153,7 +158,7 @@ export default function FeedCard({
                         onPress={() => onComment(post)}
                         activeOpacity={0.8}
                     >
-                        <MessageCircle size={24} color="white" />
+                        <MessageCircle size={24} color={r.onMedia} />
                     </TouchableOpacity>
                     <Text style={cardStyles.actionLabel}>{formatCount(post.comment_count)}</Text>
                 </View>
@@ -164,7 +169,7 @@ export default function FeedCard({
                         onPress={() => onShare(post)}
                         activeOpacity={0.8}
                     >
-                        <Share2 size={24} color="white" />
+                        <Share2 size={24} color={r.onMedia} />
                     </TouchableOpacity>
                     <Text style={cardStyles.actionLabel}>Share</Text>
                 </View>
@@ -176,8 +181,8 @@ export default function FeedCard({
                 >
                     <Bookmark
                         size={24}
-                        color={post.bookmarked_by_me ? colors.warning : 'white'}
-                        fill={post.bookmarked_by_me ? colors.warning : 'transparent'}
+                        color={post.bookmarked_by_me ? palette.yellow400 : r.onMedia}
+                        fill={post.bookmarked_by_me ? palette.yellow400 : 'transparent'}
                     />
                 </TouchableOpacity>
             </View>
@@ -202,7 +207,7 @@ export default function FeedCard({
                 </View>
 
                 <View style={cardStyles.venueRow}>
-                    <MapPin size={14} color="#6C3EF4" />
+                    <MapPin size={14} color={palette.violet300} />
                     <Text style={cardStyles.venueName} numberOfLines={1}>
                         {post.venue_name}
                     </Text>
@@ -238,7 +243,7 @@ export default function FeedCard({
                     activeOpacity={0.8}
                     hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                 >
-                    <MoreVertical size={20} color="white" />
+                    <MoreVertical size={20} color={r.onMedia} />
                 </TouchableOpacity>
             )}
 
@@ -262,8 +267,8 @@ export default function FeedCard({
                         }}
                         activeOpacity={0.8}
                     >
-                        <Trash2 size={18} color="#FF3B5C" />
-                        <Text style={[cardStyles.menuRowText, { color: '#FF3B5C' }]}>Delete post</Text>
+                        <Trash2 size={18} color={r.danger} />
+                        <Text style={[cardStyles.menuRowText, { color: r.danger }]}>Delete post</Text>
                     </TouchableOpacity>
                 </View>
                 <DialogHost />
@@ -272,171 +277,173 @@ export default function FeedCard({
     );
 }
 
-const cardStyles = StyleSheet.create({
-    bottomGradient: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: '80%',
-    },
-    rail: {
-        position: 'absolute',
-        right: 16,
-        bottom: 128,
-        zIndex: 20,
-        alignItems: 'center',
-        gap: 24,
-    },
-    avatarContainer: {
-        alignItems: 'center',
-    },
-    avatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        borderWidth: 2,
-        borderColor: 'white',
-    },
-    plusCircle: {
-        marginTop: -8,
-    },
-    plusCircleInner: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    followingBg: {
-        backgroundColor: 'rgba(255,255,255,0.20)',
-    },
-    actionItem: {
-        alignItems: 'center',
-        gap: 4,
-    },
-    actionCircle: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: 'rgba(0,0,0,0.40)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    actionLabel: {
-        color: 'white',
-        fontFamily: 'Inter_500Medium',
-        fontSize: 12,
-        textShadowColor: 'rgba(0,0,0,0.6)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
-    },
-    info: {
-        position: 'absolute',
-        bottom: 128,
-        left: 24,
-        right: 80,
-        zIndex: 20,
-        gap: 8,
-    },
-    usernameRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    username: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 15,
-        textShadowColor: 'rgba(0,0,0,0.6)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
-    },
-    followPill: {
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.20)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.30)',
-    },
-    followingPill: {
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderColor: 'rgba(255,255,255,0.15)',
-    },
-    followPillText: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 11,
-    },
-    venueRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-    },
-    venueName: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 13,
-        flexShrink: 1,
-    },
-    venueDistance: {
-        color: 'rgba(255,255,255,0.65)',
-        fontFamily: 'Inter_400Regular',
-        fontSize: 13,
-        flexShrink: 0,
-    },
-    caption: {
-        color: 'rgba(255,255,255,0.90)',
-        fontFamily: 'Inter_400Regular',
-        fontSize: 14,
-        lineHeight: 20,
-    },
-    hashtag: {
-        color: '#6C3EF4',
-        fontFamily: 'Inter_600SemiBold',
-    },
-    addBtn: {
-        paddingHorizontal: 24,
-        paddingVertical: 10,
-        borderRadius: 20,
-        alignItems: 'center',
-    },
-    addBtnText: {
-        color: 'white',
-        fontFamily: 'Inter_700Bold',
-        fontSize: 13,
-    },
-    menuBtn: {
-        position: 'absolute',
-        top: 60,
-        right: 16,
-        zIndex: 30,
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(0,0,0,0.45)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    menuBackdrop: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    menuSheet: {
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        paddingBottom: 36,
-    },
-    menuRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        paddingHorizontal: 24,
-        paddingVertical: 18,
-    },
-    menuRowText: {
-        fontFamily: 'Inter_600SemiBold',
-        fontSize: 15,
-    },
-});
+function makeCardStyles(colors: AppColors, r: ColorRoles) {
+    return StyleSheet.create({
+        bottomGradient: {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '80%',
+        },
+        rail: {
+            position: 'absolute',
+            right: 16,
+            bottom: 128,
+            zIndex: 20,
+            alignItems: 'center',
+            gap: 24,
+        },
+        avatarContainer: {
+            alignItems: 'center',
+        },
+        avatar: {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            borderWidth: 2,
+            borderColor: r.onMedia,
+        },
+        plusCircle: {
+            marginTop: -8,
+        },
+        plusCircleInner: {
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        followingBg: {
+            backgroundColor: r.mediaFill,
+        },
+        actionItem: {
+            alignItems: 'center',
+            gap: 4,
+        },
+        actionCircle: {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: r.scrim,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        actionLabel: {
+            color: r.onMedia,
+            fontFamily: 'Inter_500Medium',
+            fontSize: 12,
+            textShadowColor: r.scrim,
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 2,
+        },
+        info: {
+            position: 'absolute',
+            bottom: 128,
+            left: 24,
+            right: 80,
+            zIndex: 20,
+            gap: 8,
+        },
+        usernameRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+        },
+        username: {
+            color: r.onMedia,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 15,
+            textShadowColor: r.scrim,
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 3,
+        },
+        followPill: {
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+            borderRadius: 20,
+            backgroundColor: r.mediaFill,
+            borderWidth: 1,
+            borderColor: r.onMediaFaint,
+        },
+        followingPill: {
+            backgroundColor: 'transparent',
+            borderColor: r.onMediaFaint,
+        },
+        followPillText: {
+            color: r.onMedia,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 11,
+        },
+        venueRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+        },
+        venueName: {
+            color: r.onMedia,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 13,
+            flexShrink: 1,
+        },
+        venueDistance: {
+            color: r.onMediaMuted,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 13,
+            flexShrink: 0,
+        },
+        caption: {
+            color: r.onMedia,
+            fontFamily: 'Inter_400Regular',
+            fontSize: 14,
+            lineHeight: 20,
+        },
+        hashtag: {
+            color: palette.violet300,
+            fontFamily: 'Inter_600SemiBold',
+        },
+        addBtn: {
+            paddingHorizontal: 24,
+            paddingVertical: 10,
+            borderRadius: 20,
+            alignItems: 'center',
+        },
+        addBtnText: {
+            color: r.onPrimary,
+            fontFamily: 'Inter_700Bold',
+            fontSize: 13,
+        },
+        menuBtn: {
+            position: 'absolute',
+            top: 60,
+            right: 16,
+            zIndex: 30,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: r.scrim,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        menuBackdrop: {
+            flex: 1,
+            backgroundColor: r.scrim,
+        },
+        menuSheet: {
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            paddingBottom: 36,
+        },
+        menuRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            paddingHorizontal: 24,
+            paddingVertical: 18,
+        },
+        menuRowText: {
+            fontFamily: 'Inter_600SemiBold',
+            fontSize: 15,
+        },
+    });
+}

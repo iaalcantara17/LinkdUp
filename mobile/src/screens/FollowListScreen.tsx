@@ -11,7 +11,7 @@ import { api } from '../services/api';
 import { confirm, confirmBlock, errorText, showError, showMenu, type MenuAction } from '../components/dialogs';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { radii } from '../theme';
 import type { MainStackParamList } from '../navigation/MainStack';
 
@@ -21,9 +21,9 @@ export default function FollowListScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<RouteT>();
     const { userId, initialTab, username } = route.params;
-    const { colors } = useTheme();
+    const { colors, roles } = useTheme();
     const { userProfile } = useAuth();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [activeTab, setActiveTab] = useState<'followers' | 'following'>(initialTab);
     const [items, setItems] = useState<any[]>([]);
@@ -167,7 +167,7 @@ export default function FollowListScreen() {
                     disabled={busy}
                     activeOpacity={0.75}
                 >
-                    {busy ? <ActivityIndicator size="small" color="white" /> : <Text style={styles.followingPillText}>Following</Text>}
+                    {busy ? <ActivityIndicator size="small" color={roles.onPrimary} /> : <Text style={styles.followingPillText}>Following</Text>}
                 </TouchableOpacity>
             );
         }
@@ -270,7 +270,7 @@ export default function FollowListScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         header: {
@@ -318,7 +318,7 @@ function makeStyles(c: AppColors) {
             fontSize: 14,
         },
         tabTextActive: {
-            color: 'white',
+            color: r.onPrimary,
         },
         row: {
             flexDirection: 'row',
@@ -381,7 +381,7 @@ function makeStyles(c: AppColors) {
             alignItems: 'center',
         },
         followingPillText: {
-            color: 'white',
+            color: r.onPrimary,
             fontFamily: 'Inter_600SemiBold',
             fontSize: 13,
         },
