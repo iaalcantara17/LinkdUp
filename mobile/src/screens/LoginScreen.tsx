@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { Mail, ArrowRight, Eye, EyeOff, AlertTriangle } from 'lucide-react-native';
+import { Mail, ArrowRight, Eye, EyeOff, AlertTriangle } from '../components/icons';
 import Svg, { Path } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaskedView from '@react-native-masked-view/masked-view';

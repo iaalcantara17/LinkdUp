@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { MapPin } from 'lucide-react-native';
+import { MapPin } from './icons';
 import GlassCard from './GlassCard';
 import GradientButton from './GradientButton';
 import PlaceSearch, { Place } from './PlaceSearch';

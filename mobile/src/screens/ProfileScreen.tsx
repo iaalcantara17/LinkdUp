@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { Pencil, Trash2, ChevronRight, Check, MapPin, LogOut } from 'lucide-react-native';
+import { Pencil, Trash2, ChevronRight, Check, MapPin, LogOut } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import AppSwitch from '../components/AppSwitch';
 import GlassCard from '../components/GlassCard';

@@ -5,7 +5,7 @@ import {
     Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Heart, MessageCircle, MoreVertical, Pencil, Trash2, Plus } from 'lucide-react-native';
+import { ChevronLeft, Heart, MessageCircle, MoreVertical, Pencil, Trash2, Plus } from '../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';

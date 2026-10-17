@@ -11,7 +11,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
     MapPin, Star, Users, X, Heart, DollarSign, Compass,
     ChevronLeft, ChevronRight,
-} from 'lucide-react-native';
+} from '../components/icons';
 import BottomNav from '../components/BottomNav';
 import FeedView from '../components/FeedView';
 import GradientButton from '../components/GradientButton';

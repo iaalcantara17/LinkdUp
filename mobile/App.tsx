@@ -17,6 +17,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { HintsProvider } from './src/context/HintsContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import { documentTitle } from './src/navigation/titles';
 import DialogHost from './src/components/DialogHost';
 import { installWebMotion, settleFinishedAnimations } from './src/services/webAnimations';
 import { inject } from '@vercel/analytics';
@@ -52,7 +53,7 @@ function AppInner() {
     };
 
     return (
-        <NavigationContainer theme={navTheme} linking={linking}>
+        <NavigationContainer theme={navTheme} linking={linking} documentTitle={{ formatter: (_, route) => documentTitle(route?.name) }}>
             <StatusBar style={isDark ? 'light' : 'dark'} />
             <RootNavigator />
         </NavigationContainer>

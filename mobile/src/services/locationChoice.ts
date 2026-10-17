@@ -1,7 +1,7 @@
 export type Coords = { latitude: number; longitude: number };
 export type AskReason = 'prompt' | 'denied' | 'unavailable' | 'timeout';
 export type LiveResult = { ok: true; coords: Coords } | { ok: false; reason: AskReason };
-export type LocationChoice =
+type LocationChoice =
     | { kind: 'live' }
     | { kind: 'custom'; label: string }
     | { kind: 'ask'; reason: AskReason };

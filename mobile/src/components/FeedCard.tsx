@@ -3,7 +3,7 @@ import {
     View, Text, Image, TouchableOpacity, StyleSheet, Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MapPin, Heart, MessageCircle, Share2, Bookmark, Plus, Check, MoreVertical, Trash2 } from 'lucide-react-native';
+import { MapPin, Heart, MessageCircle, Share2, Bookmark, Plus, Check, MoreVertical, Trash2 } from './icons';
 import { useTheme } from '../context/ThemeContext';
 import { palette } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';

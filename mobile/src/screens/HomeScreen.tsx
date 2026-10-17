@@ -12,7 +12,7 @@ import Animated, {
     withDelay, withSpring, withTiming,
     useSharedValue, useAnimatedStyle,
 } from 'react-native-reanimated';
-import { Plus, MoreVertical, Users, ChevronRight } from 'lucide-react-native';
+import { Plus, MoreVertical, Users, ChevronRight } from '../components/icons';
 import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import AnchoredHint from '../components/AnchoredHint';

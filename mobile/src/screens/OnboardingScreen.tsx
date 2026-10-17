@@ -12,7 +12,7 @@ import Animated, {
     runOnJS,
     Easing,
 } from 'react-native-reanimated';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import { typography, radii, palette } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';

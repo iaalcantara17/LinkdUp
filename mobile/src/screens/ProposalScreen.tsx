@@ -11,7 +11,7 @@ import { ScreenHeader, Tap } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, X, Star } from 'lucide-react-native';
+import { Check, X, Star } from '../components/icons';
 import { api, photoUri } from '../services/api';
 import { supabase } from '../services/supabase';
 import AvatarBubble from '../components/AvatarBubble';

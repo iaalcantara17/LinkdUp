@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft } from '../components/icons';
 import AvatarBubble from '../components/AvatarBubble';
 import { api } from '../services/api';
 import { confirm, errorText, showError } from '../components/dialogs';

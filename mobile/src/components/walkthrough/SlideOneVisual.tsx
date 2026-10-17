@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Sparkles } from 'lucide-react-native';
+import { Sparkles } from '../icons';
 import type { AppColors, ColorRoles } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 

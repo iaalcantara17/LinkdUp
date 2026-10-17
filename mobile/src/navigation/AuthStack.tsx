@@ -5,7 +5,7 @@ import LoginScreen from '../screens/LoginScreen';
 import AuthCallbackScreen from '../screens/AuthCallbackScreen';
 import { useTheme } from '../context/ThemeContext';
 
-export type AuthStackParamList = {
+type AuthStackParamList = {
     Onboarding: undefined;
     Login: { mode?: 'login' | 'signup' };
     AuthCallback: undefined;

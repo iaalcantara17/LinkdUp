@@ -5,7 +5,7 @@ import {
     KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Bookmark, Plus, FolderPlus } from 'lucide-react-native';
+import { X, Bookmark, Plus, FolderPlus } from './icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
 import { radii } from '../theme';

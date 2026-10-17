@@ -4,7 +4,7 @@ import { errorText } from './dialogs';
 import { useTheme } from '../context/ThemeContext';
 import { ColorRoles, radius, space, typeScale } from '../theme';
 
-export const SLOW_LOAD_MS = 8_000;
+const SLOW_LOAD_MS = 8_000;
 
 export function LoadError({ title, error, onRetry }: { title: string; error: unknown; onRetry: () => void }) {
     const { roles } = useTheme();

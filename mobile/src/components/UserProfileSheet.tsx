@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { X, GraduationCap, UserPlus, UserCheck, Clock, MoreHorizontal } from 'lucide-react-native';
+import { X, GraduationCap, UserPlus, UserCheck, Clock, MoreHorizontal } from './icons';
 import AvatarBubble from './AvatarBubble';
 import { api } from '../services/api';
 import DialogHost from './DialogHost';

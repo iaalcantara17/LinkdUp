@@ -15,7 +15,7 @@ import Animated, {
     Extrapolation,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from 'lucide-react-native';
+import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from '../components/icons';
 import { api, photoUri } from '../services/api';
 import { errorText } from '../components/dialogs';
 import { LoadError, SlowLoadNote } from '../components/LoadState';

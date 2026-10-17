@@ -13,7 +13,7 @@ import Animated, {
     withTiming,
     FadeInDown,
 } from 'react-native-reanimated';
-import { Calendar as CalendarIcon, Clock, MapPin, Users } from 'lucide-react-native';
+import { Calendar as CalendarIcon, Clock, MapPin, Users } from '../components/icons';
 import IconBadge from '../components/IconBadge';
 import GradientButton from '../components/GradientButton';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
