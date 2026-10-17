@@ -47,10 +47,12 @@ for (const theme of ['dark', 'light']) {
             assert.ok(ratio >= 4.5, `${theme} ${fg} on ${scrim} over white is ${ratio.toFixed(2)}:1`);
         });
     }
-    test(`${theme} onPrimary on primary meets WCAG AA 4.5:1`, () => {
-        const ratio = contrast(c.onPrimary, c.primary);
-        assert.ok(ratio >= 4.5, `${theme} onPrimary on primary is ${ratio.toFixed(2)}:1`);
-    });
+    for (const fill of ['primary', 'successFill', 'dangerStrong']) {
+        test(`${theme} onPrimary on ${fill} meets WCAG AA 4.5:1`, () => {
+            const ratio = contrast(c.onPrimary, c[fill]);
+            assert.ok(ratio >= 4.5, `${theme} onPrimary on ${fill} is ${ratio.toFixed(2)}:1`);
+        });
+    }
 }
 
 test('dark colour roles keep today\'s dark values', () => {
