@@ -44,8 +44,9 @@ test('load-more pages from the stored midpoint through searchNearby only', async
     const get = mock.method(axios, 'get', async () => {
         throw new Error('legacy GET not allowed');
     });
+    const midpoint = { latitude: 40.8, longitude: -74.1 };
     for (let seed = 0; seed < ROTATION_COUNT; seed++) {
-        const r = await getVenuesWithRotation({ center, rotationSeed: seed });
+        const r = await getVenuesWithRotation({ center: midpoint, rotationSeed: seed });
         assert.equal(r.newSeed, seed + 1);
     }
     assert.equal(get.mock.callCount(), 0);
@@ -53,11 +54,11 @@ test('load-more pages from the stored midpoint through searchNearby only', async
     for (const call of post.mock.calls) {
         const [url, body, opts] = call.arguments as any[];
         assert.equal(url, 'https://places.googleapis.com/v1/places:searchNearby');
-        assert.deepEqual(body.locationRestriction.circle.center, center);
+        assert.deepEqual(body.locationRestriction.circle.center, midpoint);
         for (const t of body.includedTypes) assert.match(t, /^[a-z]+(_[a-z]+)*$/);
         assert.equal(opts.headers['X-Goog-FieldMask'], FIELD_MASK);
     }
-    const done = await getVenuesWithRotation({ center, rotationSeed: ROTATION_COUNT });
+    const done = await getVenuesWithRotation({ center: midpoint, rotationSeed: ROTATION_COUNT });
     assert.equal(done.exhausted, true);
 });
 

@@ -7,6 +7,7 @@ import discoverRoutes from '../src/routes/discover';
 import partyRoutes from '../src/routes/party';
 import { fuzzCoords } from '../src/services/locationFuzz';
 import { midpoint, distanceMiles } from '../src/services/midpoint';
+import { gridCell } from '../src/services/googleCache';
 import { config } from '../src/config';
 import { mockSupabase, serve, auth, realFetch, Call } from './supabaseMock';
 
@@ -111,7 +112,7 @@ test('party start midpoint comes from fuzzed coordinates, not exact member locat
     const stored = calls.find((c) => c.table === 'parties' && c.method === 'PATCH')!;
     assert.equal(stored.body.midpoint_lat, expected.latitude);
     assert.equal(stored.body.midpoint_lng, expected.longitude);
-    assert.deepEqual((post.mock.calls[0].arguments[1] as any).locationRestriction.circle.center, expected);
+    assert.deepEqual((post.mock.calls[0].arguments[1] as any).locationRestriction.circle.center, gridCell(expected));
     const reflected = { latitude: 2 * body.midpoint.latitude - ALICE.latitude, longitude: 2 * body.midpoint.longitude - ALICE.longitude };
     assert.ok(distanceMiles(reflected, BOB) > 0.1, 'midpoint plus host location reveals the other member');
 });

@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import express from 'express';
-import photoRoutes, { MAX_WIDTH, RATE_LIMIT } from '../src/routes/photo';
+import photoRoutes, { CACHE_TOTAL_BYTES, MAX_WIDTH, RATE_LIMIT } from '../src/routes/photo';
 
 const KEY = process.env.GOOGLE_MAPS_API_KEY!;
 const realFetch = globalThis.fetch;
@@ -142,6 +142,57 @@ test('the key is sent to Google only, never to the image host', async () => {
     assert.ok(imageCall);
     assert.ok(!imageCall.url.includes(KEY));
     assert.ok(!JSON.stringify(imageCall.init ?? {}).includes(KEY));
+});
+
+test('memory cache evicts oldest photos once total bytes exceed the cap', async () => {
+    const big = Buffer.alloc(1.5 * 1024 * 1024, 7);
+    const calls = mockGoogle((url) =>
+        url.startsWith('https://places.googleapis.com/')
+            ? Response.json({ photoUri: `https://lh3.googleusercontent.com/p/${encodeURIComponent(url)}` })
+            : new Response(big, { headers: { 'content-type': 'image/jpeg' } }),
+    );
+    const names = Array.from({ length: Math.ceil(CACHE_TOTAL_BYTES / big.length) + 1 }, newName);
+    for (const n of names) await (await get(`name=${encodeURIComponent(n)}`)).arrayBuffer();
+    const before = calls.length;
+    await (await get(`name=${encodeURIComponent(names[0])}`)).arrayBuffer();
+    assert.ok(calls.length > before);
+    const lastBefore = calls.length;
+    await (await get(`name=${encodeURIComponent(names.at(-1)!)}`)).arrayBuffer();
+    assert.equal(calls.length, lastBefore);
+});
+
+test('concurrent fetches of the same photo do not inflate the memory byte count', async () => {
+    const big = Buffer.alloc(1.5 * 1024 * 1024, 8);
+    let release!: () => void;
+    const bothInFlight = new Promise<void>((r) => (release = r));
+    let metaCalls = 0;
+    const calls = mockGoogle(async (url) => {
+        if (!url.startsWith('https://places.googleapis.com/')) return new Response(big, { headers: { 'content-type': 'image/jpeg' } });
+        if (++metaCalls === 2) release();
+        if (metaCalls <= 2) await Promise.race([bothInFlight, new Promise((r) => setTimeout(r, 2000))]);
+        return Response.json({ photoUri: `https://lh3.googleusercontent.com/p/${encodeURIComponent(url)}` });
+    });
+    const dup = `name=${encodeURIComponent(newName())}`;
+    await Promise.all([get(dup), get(dup)].map(async (p) => (await p).arrayBuffer()));
+    assert.equal(metaCalls, 2);
+    for (let i = 1; i < CACHE_TOTAL_BYTES / big.length; i++) await (await get(`name=${encodeURIComponent(newName())}`)).arrayBuffer();
+    const before = calls.length;
+    await (await get(dup)).arrayBuffer();
+    assert.equal(calls.length, before);
+});
+
+test('memory-cached photos expire after one hour', async () => {
+    mock.timers.enable({ apis: ['Date'], now: Date.now() });
+    const calls = mockGoogle();
+    const qs = `name=${encodeURIComponent(newName())}`;
+    await (await get(qs)).arrayBuffer();
+    const first = calls.length;
+    mock.timers.tick(59 * 60_000);
+    await (await get(qs)).arrayBuffer();
+    assert.equal(calls.length, first);
+    mock.timers.tick(2 * 60_000);
+    await (await get(qs)).arrayBuffer();
+    assert.ok(calls.length > first);
 });
 
 test('per-IP rate limit returns 429', async () => {

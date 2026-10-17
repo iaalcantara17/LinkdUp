@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { config } from '../config';
 import { LatLng } from './midpoint';
-import { isGoogleQuotaError, venueLimitReached } from '../middleware/error';
+import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
+import { cachedGeocode, geocodeKey, gridCell, nearbyKey, normalizeQuery } from './googleCache';
 
 export interface PlaceCandidate {
     google_place_id: string;
@@ -27,10 +28,39 @@ const INCLUDED_TYPES = [
     'night_club',
 ];
 
-export async function searchNearbyVenues(center: LatLng, radiusMeters = 5000, maxResults = 15): Promise<PlaceCandidate[]> {
+const PLACE_FIELDS = [
+    'id',
+    'displayName',
+    'formattedAddress',
+    'location',
+    'rating',
+    'userRatingCount',
+    'priceLevel',
+    'photos',
+    'primaryType',
+    'types',
+];
+const FIELD_MASK = PLACE_FIELDS.map((f) => `places.${f}`).join(',');
+function toCandidate(p: any): PlaceCandidate {
+    const photoName = p.photos?.[0]?.name as string | undefined;
+    return {
+        google_place_id: p.id,
+        name: p.displayName?.text ?? 'Unknown',
+        address: p.formattedAddress ?? '',
+        latitude: p.location?.latitude ?? 0,
+        longitude: p.location?.longitude ?? 0,
+        photo_url: photoName ? `/api/photo?name=${encodeURIComponent(photoName)}` : null,
+        rating: p.rating ?? null,
+        user_ratings_total: p.userRatingCount ?? null,
+        category: humanizeCategory(p.primaryType ?? null),
+        price_level: priceLevelToInt(p.priceLevel),
+    };
+}
+
+async function fetchNearby(center: LatLng, radiusMeters: number, includedTypes: string[]): Promise<PlaceCandidate[]> {
     const body = {
-        includedTypes: INCLUDED_TYPES,
-        maxResultCount: Math.min(maxResults, 20),
+        includedTypes,
+        maxResultCount: 20,
         locationRestriction: {
             circle: {
                 center: { latitude: center.latitude, longitude: center.longitude },
@@ -40,24 +70,11 @@ export async function searchNearbyVenues(center: LatLng, radiusMeters = 5000, ma
         rankPreference: 'POPULARITY',
     };
 
-    const fieldMask = [
-        'places.id',
-        'places.displayName',
-        'places.formattedAddress',
-        'places.location',
-        'places.rating',
-        'places.userRatingCount',
-        'places.priceLevel',
-        'places.photos',
-        'places.primaryType',
-        'places.types',
-    ].join(',');
-
     const res = await axios.post(PLACES_NEARBY_URL, body, {
         headers: {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': config.google.mapsApiKey,
-            'X-Goog-FieldMask': fieldMask,
+            'X-Goog-FieldMask': FIELD_MASK,
         },
         timeout: 10_000,
     });
@@ -70,27 +87,34 @@ export async function searchNearbyVenues(center: LatLng, radiusMeters = 5000, ma
         }),
     );
 
-    const out: PlaceCandidate[] = [];
-    for (const p of places.slice(0, maxResults)) {
-        const name = p.displayName?.text ?? 'Unknown';
-        const photoName = p.photos?.[0]?.name as string | undefined;
-        const photoUrl = photoName
-            ? `/api/photo?name=${encodeURIComponent(photoName)}`
-            : null;
-        out.push({
-            google_place_id: p.id,
-            name,
-            address: p.formattedAddress ?? '',
-            latitude: p.location?.latitude ?? 0,
-            longitude: p.location?.longitude ?? 0,
-            photo_url: photoUrl,
-            rating: p.rating ?? null,
-            user_ratings_total: p.userRatingCount ?? null,
-            category: humanizeCategory(p.primaryType ?? null),
-            price_level: priceLevelToInt(p.priceLevel),
-        });
+    return places.map(toCandidate);
+}
+
+const NEARBY_MEMORY_TTL_MS = 15 * 60_000;
+export const NEARBY_MEMORY_MAX = 100;
+const nearbyMemory = new Map<string, { venues: PlaceCandidate[]; expiresAt: number }>();
+
+async function nearbyVenues(center: LatLng, radiusMeters: number, types: string[], page: number | 'base'): Promise<PlaceCandidate[]> {
+    const cell = gridCell(center);
+    const radius = Math.max(1, Math.round(radiusMeters / 1000)) * 1000;
+    const key = nearbyKey(cell, radius, types, page);
+    const held = nearbyMemory.get(key);
+    if (held && held.expiresAt > Date.now()) return held.venues;
+    const venues = await fetchNearby(cell, radius, types);
+    if (venues.length) {
+        nearbyMemory.delete(key);
+        if (nearbyMemory.size >= NEARBY_MEMORY_MAX) nearbyMemory.delete(nearbyMemory.keys().next().value!);
+        nearbyMemory.set(key, { venues, expiresAt: Date.now() + NEARBY_MEMORY_TTL_MS });
     }
-    return out;
+    return venues;
+}
+
+export async function searchNearbyVenues(
+    center: LatLng,
+    radiusMeters = 5000,
+    maxResults = 15,
+): Promise<PlaceCandidate[]> {
+    return (await nearbyVenues(center, radiusMeters, INCLUDED_TYPES, 'base')).slice(0, maxResults);
 }
 
 function humanizeCategory(t: string | null): string | null {
@@ -189,78 +213,16 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
     const radiusMeters = Math.min(baseRadiusMeters + rotationSeed * 3000, 25_000);
     const rotationTypes = ROTATION_TYPES[rotationSeed];
 
-    const body = {
-        includedTypes: rotationTypes,
-        maxResultCount: 20,
-        locationRestriction: {
-            circle: {
-                center: { latitude: center.latitude, longitude: center.longitude },
-                radius: radiusMeters,
-            },
-        },
-        rankPreference: 'POPULARITY',
-    };
-
-    const fieldMask = [
-        'places.id',
-        'places.displayName',
-        'places.formattedAddress',
-        'places.location',
-        'places.rating',
-        'places.userRatingCount',
-        'places.priceLevel',
-        'places.photos',
-        'places.primaryType',
-        'places.types',
-    ].join(',');
-
-    let rawPlaces: any[] = [];
+    let fresh: PlaceCandidate[];
     try {
-        const res = await axios.post(PLACES_NEARBY_URL, body, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Goog-Api-Key': config.google.mapsApiKey,
-                'X-Goog-FieldMask': fieldMask,
-            },
-            timeout: 10_000,
-        });
-        rawPlaces = (res.data?.places ?? []) as any[];
-        console.log('[venues-rotation] places returned:', rawPlaces.length);
+        fresh = (await nearbyVenues(center, radiusMeters, rotationTypes, rotationSeed)).filter((v) => !excludeIds.has(v.google_place_id));
     } catch (e: any) {
+        if (e instanceof HttpError) throw e;
         console.error('[venues-rotation] Places API error:', e?.response?.data ?? e?.message);
         if (isGoogleQuotaError(e)) return { venues: [], nextPageToken: null, newSeed: rotationSeed, exhausted: false, limited: true };
         return { venues: [], nextPageToken: null, newSeed: rotationSeed + 1, exhausted: rotationSeed + 1 >= ROTATION_COUNT };
     }
 
-    const filtered = rawPlaces.filter((p) =>
-        isAcceptableVenueType({
-            name: p.displayName?.text ?? '',
-            primaryType: p.primaryType ?? null,
-            types: (p.types as string[] | undefined) ?? [],
-        }),
-    );
-    console.log('[venues-rotation] after blocked-type filter:', filtered.length);
-
-    const mapped: PlaceCandidate[] = filtered.map((p: any) => {
-        const photoName = p.photos?.[0]?.name as string | undefined;
-        const photoUrl = photoName
-            ? `/api/photo?name=${encodeURIComponent(photoName)}`
-            : null;
-        return {
-            google_place_id: p.id,
-            name: p.displayName?.text ?? 'Unknown',
-            address: p.formattedAddress ?? '',
-            latitude: p.location?.latitude ?? 0,
-            longitude: p.location?.longitude ?? 0,
-            photo_url: photoUrl,
-            rating: p.rating ?? null,
-            user_ratings_total: p.userRatingCount ?? null,
-            category: humanizeCategory(p.primaryType ?? null),
-            price_level: priceLevelToInt(p.priceLevel),
-        };
-    });
-
-    const fresh = mapped.filter((v) => !excludeIds.has(v.google_place_id));
     console.log('[venues-rotation] after dedup:', fresh.length);
 
     // New Places API has no next_page_token for searchNearby — always advance rotation
@@ -275,7 +237,18 @@ export const getNearbyVenues = getVenuesWithRotation;
 
 // Forward geocoding for the manual city fallback
 export async function geocodeCity(city: string, country?: string): Promise<(LatLng & { label: string }) | null> {
-    const q = country ? `${city}, ${country}` : city;
+    const q = (country ? `${city}, ${country}` : city).trim();
+    const fetched: { place?: LatLng & { label: string } } = {};
+    const value = await cachedGeocode(geocodeKey(q), async () => {
+        const place = await fetchGeocode(q);
+        if (!place) return null;
+        fetched.place = place;
+        return { latitude: place.latitude, longitude: place.longitude, label: Array.from(normalizeQuery(q)).slice(0, 120).join('') };
+    });
+    return fetched.place ?? value;
+}
+
+async function fetchGeocode(q: string): Promise<(LatLng & { label: string }) | null> {
     const url = 'https://maps.googleapis.com/maps/api/geocode/json';
     const res = await axios.get(url, {
         params: { address: q, key: config.google.mapsApiKey },
