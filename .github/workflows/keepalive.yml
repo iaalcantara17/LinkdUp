@@ -1,0 +1,29 @@
+name: Keep alive
+
+on:
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: https://linkdup-api.onrender.com
+    steps:
+      - name: Ping health endpoints
+        shell: bash
+        run: |
+          for path in /healthz /api/health/db; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --fail --max-time 90 \
+              --retry 4 --retry-delay 15 --retry-all-errors "$BASE$path") || true
+            echo "$path -> $code"
+            if [ "$code" != "200" ]; then
+              echo "::error::$path returned $code"
+              exit 1
+            fi
+          done

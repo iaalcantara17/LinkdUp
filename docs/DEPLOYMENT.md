@@ -63,7 +63,9 @@ Please confirm this still matches Google's rules before launch: [Places API poli
 
 Render's free web services go to sleep after about 15 minutes with no traffic. The first request after that takes around a minute while it wakes up, so open `/healthz` a minute before a demo. Sleeping also wipes the in-memory photo and venue caches and rate limit counters, which is fine.
 
-Supabase's free plan pauses a project after about a week with no database activity. `GET /api/health/db` runs one tiny query and returns `{"ok":true}` (no login, no data, limited to 10 calls a minute per IP). Point a free external pinger such as UptimeRobot or cron-job.org at `https://<your-service>.onrender.com/api/health/db` once a week to keep both awake.
+Supabase's free plan pauses a project after about a week with no database activity. `GET /api/health/db` runs one tiny query and returns `{"ok":true}` (no login, no data, limited to 10 calls a minute per IP). The **Keep alive** GitHub Action (`.github/workflows/keepalive.yml`) calls `/healthz` and `/api/health/db` every Monday at 13:00 UTC to keep both awake. It retries a few times while Render wakes up and fails the run if either one doesn't return 200 within 90 seconds. Run it by hand from **Actions → Keep alive → Run workflow** before a demo. It needs no secrets.
+
+GitHub turns off scheduled workflows after 60 days with no activity in the repo. If that happens, Actions shows a banner on the workflow. Click **Enable workflow**, or push any commit, to turn it back on.
 
 ## 7. Demo mode
 
