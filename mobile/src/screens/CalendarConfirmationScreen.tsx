@@ -488,7 +488,7 @@ function makeStyles(c: AppColors) {
         rowValue: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
         attendeeAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: c.bg },
 
-        calendarNote: { color: c.text60, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 10, fontFamily: 'Inter_400Regular' },
+        calendarNote: { color: c.text60, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 12, fontFamily: 'Inter_400Regular' },
         bottomButtons: { flexDirection: 'row', gap: 12, marginTop: 16 },
     });
 }
