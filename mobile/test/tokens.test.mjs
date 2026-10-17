@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { color, typeScale, space, radius } from '../src/theme/tokens.ts';
+import { color, palette, typeScale, space, radius } from '../src/theme/tokens.ts';
 
 function rgba(value) {
     const hex = /^#([0-9a-f]{6})$/i.exec(value);
@@ -39,6 +39,13 @@ for (const theme of ['dark', 'light']) {
                 assert.ok(ratio >= 4.5, `${theme} ${role} ${c[role]} on ${bg} ${c[bg]} is ${ratio.toFixed(2)}:1`);
             });
         }
+    }
+    for (const [fg, scrim] of [['onMedia', 'scrim'], ['onMedia', 'scrimStrong'], ['onMediaMuted', 'scrimStrong']]) {
+        test(`${theme} ${fg} on ${scrim} over a white photo meets WCAG AA 4.5:1`, () => {
+            const backdrop = `rgb(${over(c[scrim], palette.white).join(',')})`;
+            const ratio = contrast(c[fg], backdrop);
+            assert.ok(ratio >= 4.5, `${theme} ${fg} on ${scrim} over white is ${ratio.toFixed(2)}:1`);
+        });
     }
     test(`${theme} onPrimary on primary meets WCAG AA 4.5:1`, () => {
         const ratio = contrast(c.onPrimary, c.primary);
