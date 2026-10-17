@@ -19,8 +19,10 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import DialogHost from './src/components/DialogHost';
 import { settleFinishedAnimations } from './src/services/webAnimations';
+import { inject } from '@vercel/analytics';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') settleFinishedAnimations(document);
+if (Platform.OS === 'web') inject();
 
 const linking: LinkingOptions<any> = {
     prefixes: ['linkdup://', 'http://localhost:8081', 'exp://'],
