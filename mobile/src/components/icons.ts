@@ -12,6 +12,7 @@ export { default as Clock } from 'lucide-react-native/icons/clock';
 export { default as Compass } from 'lucide-react-native/icons/compass';
 export { default as Copy } from 'lucide-react-native/icons/copy';
 export { default as DollarSign } from 'lucide-react-native/icons/dollar-sign';
+export { default as Download } from 'lucide-react-native/icons/download';
 export { default as ExternalLink } from 'lucide-react-native/icons/external-link';
 export { default as Eye } from 'lucide-react-native/icons/eye';
 export { default as EyeOff } from 'lucide-react-native/icons/eye-off';
