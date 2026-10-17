@@ -15,6 +15,11 @@ export const palette = {
     emerald500: '#10B981',
     yellow400: '#FACC15',
     amber500: '#F59E0B',
+    emerald700: '#047857',
+    googleBlue: '#4285F4',
+    googleGreen: '#34A853',
+    googleYellow: '#FBBC05',
+    googleRed: '#EA4335',
 };
 
 const dark = {
@@ -34,7 +39,19 @@ const dark = {
     success: palette.green500,
     warning: palette.yellow400,
     scrim: 'rgba(0,0,0,0.55)',
+    scrimStrong: 'rgba(0,0,0,0.85)',
+    onMedia: palette.white,
+    onMediaMuted: 'rgba(255,255,255,0.80)',
+    onMediaFaint: 'rgba(255,255,255,0.30)',
     chrome: 'rgba(10,10,15,0.80)',
+    veil: 'rgba(10,10,15,0.40)',
+    fill: 'rgba(255,255,255,0.05)',
+    fillStrong: 'rgba(255,255,255,0.10)',
+    primarySoft: 'rgba(108,62,244,0.18)',
+    primaryBorder: 'rgba(108,62,244,0.35)',
+    dangerSoft: 'rgba(239,68,68,0.10)',
+    dangerBorder: 'rgba(239,68,68,0.30)',
+    successFill: palette.emerald700,
 };
 
 export type ColorRoles = typeof dark;
@@ -56,7 +73,19 @@ const light: ColorRoles = {
     success: palette.emerald500,
     warning: palette.amber500,
     scrim: 'rgba(0,0,0,0.55)',
+    scrimStrong: 'rgba(0,0,0,0.85)',
+    onMedia: palette.white,
+    onMediaMuted: 'rgba(255,255,255,0.80)',
+    onMediaFaint: 'rgba(255,255,255,0.30)',
     chrome: 'rgba(250,250,251,0.85)',
+    veil: 'rgba(250,250,251,0.40)',
+    fill: 'rgba(0,0,0,0.04)',
+    fillStrong: 'rgba(0,0,0,0.08)',
+    primarySoft: 'rgba(108,62,244,0.18)',
+    primaryBorder: 'rgba(108,62,244,0.35)',
+    dangerSoft: 'rgba(239,68,68,0.10)',
+    dangerBorder: 'rgba(239,68,68,0.30)',
+    successFill: palette.emerald700,
 };
 
 export const color = { dark, light };

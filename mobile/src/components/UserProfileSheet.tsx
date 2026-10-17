@@ -11,7 +11,7 @@ import { api } from '../services/api';
 import DialogHost from './DialogHost';
 import { confirmBlock, errorText, showError, showMenu, toast } from './dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface PublicUser {
@@ -39,8 +39,8 @@ interface Props {
 type FriendUi = 'loading' | 'self' | 'none' | 'pending_out' | 'pending_in' | 'accepted';
 
 export default function UserProfileSheet({ userId, visible, onClose }: Props) {
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
     const nav = useNavigation<any>();
 
     const [profile, setProfile] = useState<PublicUser | null>(null);
@@ -154,7 +154,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
             <View style={styles.overlay}>
                 <SafeAreaView style={styles.sheet} edges={['bottom']}>
                     <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Close">
-                        <X size={18} color="white" />
+                        <X size={18} color={roles.text} />
                     </TouchableOpacity>
 
                     {profile && !isSelf && !blockedByThem && (
@@ -167,8 +167,8 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                             accessibilityLabel={`More options for ${profile.display_name ?? 'this person'}`}
                         >
                             {blockBusy
-                                ? <ActivityIndicator size="small" color="white" />
-                                : <MoreHorizontal size={18} color="white" />
+                                ? <ActivityIndicator size="small" color={roles.text} />
+                                : <MoreHorizontal size={18} color={roles.text} />
                             }
                         </TouchableOpacity>
                     )}
@@ -267,7 +267,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                                     }
                                                 }}
                                             >
-                                                <UserPlus size={18} color="white" />
+                                                <UserPlus size={18} color={roles.primaryText} />
                                                 <Text style={styles.friendBtnText}>Add friend</Text>
                                             </TouchableOpacity>
                                         )}
@@ -293,7 +293,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                                     }
                                                 }}
                                             >
-                                                <UserCheck size={18} color="white" />
+                                                <UserCheck size={18} color={roles.primaryText} />
                                                 <Text style={styles.friendBtnText}>Accept request</Text>
                                             </TouchableOpacity>
                                         )}
@@ -315,11 +315,11 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         overlay: {
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.65)',
+            backgroundColor: r.scrim,
             justifyContent: 'flex-end',
         },
         sheet: {
@@ -481,7 +481,7 @@ function makeStyles(c: AppColors) {
             borderRadius: radii.md,
             paddingVertical: 12,
         },
-        friendBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
+        friendBtnText: { color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 15 },
         friendPending: {
             flexDirection: 'row',
             alignItems: 'center',

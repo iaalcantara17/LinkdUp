@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useHints } from '../context/HintsContext';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface Props {
@@ -16,8 +16,8 @@ interface Props {
 export default function FirstVisitHint({ screenKey, title, body, position = 'center' }: Props) {
     const { ready, hasSeen, markSeen } = useHints();
     const [visible, setVisible] = useState(false);
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     useEffect(() => {
         if (!ready) return;
@@ -69,11 +69,11 @@ export default function FirstVisitHint({ screenKey, title, body, position = 'cen
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         backdrop: {
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.55)',
+            backgroundColor: r.scrim,
             alignItems: 'center',
             paddingHorizontal: 24,
         },
@@ -83,7 +83,7 @@ function makeStyles(c: AppColors) {
             borderRadius: radii.xl,
             padding: 20,
             borderWidth: 1,
-            borderColor: 'rgba(108,62,244,0.30)',
+            borderColor: r.primaryBorder,
         },
         title: {
             color: c.textPrimary,
@@ -105,6 +105,6 @@ function makeStyles(c: AppColors) {
             paddingVertical: 8,
             borderRadius: radii.pill,
         },
-        btnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
+        btnText: { color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 14 },
     });
 }

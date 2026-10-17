@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { radii } from '../theme';
 import { useTheme } from '../context/ThemeContext';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 
 interface HelpItem {
     title: string;
@@ -15,8 +15,8 @@ interface Props {
 
 export default function HelpButton({ items }: Props) {
     const [visible, setVisible] = useState(false);
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     return (
         <>
@@ -64,7 +64,7 @@ export default function HelpButton({ items }: Props) {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         btn: {
             width: 36,
@@ -79,7 +79,7 @@ function makeStyles(c: AppColors) {
         mark: { color: c.text80, fontFamily: 'Inter_700Bold', fontSize: 15, lineHeight: 18 },
         overlay: {
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: r.scrim,
         },
         sheet: {
             backgroundColor: c.surface,
@@ -119,6 +119,6 @@ function makeStyles(c: AppColors) {
             paddingVertical: 12,
             alignItems: 'center',
         },
-        doneBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
+        doneBtnText: { color: r.primaryText, fontFamily: 'Inter_700Bold', fontSize: 15 },
     });
 }

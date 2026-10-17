@@ -13,8 +13,8 @@ export const darkColors = {
     surface: d.surface,
     surfaceElevated: d.surfaceRaised,
 
-    glass: 'rgba(255,255,255,0.05)',
-    glassStrong: 'rgba(255,255,255,0.10)',
+    glass: d.fill,
+    glassStrong: d.fillStrong,
     glassBorder: d.border,
     glassBorderStrong: d.borderStrong,
 
@@ -48,8 +48,8 @@ export const lightColors: typeof darkColors = {
     surface: l.surface,
     surfaceElevated: l.surfaceRaised,
 
-    glass: 'rgba(0,0,0,0.04)',
-    glassStrong: 'rgba(0,0,0,0.08)',
+    glass: l.fill,
+    glassStrong: l.fillStrong,
     glassBorder: l.border,
     glassBorderStrong: l.borderStrong,
 

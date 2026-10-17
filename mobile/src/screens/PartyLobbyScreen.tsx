@@ -26,7 +26,7 @@ import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { startGate } from '../services/locationChoice';
 import { supabase } from '../services/supabase';
 import { typography, radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { pollWhileVisible, LOBBY_POLL_MS } from '../hooks/pollWhileVisible';
 
@@ -34,8 +34,8 @@ export default function PartyLobbyScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params.partyId;
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [party, setParty] = useState<any>(null);
     const [loadError, setLoadError] = useState<unknown>(null);
@@ -264,7 +264,7 @@ export default function PartyLobbyScreen() {
                                                 onMemberPress={(id) => setProfileUserId(id)}
                                             />
                                             <View style={styles.mapExpandBtn}>
-                                                <Maximize2 size={14} color="white" />
+                                                <Maximize2 size={14} color={roles.onMedia} />
                                             </View>
                                         </View>
                                     </TouchableOpacity>
@@ -323,7 +323,7 @@ export default function PartyLobbyScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
@@ -346,7 +346,7 @@ function makeStyles(c: AppColors) {
             borderColor: c.glassBorder,
             alignItems: 'center',
         },
-        tabPillOn: { borderColor: c.primary, backgroundColor: 'rgba(108,62,244,0.15)' },
+        tabPillOn: { borderColor: c.primary, backgroundColor: r.primarySoft },
         tabPillText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
         tabPillTextOn: { color: c.textPrimary },
         inviteHint: { color: c.text60, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19, marginBottom: 8 },
@@ -362,7 +362,7 @@ function makeStyles(c: AppColors) {
             position: 'absolute',
             top: 10,
             right: 10,
-            backgroundColor: 'rgba(0,0,0,0.52)',
+            backgroundColor: r.scrim,
             padding: 6,
             borderRadius: radii.sm,
         },

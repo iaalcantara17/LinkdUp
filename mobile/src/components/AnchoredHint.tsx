@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
 import { useHints } from '../context/HintsContext';
-import { darkColors, radii } from '../theme';
+import { darkColors, palette, radii } from '../theme';
 
 interface AnchoredHintProps {
     screenKey: string;
@@ -169,20 +169,20 @@ const styles = StyleSheet.create({
         backgroundColor: CARD_BG,
         borderRadius: radii.md,
         padding: 14,
-        shadowColor: '#000',
+        shadowColor: palette.black,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35,
         shadowRadius: 10,
         elevation: 8,
     },
     title: {
-        color: 'white',
+        color: palette.white,
         fontFamily: 'Inter_700Bold',
         fontSize: 14,
         marginBottom: 6,
     },
     body: {
-        color: 'rgba(255,255,255,0.88)',
+        color: palette.white,
         fontFamily: 'Inter_500Medium',
         fontSize: 13,
         lineHeight: 19,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     },
     btn: {
         alignSelf: 'flex-end',
-        backgroundColor: 'white',
+        backgroundColor: palette.white,
         paddingHorizontal: 16,
         paddingVertical: 6,
         borderRadius: radii.pill,

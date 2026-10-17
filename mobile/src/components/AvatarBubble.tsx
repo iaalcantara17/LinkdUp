@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function AvatarBubble({ name, color, size = 40, status, avatarUrl, onPress, pulse }: Props) {
-    const { colors } = useTheme();
+    const { colors, roles } = useTheme();
     const bubbleColor = color ?? colors.primary;
 
     const initials = name
@@ -56,7 +56,7 @@ export default function AvatarBubble({ name, color, size = 40, status, avatarUrl
                         accessibilityRole="image"
                     />
                 ) : (
-                    <Text style={[styles.text, { fontSize: size * 0.36 }]}>{initials}</Text>
+                    <Text style={[styles.text, { fontSize: size * 0.36, color: roles.primaryText }]}>{initials}</Text>
                 )}
             </View>
         </View>
@@ -82,5 +82,5 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         overflow: 'hidden',
     },
-    text: { color: 'white', fontWeight: '700' },
+    text: { fontWeight: '700' },
 });
