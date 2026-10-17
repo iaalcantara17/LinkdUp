@@ -53,6 +53,35 @@ test('robots.txt ships in the web build', () => {
     assert.ok(existsSync(new URL('robots.txt', pub)));
 });
 
+test('the page links 16, 32 and 180 icons that exist at those sizes', () => {
+    for (const [rel, size, href] of [['icon', 16, '/icon-16.png'], ['icon', 32, '/icon-32.png'], ['apple-touch-icon', 180, '/apple-touch-icon.png']]) {
+        assert.match(html, new RegExp(`<link rel="${rel}"[^>]*sizes="${size}x${size}"[^>]*href="${href}"`), href);
+        assert.deepEqual(pngSize(new URL(`.${href}`, pub)), [size, size]);
+    }
+});
+
+test('the web app manifest names the app, sets its colors and lists 192 and 512 icons', () => {
+    assert.match(html, /<link rel="manifest" href="\/manifest\.webmanifest"/);
+    const m = JSON.parse(readFileSync(new URL('manifest.webmanifest', pub), 'utf8'));
+    assert.equal(m.name, 'LinkdUp');
+    assert.equal(m.short_name, 'LinkdUp');
+    assert.equal(m.start_url, '/');
+    assert.equal(m.display, 'standalone');
+    assert.equal(m.theme_color, meta('name', 'theme-color'));
+    assert.match(m.background_color, /^#[0-9A-Fa-f]{6}$/);
+    assert.deepEqual(m.icons.map((i) => i.sizes).sort(), ['192x192', '512x512']);
+    for (const i of m.icons) {
+        const n = Number(i.sizes.split('x')[0]);
+        assert.equal(i.type, 'image/png');
+        assert.deepEqual(pngSize(new URL(`.${i.src}`, pub)), [n, n]);
+    }
+});
+
+test('favicon.ico is generated from a square source so the icon fills it', () => {
+    const [w, h] = pngSize(new URL(`../${app.web.favicon}`, import.meta.url));
+    assert.equal(w, h);
+});
+
 test('the template keeps the Expo placeholders and the root element', () => {
     for (const s of ['%LANG_ISO_CODE%', '<div id="root"></div>', '</head>', 'name="viewport"']) assert.ok(html.includes(s), s);
 });

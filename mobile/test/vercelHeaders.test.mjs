@@ -18,7 +18,7 @@ test('hashed bundles under /_expo/static are cached forever', () => {
 });
 
 test('index.html, app routes and other unhashed files always revalidate', () => {
-    for (const p of ['/', '/index.html', '/favicon.ico', '/robots.txt', '/og-image.png', '/metadata.json', '/party/abc', '/assets/node_modules/x.ttf']) {
+    for (const p of ['/', '/index.html', '/favicon.ico', '/robots.txt', '/og-image.png', '/manifest.webmanifest', '/apple-touch-icon.png','/metadata.json', '/party/abc', '/assets/node_modules/x.ttf']) {
         assert.equal(cacheFor(p), 'no-cache');
     }
 });
