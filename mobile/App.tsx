@@ -19,6 +19,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { documentTitle } from './src/navigation/titles';
 import DialogHost from './src/components/DialogHost';
+import { ColdStartNote } from './src/components/LoadState';
 import { installWebMotion, settleFinishedAnimations } from './src/services/webAnimations';
 import { inject } from '@vercel/analytics';
 
@@ -87,6 +88,7 @@ export default function App() {
                             <HintsProvider>
                                 <AppInner />
                                 <DialogHost />
+                                <ColdStartNote />
                             </HintsProvider>
                         </AuthProvider>
                     </SafeAreaProvider>

@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { errorText } from './dialogs';
+import { isSlow, subscribeSlow } from '../services/coldStart';
 import { useTheme } from '../context/ThemeContext';
 import { ColorRoles, radius, space, typeScale } from '../theme';
 
@@ -38,6 +39,20 @@ export function SlowLoadNote({ loading }: { loading: boolean }) {
     );
 }
 
+export function ColdStartNote() {
+    const { roles } = useTheme();
+    const styles = useMemo(() => makeStyles(roles), [roles]);
+    const slow = useSyncExternalStore(subscribeSlow, isSlow, isSlow);
+    if (Platform.OS !== 'web') return null;
+    return (
+        <View pointerEvents="none" style={styles.coldWrap}>
+            <Text role="status" accessibilityLiveRegion="polite" style={slow ? styles.coldNote : undefined}>
+                {slow ? 'Waking up the server. This can take about 30 seconds on the free plan.' : ''}
+            </Text>
+        </View>
+    );
+}
+
 function makeStyles(r: ColorRoles) {
     return StyleSheet.create({
         card: {
@@ -62,5 +77,16 @@ function makeStyles(r: ColorRoles) {
         },
         retryText: { ...typeScale.bodyStrong, color: r.text },
         slow: { ...typeScale.footnote, color: r.textMuted, textAlign: 'center', marginVertical: space.s2 },
+        coldWrap: { position: 'absolute', left: space.s4, right: space.s4, bottom: space.s12 * 2, alignItems: 'center' },
+        coldNote: {
+            ...typeScale.footnote,
+            color: r.textMuted,
+            textAlign: 'center',
+            backgroundColor: r.surface,
+            borderRadius: radius.lg,
+            paddingHorizontal: space.s4,
+            paddingVertical: space.s2,
+            maxWidth: 420,
+        },
     });
 }

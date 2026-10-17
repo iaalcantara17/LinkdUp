@@ -16,6 +16,7 @@ import FollowListScreen from '../src/screens/FollowListScreen';
 import LoginScreen from '../src/screens/LoginScreen';
 import OnboardingScreen from '../src/screens/OnboardingScreen';
 import DemoBanner from '../src/components/DemoBanner';
+import { ColdStartNote } from '../src/components/LoadState';
 import CommentSheet from '../src/components/CommentSheet';
 import { supabase } from '../src/services/supabase';
 import * as dialogs from '../src/components/dialogs';
@@ -507,6 +508,56 @@ describe('slow loads', () => {
             expect(screen.getByRole('status').textContent).toBe(SLOW);
         });
     }
+});
+
+describe('Cold start note', () => {
+    const WAKING = 'Waking up the server. This can take about 30 seconds on the free plan.';
+    const actual = jest.requireActual('../src/services/api');
+    const realFetch = global.fetch;
+
+    afterEach(() => {
+        global.fetch = realFetch;
+        jest.useRealTimers();
+    });
+
+    test('the first sign in screen shows a waking up note after 3 seconds and clears it when the request finishes', async () => {
+        jest.useFakeTimers();
+        let finish;
+        global.fetch = jest.fn(() => new Promise((r) => { finish = r; }));
+        global.__route = { params: {} };
+        global.__api.reset(fx.routes({ demoAvailable: { available: false } }));
+        render(
+            <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+                <LoginScreen />
+                <ColdStartNote />
+            </SafeAreaProvider>,
+        );
+        let request;
+        await act(async () => {
+            request = actual.api.health();
+            await jest.advanceTimersByTimeAsync(2_900);
+        });
+        expect(screen.queryByText(WAKING)).toBeNull();
+        await act(async () => {
+            await jest.advanceTimersByTimeAsync(100);
+        });
+        const note = screen.getByText(WAKING);
+        expect(note.getAttribute('role')).toBe('status');
+        expect(note.getAttribute('aria-live')).toBe('polite');
+        screen.getByText('Continue with Google');
+        await act(async () => {
+            finish({ ok: true, status: 200, text: async () => '{"ok":true}' });
+            await request;
+        });
+        expect(screen.queryByText(WAKING)).toBeNull();
+    });
+
+    test('the waking up note does not animate, so reduced motion is respected', () => {
+        const src = require('fs').readFileSync(require('path').join(__dirname, '../src/components/LoadState.tsx'), 'utf8');
+        const body = src.slice(src.indexOf('export function ColdStartNote'), src.indexOf('function makeStyles'));
+        expect(body).not.toMatch(/Animated|entering|FadeIn|transition|animation/);
+        expect(body).toMatch(/pointerEvents="none"/);
+    });
 });
 
 describe('Demo mode', () => {

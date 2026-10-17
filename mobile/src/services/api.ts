@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { demoReadOnly } from '../components/dialogs';
+import { trackRequest } from './coldStart';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL!;
 
@@ -19,14 +20,12 @@ async function authHeader(): Promise<Record<string, string>> {
 }
 
 async function request<T>(method: string, path: string, body?: any, quiet = false): Promise<T> {
-    const res = await fetch(`${BASE}${path}`, {
+    const headers = { 'Content-Type': 'application/json', ...(await authHeader()) };
+    const res = await trackRequest(fetch(`${BASE}${path}`, {
         method,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(await authHeader()),
-        },
+        headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    }));
     const text = await res.text();
     let data: any;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
