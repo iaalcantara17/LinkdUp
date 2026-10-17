@@ -819,7 +819,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         dateLabel: { color: c.textPrimary, fontSize: 20, fontFamily: 'Inter_900Black' },
         proposedCount: { color: c.text40, fontSize: 10, fontFamily: 'Inter_600SemiBold', marginTop: 8 },
         calendarLink: { alignSelf: 'flex-start', paddingVertical: 2 },
-        calendarLinkText: { color: c.primaryAlt, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+        calendarLinkText: { color: r.primaryText, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
         timePanel: {
             padding: 16,
             borderRadius: radii.lg,

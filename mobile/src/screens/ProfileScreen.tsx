@@ -649,7 +649,7 @@ export default function ProfileScreen() {
                                     if (editModal === 'bio' && t.length > 200) return;
                                     setEditValue(t);
                                 }}
-                                placeholderTextColor={colors.text30}
+                                placeholderTextColor={colors.textMuted}
                                 placeholder={
                                     editModal === 'displayName' ? 'Your name' :
                                     editModal === 'school'      ? 'University of...' :
@@ -755,7 +755,7 @@ export default function ProfileScreen() {
                             style={[styles.modalInput, deleteTyped === 'DELETE' && { borderColor: colors.danger }]}
                             value={deleteTyped}
                             onChangeText={setDeleteTyped}
-                            placeholderTextColor={colors.text30}
+                            placeholderTextColor={colors.textMuted}
                             placeholder="DELETE"
                             autoCapitalize="characters"
                             autoCorrect={false}

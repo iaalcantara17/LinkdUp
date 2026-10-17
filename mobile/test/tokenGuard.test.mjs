@@ -49,6 +49,11 @@ test('every file outside the theme uses colour tokens, not hard-coded colours', 
     assert.deepEqual(found, [], `Use roles or palette from src/theme/tokens:\n${found.join('\n')}`);
 });
 
+test('no file uses the 30% text colour, which fails WCAG AA for placeholders and labels', () => {
+    const found = hits(/\btext30\b/, () => true, allSrc);
+    assert.deepEqual(found, [], `Use textFaint or textMuted:\n${found.join('\n')}`);
+});
+
 test('migrated files take colours from the theme, not the static dark palette', () => {
     const found = hits(/import\s*\{[^}]*\bcolors\b[^}]*\}\s*from\s*'\.\.\/theme'/, () => true, lightMode);
     assert.deepEqual(found, [], `Use useTheme() so light mode applies:\n${found.join('\n')}`);

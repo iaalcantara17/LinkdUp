@@ -121,7 +121,7 @@ export default function CreatePartyScreen() {
                                 <TextInput
                                     style={[styles.nameInput, nameError ? styles.nameInputError : null]}
                                     placeholder="e.g. Weekend Brunch Crew"
-                                    placeholderTextColor={colors.text30}
+                                    placeholderTextColor={colors.textMuted}
                                     value={partyName}
                                     onChangeText={setPartyName}
                                     onBlur={() => setNameTouched(true)}

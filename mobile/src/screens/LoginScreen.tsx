@@ -234,7 +234,7 @@ export default function LoginScreen() {
                                     <TextInput
                                         style={[styles.input, touched.displayName && fieldErrors.displayName ? styles.inputError : null]}
                                         placeholder="Your name"
-                                        placeholderTextColor={colors.text30}
+                                        placeholderTextColor={colors.textMuted}
                                         value={displayName}
                                         onChangeText={v => { setDisplayName(v); setFormError(null); }}
                                         onBlur={() => handleBlur('displayName', displayName)}
@@ -258,7 +258,7 @@ export default function LoginScreen() {
                                         ref={emailRef}
                                         style={[styles.input, { paddingLeft: 44 }, touched.email && fieldErrors.email ? styles.inputError : null]}
                                         placeholder="your.email@alumni.edu"
-                                        placeholderTextColor={colors.text30}
+                                        placeholderTextColor={colors.textMuted}
                                         value={email}
                                         onChangeText={v => { setEmail(v); setFormError(null); }}
                                         onBlur={() => handleBlur('email', email)}
@@ -286,7 +286,7 @@ export default function LoginScreen() {
                                             touched.password && fieldErrors.password ? styles.inputError : null,
                                         ]}
                                         placeholder="••••••••"
-                                        placeholderTextColor={colors.text30}
+                                        placeholderTextColor={colors.textMuted}
                                         value={password}
                                         onChangeText={v => { setPassword(v); setFormError(null); }}
                                         onBlur={() => handleBlur('password', password)}
@@ -324,7 +324,7 @@ export default function LoginScreen() {
                                                 touched.confirmPassword && fieldErrors.confirmPassword ? styles.inputError : null,
                                             ]}
                                             placeholder="••••••••"
-                                            placeholderTextColor={colors.text30}
+                                            placeholderTextColor={colors.textMuted}
                                             value={confirmPassword}
                                             onChangeText={v => { setConfirmPassword(v); setFormError(null); }}
                                             onBlur={() => handleBlur('confirmPassword', confirmPassword)}

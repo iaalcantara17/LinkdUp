@@ -48,6 +48,16 @@ for (const theme of ['dark', 'light']) {
         });
     }
     const on = (tint, base) => `rgb(${over(tint, base).join(',')})`;
+    for (const bg of ['background', 'surface']) {
+        test(`${theme} danger text on ${bg} meets WCAG AA 4.5:1`, () => {
+            const ratio = contrast(c.danger, c[bg]);
+            assert.ok(ratio >= 4.5, `${theme} danger ${c.danger} on ${bg} is ${ratio.toFixed(2)}:1`);
+        });
+    }
+    test(`${theme} danger text on dangerSoft meets WCAG AA 4.5:1`, () => {
+        const ratio = contrast(c.danger, on(c.dangerSoft, c.background));
+        assert.ok(ratio >= 4.5, `${theme} danger on dangerSoft is ${ratio.toFixed(2)}:1`);
+    });
     test(`${theme} warning text on warningSoft meets WCAG AA 4.5:1`, () => {
         const ratio = contrast(c.warning, on(c.warningSoft, c.background));
         assert.ok(ratio >= 4.5, `${theme} warning on warningSoft is ${ratio.toFixed(2)}:1`);
@@ -60,7 +70,7 @@ for (const theme of ['dark', 'light']) {
         const ratio = contrast(c.switchThumb, c.primary);
         assert.ok(ratio >= 3, `${theme} switchThumb on primary is ${ratio.toFixed(2)}:1`);
     });
-    for (const fill of ['primary', 'successFill', 'dangerStrong']) {
+    for (const fill of ['primary', 'gradientEnd', 'successFill', 'dangerStrong']) {
         test(`${theme} onPrimary on ${fill} meets WCAG AA 4.5:1`, () => {
             const ratio = contrast(c.onPrimary, c[fill]);
             assert.ok(ratio >= 4.5, `${theme} onPrimary on ${fill} is ${ratio.toFixed(2)}:1`);

@@ -77,7 +77,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 function StatusPill({ status }: { status: string }) {
     const { roles: r } = useTheme();
-    const fill = ({ matched: r.primary, scheduled: r.accent, locked: r.successFill } as Record<string, string>)[status];
+    const fill = ({ matched: r.primary, scheduled: r.gradientEnd, locked: r.successFill } as Record<string, string>)[status];
     const gradColors = [fill ?? r.fillStrong, fill ?? r.fillStrong];
     return (
         <LinearGradient colors={gradColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill, alignSelf: 'flex-start' }}>
@@ -87,6 +87,7 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function HangoutCard({ item, index, onPress, onMenuPress, colors }: { item: Hangout; index: number; onPress: () => void; onMenuPress: () => void; colors: AppColors }) {
+    const { roles } = useTheme();
     const venueName = item.venue?.name ?? item.name ?? 'Untitled hangout';
     const venueAddress = item.venue?.address ?? null;
 
@@ -111,7 +112,7 @@ function HangoutCard({ item, index, onPress, onMenuPress, colors }: { item: Hang
                 ) : null}
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Calendar size={13} color={item.locked_date ? colors.primaryAlt : colors.text40} />
+                    <Calendar size={13} color={item.locked_date ? roles.primaryText : colors.text40} />
                     {item.locked_date ? (
                         <Text style={{ color: colors.text80, fontSize: 13, fontFamily: 'Inter_400Regular' }}>{formatDate(item.locked_date.starts_at)}</Text>
                     ) : (
@@ -136,8 +137,8 @@ function HangoutCard({ item, index, onPress, onMenuPress, colors }: { item: Hang
 
                 {item.locked_date ? (
                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8, alignSelf: 'flex-start', paddingVertical: 2 }} activeOpacity={0.75} onPress={(e) => { e.stopPropagation?.(); openGoogleCalendar(); }}>
-                        <ExternalLink size={12} color={colors.primaryAlt} />
-                        <Text style={{ color: colors.primaryAlt, fontSize: 12, fontFamily: 'Inter_500Medium' }}>Open in Google Calendar</Text>
+                        <ExternalLink size={12} color={roles.primaryText} />
+                        <Text style={{ color: roles.primaryText, fontSize: 12, fontFamily: 'Inter_500Medium' }}>Open in Google Calendar</Text>
                     </TouchableOpacity>
                 ) : null}
             </Pressable>

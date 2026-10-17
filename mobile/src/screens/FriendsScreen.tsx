@@ -286,7 +286,7 @@ export default function FriendsScreen() {
                                 <TextInput
                                     style={styles.searchInput}
                                     placeholder="Search by name or @username"
-                                    placeholderTextColor={colors.text30}
+                                    placeholderTextColor={colors.textMuted}
                                     value={searchQ}
                                     onChangeText={setSearchQ}
                                     autoFocus
@@ -327,7 +327,7 @@ export default function FriendsScreen() {
 
                             {!searchQ && (
                                 <View style={styles.emptyState}>
-                                    <Users size={40} color={colors.text30} />
+                                    <Users size={40} color={colors.textMuted} />
                                     <Text style={[styles.emptyBody, { marginTop: 12 }]}>Type a name to find people you know.</Text>
                                 </View>
                             )}

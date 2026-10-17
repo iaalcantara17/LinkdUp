@@ -213,7 +213,7 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: colors.bg },
         splashWordmark: { ...typography.wordmarkLarge, color: r.onMedia },
-        splashTagline: { ...typography.body, color: r.onMediaMuted, marginTop: 16, fontSize: 18 },
+        splashTagline: { ...typography.body, color: r.onMedia, marginTop: 16, fontSize: 18 },
         progressRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingTop: 16 },
         progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: r.border, overflow: 'hidden' },
         progressFill: { height: '100%' },

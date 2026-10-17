@@ -248,7 +248,7 @@ export default function CompleteProfileScreen() {
                                     <TextInput
                                         style={[styles.input, touched.displayName && errors.displayName ? styles.inputError : null]}
                                         placeholder="Your name"
-                                        placeholderTextColor={colors.text30}
+                                        placeholderTextColor={colors.textMuted}
                                         value={displayName}
                                         onChangeText={setDisplayName}
                                         onBlur={handleDisplayNameBlur}
@@ -277,7 +277,7 @@ export default function CompleteProfileScreen() {
                                         ref={usernameRef}
                                         style={[styles.input, styles.usernameInput, { borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 0 }]}
                                         placeholder="your_handle"
-                                        placeholderTextColor={colors.text30}
+                                        placeholderTextColor={colors.textMuted}
                                         value={username}
                                         onChangeText={handleUsernameChange}
                                         onBlur={handleUsernameBlur}
@@ -333,7 +333,7 @@ export default function CompleteProfileScreen() {
                                                 touched.school && errors.school ? styles.inputError : null,
                                             ]}
                                             placeholder="Search for your school..."
-                                            placeholderTextColor={colors.text30}
+                                            placeholderTextColor={colors.textMuted}
                                             value={schoolQuery}
                                             onChangeText={handleSchoolQueryChange}
                                             onBlur={handleSchoolBlur}
@@ -393,7 +393,7 @@ export default function CompleteProfileScreen() {
                                     ref={gradRef}
                                     style={styles.input}
                                     placeholder="2026"
-                                    placeholderTextColor={colors.text30}
+                                    placeholderTextColor={colors.textMuted}
                                     value={gradYear}
                                     onChangeText={setGradYear}
                                     keyboardType="number-pad"

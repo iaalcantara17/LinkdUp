@@ -61,7 +61,7 @@ export default function JoinPartyScreen() {
                         autoCapitalize="characters"
                         maxLength={6}
                         placeholder="ABCDEF"
-                        placeholderTextColor={colors.text30}
+                        placeholderTextColor={colors.textMuted}
                         autoFocus
                     />
 
