@@ -33,8 +33,8 @@ const SWIPE_HELP: { title: string; description: string }[] = [
 ];
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
-import { typography, radii } from '../theme';
-import type { AppColors } from '../theme';
+import { typography, radii, palette } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
@@ -96,8 +96,8 @@ export default function SwipeScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
-    const { colors, isDark } = useTheme();
-    const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+    const { colors, roles, isDark } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
     const isDemo = partyId === 'demo';
 
     const [venues, setVenues] = useState<Venue[]>([]);
@@ -621,7 +621,7 @@ export default function SwipeScreen() {
                         end={{ x: 1, y: 0 }}
                         style={{ paddingHorizontal: 36, paddingVertical: 18, borderRadius: radii.lg }}
                     >
-                        <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 }}>Back to lobby</Text>
+                        <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 }}>Back to lobby</Text>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
@@ -664,7 +664,7 @@ export default function SwipeScreen() {
                             end={{ x: 1, y: 0 }}
                             style={{ paddingHorizontal: 36, paddingVertical: 18, borderRadius: radii.lg, opacity: resetting ? 0.6 : 1 }}
                         >
-                            <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 }}>
+                            <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 }}>
                                 {resetting ? 'Resetting…' : 'Reset & Try Again'}
                             </Text>
                         </LinearGradient>
@@ -684,7 +684,7 @@ export default function SwipeScreen() {
                 </Text>
                 <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.85}>
                     <LinearGradient colors={colors.gradient as any} style={{ paddingHorizontal: 32, paddingVertical: 16, borderRadius: radii.lg }}>
-                        <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 }}>Back to Home</Text>
+                        <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 }}>Back to Home</Text>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
@@ -737,7 +737,7 @@ export default function SwipeScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <View style={styles.topBar}>
                     <TouchableOpacity onPress={() => nav.goBack()} style={styles.topIconBtn} accessibilityRole="button" accessibilityLabel="Back">
-                        <ArrowLeft size={22} color="white" />
+                        <ArrowLeft size={22} color={roles.onMedia} />
                     </TouchableOpacity>
                     <BlurView intensity={40} tint="dark" style={styles.midpointPill}>
                         <MapPin size={14} color={colors.primary} />
@@ -755,7 +755,7 @@ export default function SwipeScreen() {
                                 }).catch(() => {});
                             }}
                         >
-                            <Info size={22} color="white" />
+                            <Info size={22} color={roles.onMedia} />
                         </TouchableOpacity>
                         {isSolo && (
                             <View ref={donePillRef}>
@@ -766,7 +766,7 @@ export default function SwipeScreen() {
                                         end={{ x: 1, y: 0 }}
                                         style={styles.donePickPill}
                                     >
-                                        <Check size={13} color="white" />
+                                        <Check size={13} color={roles.onPrimary} />
                                         <Text style={styles.donePickText}>Done — pick now</Text>
                                     </LinearGradient>
                                 </TouchableOpacity>
@@ -808,7 +808,7 @@ export default function SwipeScreen() {
                                     end={{ x: 1, y: 1 }}
                                     style={[StyleSheet.absoluteFillObject, { alignItems: 'center', justifyContent: 'center', paddingBottom: 120 }]}
                                 >
-                                    <MapPin size={64} color="white" />
+                                    <MapPin size={64} color={roles.onPrimary} />
                                 </LinearGradient>
                             )}
 
@@ -827,7 +827,7 @@ export default function SwipeScreen() {
                                 <Text style={styles.stampNopeText}>NOPE</Text>
                             </Animated.View>
 
-                            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.95)']} style={styles.cardOverlay}>
+                            <LinearGradient colors={['transparent', roles.scrimStrong]} style={styles.cardOverlay}>
                                 {current.category && (
                                     <BlurView intensity={40} tint="dark" style={styles.categoryPill}>
                                         <Text style={styles.categoryText}>{current.category}</Text>
@@ -875,7 +875,7 @@ export default function SwipeScreen() {
                                                             />
                                                             {voted && (
                                                                 <View style={styles.votedBadge}>
-                                                                    <Check size={9} color="white" />
+                                                                    <Check size={9} color={roles.onPrimary} />
                                                                 </View>
                                                             )}
                                                         </View>
@@ -915,7 +915,7 @@ export default function SwipeScreen() {
                                     />
                                     {member.status === 'liked' && (
                                         <View style={styles.crewBadgeLiked}>
-                                            <Heart size={10} color="white" fill="white" />
+                                            <Heart size={10} color={roles.onPrimary} fill={roles.onPrimary} />
                                         </View>
                                     )}
                                     {member.status === 'active' && (
@@ -960,7 +960,7 @@ export default function SwipeScreen() {
                                 end={{ x: 1, y: 1 }}
                                 style={styles.likeBtn}
                             >
-                                <Heart size={40} color="white" fill="white" />
+                                <Heart size={40} color={roles.onPrimary} fill={roles.onPrimary} />
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -990,7 +990,7 @@ export default function SwipeScreen() {
                                 end={{ x: 1, y: 1 }}
                                 style={styles.webLikeBtn}
                             >
-                                <Heart size={26} color="white" fill="white" />
+                                <Heart size={26} color={roles.onPrimary} fill={roles.onPrimary} />
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -1117,26 +1117,26 @@ export default function SwipeScreen() {
     );
 }
 
-function makeStyles(c: AppColors, dark: boolean) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
         topIconBtn: {
             width: 40, height: 40, borderRadius: 20,
-            backgroundColor: 'rgba(0,0,0,0.4)',
+            backgroundColor: r.scrim,
             alignItems: 'center', justifyContent: 'center',
         },
         midpointPill: {
             flexDirection: 'row', alignItems: 'center', gap: 8,
             paddingHorizontal: 14, paddingVertical: 10,
-            borderRadius: radii.pill, overflow: 'hidden',
+            borderRadius: radii.pill, overflow: 'hidden', backgroundColor: r.scrim,
         },
-        midpointText: { color: 'white', fontSize: 13, fontFamily: 'Inter_500Medium' },
+        midpointText: { color: r.onMedia, fontSize: 13, fontFamily: 'Inter_500Medium' },
 
         progressWrap: { paddingHorizontal: 24, marginTop: 12 },
         progressTrack: {
             height: 4, borderRadius: 2,
-            backgroundColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)',
+            backgroundColor: r.fillStrong,
             overflow: 'hidden',
         },
         progressFill: { height: '100%' },
@@ -1154,7 +1154,7 @@ function makeStyles(c: AppColors, dark: boolean) {
             margin: 16, marginTop: 16,
             borderRadius: radii.xl, overflow: 'hidden',
             backgroundColor: c.surface,
-            shadowColor: '#000', shadowOffset: { width: 0, height: 16 },
+            shadowColor: palette.black, shadowOffset: { width: 0, height: 16 },
             shadowOpacity: 0.4, shadowRadius: 24, elevation: 16,
         },
         cardOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24, paddingTop: 80 },
@@ -1162,12 +1162,12 @@ function makeStyles(c: AppColors, dark: boolean) {
             alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6,
             borderRadius: radii.pill, overflow: 'hidden', marginBottom: 12,
         },
-        categoryText: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
-        venueName: { color: 'white', fontSize: 28, fontFamily: 'Inter_900Black', marginBottom: 6 },
+        categoryText: { color: r.onMedia, fontSize: 12, fontFamily: 'Inter_700Bold' },
+        venueName: { color: r.onMedia, fontSize: 28, fontFamily: 'Inter_900Black', marginBottom: 6 },
         venueMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
         metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-        metaText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontFamily: 'Inter_500Medium' },
-        metaDot: { color: 'rgba(255,255,255,0.5)' },
+        metaText: { color: r.onMediaMuted, fontSize: 14, fontFamily: 'Inter_500Medium' },
+        metaDot: { color: r.onMediaFaint },
 
         stamp: { position: 'absolute', top: '30%', borderWidth: 4, borderRadius: radii.lg, paddingHorizontal: 20, paddingVertical: 10 },
         stampLike: { left: 24, borderColor: c.success, transform: [{ rotate: '-20deg' }] },
@@ -1189,17 +1189,17 @@ function makeStyles(c: AppColors, dark: boolean) {
             zIndex: 10,
         },
         waitingTitle: {
-            color: 'white',
+            color: r.onMedia,
             fontFamily: 'Inter_700Bold',
             fontSize: 18,
             marginBottom: 20,
-            textShadowColor: 'rgba(0,0,0,0.8)',
+            textShadowColor: r.scrimStrong,
             textShadowOffset: { width: 0, height: 1 },
             textShadowRadius: 4,
         },
         waitingAvatarRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
         waitingMemberName: {
-            color: 'rgba(255,255,255,0.8)',
+            color: r.onMediaMuted,
             fontFamily: 'Inter_400Regular',
             fontSize: 10,
             marginTop: 4,
@@ -1209,9 +1209,9 @@ function makeStyles(c: AppColors, dark: boolean) {
         votedBadge: {
             position: 'absolute', bottom: -2, right: -2,
             width: 18, height: 18, borderRadius: 9,
-            backgroundColor: '#22C55E',
+            backgroundColor: r.successFill,
             alignItems: 'center', justifyContent: 'center',
-            borderWidth: 2, borderColor: 'rgba(0,0,0,0.6)',
+            borderWidth: 2, borderColor: r.scrim,
         },
 
         crewHud: {
@@ -1248,7 +1248,7 @@ function makeStyles(c: AppColors, dark: boolean) {
         actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 32, paddingVertical: 16 },
         passBtn: {
             width: 64, height: 64, borderRadius: 32,
-            backgroundColor: 'rgba(255,255,255,0.08)',
+            backgroundColor: r.fillStrong,
             borderWidth: 2, borderColor: c.danger,
             alignItems: 'center', justifyContent: 'center',
         },
@@ -1263,22 +1263,22 @@ function makeStyles(c: AppColors, dark: boolean) {
             flexDirection: 'row', alignItems: 'center', gap: 5,
             paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.pill,
         },
-        donePickText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 12 },
+        donePickText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 12 },
 
         voteCountPill: {
             position: 'absolute', top: 16, right: 16,
-            backgroundColor: 'rgba(34,197,94,0.85)',
+            backgroundColor: r.successFill,
             borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5,
         },
-        voteCountText: { color: 'white', fontSize: 12, fontFamily: 'Inter_700Bold' },
+        voteCountText: { color: r.onPrimary, fontSize: 12, fontFamily: 'Inter_700Bold' },
 
         venueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
         whyChip: {
-            flexShrink: 0, backgroundColor: 'rgba(108,62,244,0.75)',
+            flexShrink: 0, backgroundColor: r.primary,
             paddingHorizontal: 10, paddingVertical: 5,
             borderRadius: radii.pill, marginBottom: 2,
         },
-        whyChipText: { color: 'white', fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+        whyChipText: { color: r.onPrimary, fontSize: 11, fontFamily: 'Inter_600SemiBold' },
 
         webActions: {
             flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
@@ -1296,13 +1296,13 @@ function makeStyles(c: AppColors, dark: boolean) {
 
         toast: {
             position: 'absolute', top: 60, alignSelf: 'center', zIndex: 999,
-            backgroundColor: 'rgba(20,20,30,0.88)',
+            backgroundColor: r.scrimStrong,
             paddingHorizontal: 16, paddingVertical: 8,
             borderRadius: radii.pill, borderWidth: 1, borderColor: c.glassBorder,
         },
-        toastText: { color: 'white', fontSize: 13, fontFamily: 'Inter_500Medium' },
+        toastText: { color: r.onMedia, fontSize: 13, fontFamily: 'Inter_500Medium' },
 
-        pitchOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+        pitchOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: r.scrim },
         pitchSheet: {
             backgroundColor: c.bg,
             borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl,
@@ -1317,6 +1317,6 @@ function makeStyles(c: AppColors, dark: boolean) {
         pitchVenueName: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 14 },
         pitchBody: { color: c.text80, fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 22, marginBottom: 24 },
         pitchDismiss: { backgroundColor: c.primary, borderRadius: radii.md, paddingVertical: 12, alignItems: 'center' },
-        pitchDismissText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 },
+        pitchDismissText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
     });
 }

@@ -3,7 +3,8 @@ import { View, Text } from 'react-native';
 import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { colors } from '../theme';
+import { color } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { TILE_URL, TILE_ATTRIBUTION, leafletOverridesCss, mapThemeClass } from './mapTheme';
 import type { CrewMapProps } from './CrewMap';
@@ -15,7 +16,7 @@ function injectLeafletOverrides() {
     if (document.getElementById('leaflet-overrides')) return;
     const style = document.createElement('style');
     style.id = 'leaflet-overrides';
-    style.textContent = leafletOverridesCss;
+    style.textContent = `.linkdup-map-dark .leaflet-container { background: ${color.dark.background} !important; }${leafletOverridesCss}`;
     document.head.appendChild(style);
 }
 
@@ -33,26 +34,26 @@ function BoundsUpdater({ coords }: { coords: [number, number][] }) {
     return null;
 }
 
-function memberIcon(name: string, color: string | null | undefined, avatarUrl: string | null | undefined) {
-    const bg = color ?? '#6C3EF4';
+function memberIcon(name: string, color: string | null | undefined, avatarUrl: string | null | undefined, r: ColorRoles) {
+    const bg = color ?? r.primary;
     const initial = name.charAt(0).toUpperCase();
     const inner = avatarUrl
         ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />`
-        : `<span style="font-family:system-ui,sans-serif;font-size:15px;font-weight:700;color:#fff;">${initial}</span>`;
+        : `<span style="font-family:system-ui,sans-serif;font-size:15px;font-weight:700;color:${r.onPrimary};">${initial}</span>`;
     return L.divIcon({
         className: '',
-        html: `<div style="width:38px;height:38px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.6);overflow:hidden;box-sizing:border-box;">${inner}</div>`,
+        html: `<div style="width:38px;height:38px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;border:2.5px solid ${r.onMedia};box-shadow:0 2px 10px ${r.scrim};overflow:hidden;box-sizing:border-box;">${inner}</div>`,
         iconSize: [38, 38],
         iconAnchor: [19, 19],
     });
 }
 
-function midpointIcon() {
+function midpointIcon(r: ColorRoles, gradient: AppColors['gradient']) {
     return L.divIcon({
         className: '',
         html: `<div style="display:flex;flex-direction:column;align-items:center;">
-            <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6C3EF4,#00C2FF);border:3px solid #fff;box-shadow:0 0 20px rgba(108,62,244,0.8);animation:linkdup-pin-drop 0.6s cubic-bezier(0.22,0.61,0.36,1);"></div>
-            <div style="width:3px;height:12px;background:rgba(255,255,255,0.7);"></div>
+            <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,${gradient[0]},${gradient[1]});border:3px solid ${r.onMedia};box-shadow:0 0 20px ${r.primary};animation:linkdup-pin-drop 0.6s cubic-bezier(0.22,0.61,0.36,1);"></div>
+            <div style="width:3px;height:12px;background:${r.onMediaMuted};"></div>
         </div>`,
         iconSize: [22, 34],
         iconAnchor: [11, 34],
@@ -68,7 +69,7 @@ export default function CrewMap({
     onMemberPress,
     scrollWheelZoom = false,
 }: CrewMapProps) {
-    const { isDark } = useTheme();
+    const { isDark, colors, roles } = useTheme();
     useEffect(() => { injectLeafletOverrides(); }, []);
 
     const allCoords: [number, number][] = [
@@ -106,7 +107,7 @@ export default function CrewMap({
                     <Marker
                         key={m.user_id}
                         position={[m.display_lat, m.display_lng]}
-                        icon={memberIcon(m.display_name, m.avatar_color, m.avatar_url)}
+                        icon={memberIcon(m.display_name, m.avatar_color, m.avatar_url, roles)}
                         eventHandlers={{ click: () => onMemberPress?.(m.user_id) }}
                     />
                 ))}
@@ -114,14 +115,14 @@ export default function CrewMap({
                     <>
                         <Marker
                             position={[midpoint.lat, midpoint.lng]}
-                            icon={midpointIcon()}
+                            icon={midpointIcon(roles, colors.gradient)}
                         />
                         <Circle
                             center={[midpoint.lat, midpoint.lng]}
                             radius={radiusMeters}
                             pathOptions={{
-                                color: '#6C3EF4',
-                                fillColor: '#6C3EF4',
+                                color: roles.primary,
+                                fillColor: roles.primary,
                                 fillOpacity: 0.08,
                                 weight: 2,
                                 opacity: 0.5,

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { darkColors, lightColors, AppColors, color, ColorRoles } from '../theme';
 import { api } from '../services/api';
 
@@ -33,12 +34,21 @@ function readStored(): ThemeMode {
 function writeStored(m: ThemeMode) {
     if (typeof localStorage !== 'undefined') {
         localStorage.setItem('linkdup_theme', m);
+    } else {
+        AsyncStorage.setItem('linkdup_theme', m).catch(() => {});
     }
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const systemScheme = useColorScheme();
     const [mode, setMode_] = useState<ThemeMode>(readStored);
+
+    useEffect(() => {
+        if (typeof localStorage !== 'undefined') return;
+        AsyncStorage.getItem('linkdup_theme')
+            .then((m) => { if (m === 'dark' || m === 'light' || m === 'system') setMode_(m); })
+            .catch(() => {});
+    }, []);
 
     const isDark = mode === 'system' ? systemScheme !== 'light' : mode === 'dark';
     const colors = isDark ? darkColors : lightColors;

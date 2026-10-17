@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
 import { confirm, confirmBlock, errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { listView } from '../hooks/listView';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
@@ -26,21 +26,22 @@ const FRIENDS_HELP: { title: string; description: string }[] = [
 type FriendTab = 'friends' | 'requests' | 'search';
 
 function Avatar({ user, colors }: { user: any; colors: AppColors }) {
+    const { roles } = useTheme();
     const initials = (user.display_name ?? '?').slice(0, 2).toUpperCase();
     if (user.avatar_url) {
         return <Image source={{ uri: user.avatar_url }} style={{ width: 44, height: 44, borderRadius: 22 }} />;
     }
     return (
         <View style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: user.avatar_color ?? colors.primary }}>
-            <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 }}>{initials}</Text>
+            <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>{initials}</Text>
         </View>
     );
 }
 
 export default function FriendsScreen() {
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [activeTab, setActiveTab] = useState<FriendTab>('friends');
     const [friends, setFriends] = useState<any[]>([]);
@@ -202,7 +203,7 @@ export default function FriendsScreen() {
                                     <Text style={styles.emptyBody}>Search for people you know and send a friend request.</Text>
                                     <TouchableOpacity style={{ marginTop: 20, alignSelf: 'stretch' }} onPress={() => setActiveTab('search')} activeOpacity={0.8}>
                                         <LinearGradient colors={colors.gradient as any} style={{ paddingVertical: 14, borderRadius: radii.lg, alignItems: 'center' }}>
-                                            <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 15 }}>Find Friends</Text>
+                                            <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>Find Friends</Text>
                                         </LinearGradient>
                                     </TouchableOpacity>
                                 </Animated.View>
@@ -264,10 +265,10 @@ export default function FriendsScreen() {
                                                 <Text style={styles.userSub}>Wants to be friends</Text>
                                             </View>
                                             <View style={{ flexDirection: 'row', gap: 8 }}>
-                                                <TouchableOpacity onPress={() => handleDecline(r.friendship_id)} style={[styles.iconBtn, { backgroundColor: 'rgba(255,70,70,0.12)' }]} activeOpacity={0.7}>
+                                                <TouchableOpacity onPress={() => handleDecline(r.friendship_id)} style={[styles.iconBtn, { backgroundColor: roles.dangerSoft }]} activeOpacity={0.7}>
                                                     <UserX size={18} color={colors.danger} />
                                                 </TouchableOpacity>
-                                                <TouchableOpacity onPress={() => handleAccept(r.friendship_id)} style={[styles.iconBtn, { backgroundColor: 'rgba(108,62,244,0.18)' }]} activeOpacity={0.7}>
+                                                <TouchableOpacity onPress={() => handleAccept(r.friendship_id)} style={[styles.iconBtn, { backgroundColor: roles.primarySoft }]} activeOpacity={0.7}>
                                                     <UserCheck size={18} color={colors.primary} />
                                                 </TouchableOpacity>
                                             </View>
@@ -285,7 +286,7 @@ export default function FriendsScreen() {
                                 <TextInput
                                     style={styles.searchInput}
                                     placeholder="Search by name or @username"
-                                    placeholderTextColor={colors.text30}
+                                    placeholderTextColor={colors.textMuted}
                                     value={searchQ}
                                     onChangeText={setSearchQ}
                                     autoFocus
@@ -310,7 +311,7 @@ export default function FriendsScreen() {
                                                     {isPending && <Text style={[styles.userSub, { color: colors.text40 }]}>Request sent</Text>}
                                                 </View>
                                                 {!isFriend && !isPending && (
-                                                    <TouchableOpacity onPress={() => handleSendRequest(u.id)} style={[styles.iconBtn, { backgroundColor: 'rgba(108,62,244,0.18)' }]} activeOpacity={0.7}>
+                                                    <TouchableOpacity onPress={() => handleSendRequest(u.id)} style={[styles.iconBtn, { backgroundColor: roles.primarySoft }]} activeOpacity={0.7}>
                                                         <UserPlus size={18} color={colors.primary} />
                                                     </TouchableOpacity>
                                                 )}
@@ -326,7 +327,7 @@ export default function FriendsScreen() {
 
                             {!searchQ && (
                                 <View style={styles.emptyState}>
-                                    <Users size={40} color={colors.text30} />
+                                    <Users size={40} color={colors.textMuted} />
                                     <Text style={[styles.emptyBody, { marginTop: 12 }]}>Type a name to find people you know.</Text>
                                 </View>
                             )}
@@ -338,7 +339,7 @@ export default function FriendsScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         header: {
@@ -368,7 +369,7 @@ function makeStyles(c: AppColors) {
         },
         tabActive: { backgroundColor: c.primary, borderColor: c.primary },
         tabText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
-        tabTextActive: { color: 'white' },
+        tabTextActive: { color: r.onPrimary },
         friendRow: {
             flexDirection: 'row',
             alignItems: 'center',

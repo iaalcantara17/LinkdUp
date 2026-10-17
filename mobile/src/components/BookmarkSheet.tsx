@@ -9,7 +9,7 @@ import { X, Bookmark, Plus, FolderPlus } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../services/api';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface Collection {
@@ -26,8 +26,8 @@ interface Props {
 }
 
 export default function BookmarkSheet({ postId, visible, onClose, onSaved }: Props) {
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [collections, setCollections] = useState<Collection[]>([]);
     const [loading, setLoading] = useState(false);
@@ -184,11 +184,11 @@ export default function BookmarkSheet({ postId, visible, onClose, onSaved }: Pro
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         backdrop: {
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: r.scrim,
         },
         sheet: {
             backgroundColor: c.surface,
@@ -264,7 +264,7 @@ function makeStyles(c: AppColors) {
             borderRadius: 20,
         },
         createBtnText: {
-            color: 'white',
+            color: r.onPrimary,
             fontFamily: 'Inter_700Bold',
             fontSize: 13,
         },

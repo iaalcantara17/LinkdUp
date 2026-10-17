@@ -10,7 +10,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
 import { confirm, showError } from '../components/dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import BottomNav from '../components/BottomNav';
 
@@ -33,8 +33,8 @@ type TabId = 'all' | string;
 
 export default function SavedScreen() {
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
     const { width } = useWindowDimensions();
 
     const [collections, setCollections] = useState<Collection[]>([]);
@@ -205,7 +205,7 @@ export default function SavedScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: {
             flex: 1,
@@ -284,10 +284,10 @@ function makeStyles(c: AppColors) {
             left: 0,
             right: 0,
             padding: 8,
-            backgroundColor: 'rgba(0,0,0,0.38)',
+            backgroundColor: r.scrim,
         },
         tileName: {
-            color: 'white',
+            color: r.onMedia,
             fontFamily: 'Inter_600SemiBold',
             fontSize: 11,
         },

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
+import { palette } from '../../theme';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -44,7 +45,7 @@ export default function HighlightRing({ children, borderRadius = 999, ringPaddin
                     bottom: -ringPadding,
                     borderRadius: borderRadius + ringPadding,
                     borderWidth: 2,
-                    borderColor: '#6C3EF4',
+                    borderColor: palette.violet,
                 }, ringStyle]}
             />
             {children}

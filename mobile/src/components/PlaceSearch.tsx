@@ -65,7 +65,7 @@ export default function PlaceSearch({ confirmLabel, onPick, onCancel }: Props) {
                 <TextInput
                     style={styles.input}
                     placeholder="City or address"
-                    placeholderTextColor={colors.text30}
+                    placeholderTextColor={colors.textMuted}
                     value={query}
                     onChangeText={setQuery}
                     onSubmitEditing={search}

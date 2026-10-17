@@ -56,6 +56,8 @@ npx expo start --web --clear
 
 The backend runs on Render's free tier from `render.yaml`, and the web app runs on Vercel. Railway is retired. Steps are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
+The web app reports page views to Vercel Analytics: `mobile/App.tsx` calls `inject()` from `@vercel/analytics` once at startup on web only, never on iOS or Android. Analytics must be enabled in the Vercel project (Analytics tab) for data to appear; it does nothing locally.
+
 ## Team
 
 | Name | Role |

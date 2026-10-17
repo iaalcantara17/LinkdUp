@@ -18,7 +18,7 @@ import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
 import { supabase } from '../services/supabase';
 import { typography, radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 type Member = {
@@ -159,7 +159,8 @@ interface CalendarModalProps {
 }
 
 function CalendarModal({ visible, selectedDayKey, onSelect, onClose, colors }: CalendarModalProps) {
-    const calStyles = useMemo(() => makeCalStyles(colors), [colors]);
+    const { roles } = useTheme();
+    const calStyles = useMemo(() => makeCalStyles(colors, roles), [colors, roles]);
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth());
@@ -239,7 +240,7 @@ function CalendarModal({ visible, selectedDayKey, onSelect, onClose, colors }: C
                                             end={{ x: 1, y: 1 }}
                                             style={calStyles.cellCircle}
                                         >
-                                            <Text style={[calStyles.dayNum, { color: 'white' }]}>{cell.day}</Text>
+                                            <Text style={[calStyles.dayNum, { color: roles.onPrimary }]}>{cell.day}</Text>
                                         </LinearGradient>
                                     ) : (
                                         <View style={[
@@ -264,8 +265,8 @@ export default function DateTimeSetupScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [dates, setDates] = useState<ProposedDate[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
@@ -485,7 +486,7 @@ export default function DateTimeSetupScreen() {
                         {lockedDate && (
                             <Animated.View entering={FadeInDown.duration(300)} style={styles.lockedCard}>
                                 <View style={styles.lockedIcon}>
-                                    <Lock size={22} color="white" />
+                                    <Lock size={22} color={roles.onPrimary} />
                                 </View>
                                 <Text style={styles.lockedKicker}>Date confirmed!</Text>
                                 <Text style={styles.lockedTitle}>{formatDateTime(lockedDate.starts_at)}</Text>
@@ -494,7 +495,7 @@ export default function DateTimeSetupScreen() {
                                     activeOpacity={0.85}
                                     onPress={() => nav.navigate('CalendarConfirmation', { partyId })}
                                 >
-                                    <CalendarPlus size={18} color="white" />
+                                    <CalendarPlus size={18} color={roles.onPrimary} />
                                     <Text style={styles.calendarBtnText}>Add to Google Calendar</Text>
                                 </TouchableOpacity>
                             </Animated.View>
@@ -524,10 +525,10 @@ export default function DateTimeSetupScreen() {
                                                             end={{ x: 1, y: 1 }}
                                                             style={[styles.dayCard, styles.dayCellSelected]}
                                                         >
-                                                            <Text style={[styles.dayLabel, { color: 'white' }]}>{dayAbbrev}</Text>
-                                                            <Text style={[styles.monthLabel, { color: 'white' }]}>{monthAbbrev}</Text>
-                                                            <Text style={[styles.dateLabel, { color: 'white' }]}>{d.date.getDate()}</Text>
-                                                            <Text style={[styles.proposedCount, { color: 'rgba(255,255,255,0.82)' }]}>
+                                                            <Text style={[styles.dayLabel, { color: roles.onPrimary }]}>{dayAbbrev}</Text>
+                                                            <Text style={[styles.monthLabel, { color: roles.onPrimary }]}>{monthAbbrev}</Text>
+                                                            <Text style={[styles.dateLabel, { color: roles.onPrimary }]}>{d.date.getDate()}</Text>
+                                                            <Text style={[styles.proposedCount, { color: roles.onPrimary }]}>
                                                                 {d.proposedCount || 'new'}
                                                             </Text>
                                                         </LinearGradient>
@@ -641,7 +642,7 @@ export default function DateTimeSetupScreen() {
                                     onPress={handlePropose}
                                     disabled={!selectedIso || proposing}
                                     loading={proposing}
-                                    leftIcon={<CalendarPlus size={19} color="white" />}
+                                    leftIcon={<CalendarPlus size={19} color={roles.onPrimary} />}
                                 />
                                 {selectedIso && <Text style={styles.selectedLabel}>{formatDateTime(selectedIso)}</Text>}
                             </Animated.View>
@@ -720,7 +721,7 @@ export default function DateTimeSetupScreen() {
                                                 disabled={busyDateId === date.id}
                                                 onPress={() => handleVote(date.id, true)}
                                             >
-                                                <Check size={16} color={date.my_vote === true ? 'white' : colors.success} />
+                                                <Check size={16} color={date.my_vote === true ? roles.onPrimary : colors.success} />
                                                 <Text style={[styles.voteBtnText, date.my_vote === true && styles.voteBtnTextActive]}>
                                                     Works for me
                                                 </Text>
@@ -732,7 +733,7 @@ export default function DateTimeSetupScreen() {
                                                 disabled={busyDateId === date.id}
                                                 onPress={() => handleVote(date.id, false)}
                                             >
-                                                <X size={16} color={date.my_vote === false ? 'white' : colors.danger} />
+                                                <X size={16} color={date.my_vote === false ? roles.onPrimary : colors.danger} />
                                                 <Text style={[styles.voteBtnText, styles.voteBtnNoText, date.my_vote === false && styles.voteBtnTextActive]}>
                                                     Can't make it
                                                 </Text>
@@ -746,7 +747,7 @@ export default function DateTimeSetupScreen() {
                                                 disabled={busyDateId === date.id}
                                                 onPress={() => handleLock(date.id)}
                                             >
-                                                <Lock size={16} color="white" />
+                                                <Lock size={16} color={roles.onPrimary} />
                                                 <Text style={styles.lockBtnText}>Set as date</Text>
                                             </TouchableOpacity>
                                         )}
@@ -781,7 +782,7 @@ export default function DateTimeSetupScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         header: {
@@ -818,7 +819,7 @@ function makeStyles(c: AppColors) {
         dateLabel: { color: c.textPrimary, fontSize: 20, fontFamily: 'Inter_900Black' },
         proposedCount: { color: c.text40, fontSize: 10, fontFamily: 'Inter_600SemiBold', marginTop: 8 },
         calendarLink: { alignSelf: 'flex-start', paddingVertical: 2 },
-        calendarLinkText: { color: c.primaryAlt, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+        calendarLinkText: { color: r.primaryText, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
         timePanel: {
             padding: 16,
             borderRadius: radii.lg,
@@ -838,7 +839,7 @@ function makeStyles(c: AppColors) {
             overflow: 'hidden',
         },
         segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-        segmentBtnActive: { backgroundColor: 'rgba(108,62,244,0.30)' },
+        segmentBtnActive: { backgroundColor: r.primarySoft },
         segmentText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
         segmentTextActive: { color: c.textPrimary },
         timeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
@@ -852,7 +853,7 @@ function makeStyles(c: AppColors) {
             borderColor: c.glassBorder,
         },
         timeText: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
-        timeTextSelected: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
+        timeTextSelected: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
         customTimePicker: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
         stepperGroup: {
             flexDirection: 'row',
@@ -881,7 +882,7 @@ function makeStyles(c: AppColors) {
         timeSep: { color: c.textPrimary, fontSize: 22, fontFamily: 'Inter_700Bold' },
         ampmToggle: { borderRadius: radii.md, overflow: 'hidden' },
         ampmGradient: { paddingHorizontal: 18, height: 50, alignItems: 'center', justifyContent: 'center' },
-        ampmText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 16 },
+        ampmText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
         selectedLabel: { color: c.text60, fontSize: 13, textAlign: 'center', fontFamily: 'Inter_500Medium' },
         lockedCard: {
             padding: 20,
@@ -895,7 +896,7 @@ function makeStyles(c: AppColors) {
             width: 42,
             height: 42,
             borderRadius: 21,
-            backgroundColor: c.success,
+            backgroundColor: r.successFill,
             alignItems: 'center',
             justifyContent: 'center',
         },
@@ -912,7 +913,7 @@ function makeStyles(c: AppColors) {
             paddingVertical: 11,
             borderRadius: 999,
         },
-        calendarBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
+        calendarBtnText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
         emptyState: {
             padding: 18,
             borderRadius: radii.lg,
@@ -968,12 +969,12 @@ function makeStyles(c: AppColors) {
             gap: 6,
             paddingHorizontal: 10,
         },
-        voteBtnYesActive: { backgroundColor: c.success },
+        voteBtnYesActive: { backgroundColor: r.successFill },
         voteBtnNo: { borderColor: c.danger },
-        voteBtnNoActive: { backgroundColor: c.danger },
+        voteBtnNoActive: { backgroundColor: r.dangerStrong },
         voteBtnText: { color: c.success, fontFamily: 'Inter_700Bold', fontSize: 13 },
         voteBtnNoText: { color: c.danger },
-        voteBtnTextActive: { color: 'white' },
+        voteBtnTextActive: { color: r.onPrimary },
         lockBtn: {
             minHeight: 44,
             borderRadius: 999,
@@ -983,27 +984,27 @@ function makeStyles(c: AppColors) {
             justifyContent: 'center',
             gap: 8,
         },
-        lockBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 14 },
+        lockBtnText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
         toast: {
             position: 'absolute',
             left: 24,
             right: 24,
             bottom: 26,
-            backgroundColor: 'rgba(0,0,0,0.82)',
+            backgroundColor: r.scrimStrong,
             borderRadius: 999,
             paddingVertical: 12,
             paddingHorizontal: 18,
             alignItems: 'center',
         },
-        toastText: { color: 'white', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+        toastText: { color: r.onMedia, fontSize: 13, fontFamily: 'Inter_600SemiBold' },
     });
 }
 
-function makeCalStyles(c: AppColors) {
+function makeCalStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         overlay: {
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.7)',
+            backgroundColor: r.scrim,
             justifyContent: 'flex-end',
         },
         sheet: {

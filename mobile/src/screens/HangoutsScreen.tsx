@@ -27,7 +27,7 @@ import { listView } from '../hooks/listView';
 import DialogHost from '../components/DialogHost';
 import { confirm, errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 const HANGOUTS_HELP: { title: string; description: string }[] = [
@@ -71,25 +71,23 @@ function openGoogleCalendar() {
     }
 }
 
-const STATUS_COLORS: Record<string, [string, string]> = {
-    matched:   ['#6C3EF4', '#9B6AF8'],
-    scheduled: ['#00C2FF', '#0090C0'],
-    locked:    ['#22C55E', '#16A34A'],
-};
 const STATUS_LABELS: Record<string, string> = {
     matched: 'MATCHED', scheduled: 'SCHEDULED', locked: 'LOCKED IN',
 };
 
 function StatusPill({ status }: { status: string }) {
-    const gradColors = STATUS_COLORS[status] ?? ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.10)'];
+    const { roles: r } = useTheme();
+    const fill = ({ matched: r.primary, scheduled: r.gradientEnd, locked: r.successFill } as Record<string, string>)[status];
+    const gradColors = [fill ?? r.fillStrong, fill ?? r.fillStrong];
     return (
         <LinearGradient colors={gradColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill, alignSelf: 'flex-start' }}>
-            <Text style={{ color: 'white', fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.5 }}>{STATUS_LABELS[status] ?? status.toUpperCase()}</Text>
+            <Text style={{ color: fill ? r.onPrimary : r.text, fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.5 }}>{STATUS_LABELS[status] ?? status.toUpperCase()}</Text>
         </LinearGradient>
     );
 }
 
 function HangoutCard({ item, index, onPress, onMenuPress, colors }: { item: Hangout; index: number; onPress: () => void; onMenuPress: () => void; colors: AppColors }) {
+    const { roles } = useTheme();
     const venueName = item.venue?.name ?? item.name ?? 'Untitled hangout';
     const venueAddress = item.venue?.address ?? null;
 
@@ -114,7 +112,7 @@ function HangoutCard({ item, index, onPress, onMenuPress, colors }: { item: Hang
                 ) : null}
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Calendar size={13} color={item.locked_date ? colors.primaryAlt : colors.text40} />
+                    <Calendar size={13} color={item.locked_date ? roles.primaryText : colors.text40} />
                     {item.locked_date ? (
                         <Text style={{ color: colors.text80, fontSize: 13, fontFamily: 'Inter_400Regular' }}>{formatDate(item.locked_date.starts_at)}</Text>
                     ) : (
@@ -139,8 +137,8 @@ function HangoutCard({ item, index, onPress, onMenuPress, colors }: { item: Hang
 
                 {item.locked_date ? (
                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8, alignSelf: 'flex-start', paddingVertical: 2 }} activeOpacity={0.75} onPress={(e) => { e.stopPropagation?.(); openGoogleCalendar(); }}>
-                        <ExternalLink size={12} color={colors.primaryAlt} />
-                        <Text style={{ color: colors.primaryAlt, fontSize: 12, fontFamily: 'Inter_500Medium' }}>Open in Google Calendar</Text>
+                        <ExternalLink size={12} color={roles.primaryText} />
+                        <Text style={{ color: roles.primaryText, fontSize: 12, fontFamily: 'Inter_500Medium' }}>Open in Google Calendar</Text>
                     </TouchableOpacity>
                 ) : null}
             </Pressable>
@@ -150,8 +148,8 @@ function HangoutCard({ item, index, onPress, onMenuPress, colors }: { item: Hang
 
 export default function HangoutsScreen() {
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [hangouts, setHangouts] = useState<Hangout[]>([]);
     const [loaded, setLoaded] = useState(false);
@@ -307,7 +305,7 @@ export default function HangoutsScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 4 },
@@ -323,11 +321,11 @@ function makeStyles(c: AppColors) {
         },
         emptyTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 8, textAlign: 'center' },
         emptyBody: { color: c.text60, fontSize: 14, textAlign: 'center', fontFamily: 'Inter_400Regular', lineHeight: 20 },
-        menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+        menuOverlay: { flex: 1, backgroundColor: r.scrim, justifyContent: 'flex-end' },
         menuSheet: { backgroundColor: c.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.glassBorder, padding: 24, paddingBottom: 36 },
         menuTitle: { color: c.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 16 },
         menuRow: { paddingVertical: 16, borderTopWidth: 1, borderTopColor: c.glassBorder },
-        menuDestructive: { color: '#FF4D5F', fontSize: 16, fontFamily: 'Inter_600SemiBold' },
+        menuDestructive: { color: r.danger, fontSize: 16, fontFamily: 'Inter_600SemiBold' },
         menuCancel: { color: c.text60, fontSize: 16, fontFamily: 'Inter_500Medium' },
     });
 }

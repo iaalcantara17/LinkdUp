@@ -24,7 +24,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function LocationPermissionScreen() {
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
+    const { colors, roles } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [loading, setLoading] = useState(false);
@@ -116,7 +116,7 @@ export default function LocationPermissionScreen() {
             <Animated.View entering={FadeIn.duration(400)} style={styles.content}>
                 <View style={styles.pinOuter}>
                     <LinearGradient
-                        colors={['rgba(108,62,244,0.2)', 'rgba(0,194,255,0.2)']}
+                        colors={[roles.primarySoft, roles.accentSoft]}
                         style={styles.pinGlow}
                     >
                         <Animated.View style={[styles.ring, ringStyle]} />
@@ -134,7 +134,7 @@ export default function LocationPermissionScreen() {
                 <View style={styles.benefits}>
                     <View style={styles.benefitRow}>
                         <IconBadge size={32} radius={16}>
-                            <Navigation size={16} color="white" />
+                            <Navigation size={16} color={roles.onPrimary} />
                         </IconBadge>
                         <View style={styles.benefitText}>
                             <Text style={styles.benefitTitle}>Fair for everyone</Text>
@@ -143,7 +143,7 @@ export default function LocationPermissionScreen() {
                     </View>
                     <View style={[styles.benefitRow, styles.benefitRowGap]}>
                         <IconBadge size={32} radius={16}>
-                            <MapPin size={16} color="white" />
+                            <MapPin size={16} color={roles.onPrimary} />
                         </IconBadge>
                         <View style={styles.benefitText}>
                             <Text style={styles.benefitTitle}>Discover nearby gems</Text>

@@ -12,8 +12,8 @@ import { ArrowRight, Check, X, AlertTriangle } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
-import { typography, radii } from '../theme';
-import type { AppColors } from '../theme';
+import { typography, radii, palette } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -39,9 +39,9 @@ interface FieldError {
 
 export default function CompleteProfileScreen() {
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
+    const { colors, roles } = useTheme();
     const { refreshProfile, userProfile } = useAuth();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [displayName,  setDisplayName]  = useState('');
     const [username,     setUsername]     = useState('');
@@ -248,7 +248,7 @@ export default function CompleteProfileScreen() {
                                     <TextInput
                                         style={[styles.input, touched.displayName && errors.displayName ? styles.inputError : null]}
                                         placeholder="Your name"
-                                        placeholderTextColor={colors.text30}
+                                        placeholderTextColor={colors.textMuted}
                                         value={displayName}
                                         onChangeText={setDisplayName}
                                         onBlur={handleDisplayNameBlur}
@@ -259,7 +259,7 @@ export default function CompleteProfileScreen() {
                                     />
                                     {touched.displayName && errors.displayName && (
                                         <View style={styles.errorRow}>
-                                            <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                                            <AlertTriangle size={13} color={roles.danger} style={{ marginRight: 4 }} />
                                             <Text style={styles.errorText}>{errors.displayName}</Text>
                                         </View>
                                     )}
@@ -277,7 +277,7 @@ export default function CompleteProfileScreen() {
                                         ref={usernameRef}
                                         style={[styles.input, styles.usernameInput, { borderWidth: 0, backgroundColor: 'transparent', paddingHorizontal: 0 }]}
                                         placeholder="your_handle"
-                                        placeholderTextColor={colors.text30}
+                                        placeholderTextColor={colors.textMuted}
                                         value={username}
                                         onChangeText={handleUsernameChange}
                                         onBlur={handleUsernameBlur}
@@ -298,12 +298,12 @@ export default function CompleteProfileScreen() {
                                             <Check size={13} color={colors.success} style={{ marginRight: 4 }} />
                                         )}
                                         {usernameStatus === 'unavailable' && (
-                                            <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                                            <AlertTriangle size={13} color={roles.danger} style={{ marginRight: 4 }} />
                                         )}
                                         <Text style={[
                                             styles.validationText,
                                             usernameStatus === 'available'   && { color: colors.success },
-                                            usernameStatus === 'unavailable' && { color: '#EF4444' },
+                                            usernameStatus === 'unavailable' && { color: roles.danger },
                                         ]}>
                                             {usernameStatus === 'checking'    ? 'Checking...' :
                                              usernameStatus === 'available'   ? 'Available' :
@@ -313,7 +313,7 @@ export default function CompleteProfileScreen() {
                                 )}
                                 {touched.username && username.length === 0 && (
                                     <View style={styles.errorRow}>
-                                        <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                                        <AlertTriangle size={13} color={roles.danger} style={{ marginRight: 4 }} />
                                         <Text style={styles.errorText}>Username is required</Text>
                                     </View>
                                 )}
@@ -333,7 +333,7 @@ export default function CompleteProfileScreen() {
                                                 touched.school && errors.school ? styles.inputError : null,
                                             ]}
                                             placeholder="Search for your school..."
-                                            placeholderTextColor={colors.text30}
+                                            placeholderTextColor={colors.textMuted}
                                             value={schoolQuery}
                                             onChangeText={handleSchoolQueryChange}
                                             onBlur={handleSchoolBlur}
@@ -380,7 +380,7 @@ export default function CompleteProfileScreen() {
                                 </View>
                                 {touched.school && errors.school && (
                                     <View style={styles.errorRow}>
-                                        <AlertTriangle size={13} color="#EF4444" style={{ marginRight: 4 }} />
+                                        <AlertTriangle size={13} color={roles.danger} style={{ marginRight: 4 }} />
                                         <Text style={styles.errorText}>{errors.school}</Text>
                                     </View>
                                 )}
@@ -393,7 +393,7 @@ export default function CompleteProfileScreen() {
                                     ref={gradRef}
                                     style={styles.input}
                                     placeholder="2026"
-                                    placeholderTextColor={colors.text30}
+                                    placeholderTextColor={colors.textMuted}
                                     value={gradYear}
                                     onChangeText={setGradYear}
                                     keyboardType="number-pad"
@@ -407,7 +407,7 @@ export default function CompleteProfileScreen() {
                                 onPress={handleSave}
                                 loading={loading}
                                 disabled={!canSubmit || loading}
-                                rightIcon={<ArrowRight size={20} color="white" />}
+                                rightIcon={<ArrowRight size={20} color={roles.onPrimary} />}
                             />
                             {!canSubmit && (
                                 <Text style={styles.hint}>Complete all required fields to continue.</Text>
@@ -420,7 +420,7 @@ export default function CompleteProfileScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root:  { flex: 1, backgroundColor: c.bg },
         title: { ...typography.h1, color: c.textPrimary, fontSize: 30, marginBottom: 8 },
@@ -457,10 +457,10 @@ function makeStyles(c: AppColors) {
             fontFamily: 'Inter_400Regular',
         },
         inputError: {
-            borderColor: '#EF4444',
+            borderColor: r.danger,
         },
         errorRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-        errorText: { color: '#EF4444', fontSize: 12, fontFamily: 'Inter_400Regular' },
+        errorText: { color: r.danger, fontSize: 12, fontFamily: 'Inter_400Regular' },
         validationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
         validationText: { color: c.text60, fontSize: 12, fontFamily: 'Inter_400Regular' },
         hint: { color: c.text40, textAlign: 'center', marginTop: 10, fontSize: 12, fontFamily: 'Inter_400Regular' },
@@ -477,7 +477,7 @@ function makeStyles(c: AppColors) {
             borderRadius: radii.md,
             marginTop: 4,
             overflow: 'hidden',
-            shadowColor: '#000',
+            shadowColor: palette.black,
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.2,
             shadowRadius: 8,

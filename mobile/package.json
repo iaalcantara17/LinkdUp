@@ -22,6 +22,7 @@
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
     "@supabase/supabase-js": "^2.45.0",
+    "@vercel/analytics": "^2.0.1",
     "expo": "~54.0.37",
     "expo-blur": "~15.0.8",
     "expo-font": "~14.0.12",

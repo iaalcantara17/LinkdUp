@@ -21,7 +21,7 @@ import UserProfileSheet from '../components/UserProfileSheet';
 import { api, photoUri } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
@@ -132,8 +132,8 @@ export default function MatchScreen() {
     const nav = useNavigation<any>();
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId ?? 'demo';
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [venue, setVenue] = useState<any>(null);
     const [venueLoaded, setVenueLoaded] = useState(false);
@@ -227,8 +227,8 @@ export default function MatchScreen() {
 
     return (
         <View style={styles.root}>
-            <GlowOrb color="rgba(108,62,244,0.4)" top={height * 0.15} left={width * 0.15} size={280} />
-            <GlowOrb color="rgba(0,194,255,0.4)" top={height * 0.40} left={width * 0.35} size={240} delay={800} />
+            <GlowOrb color={roles.primaryBorder} top={height * 0.15} left={width * 0.15} size={280} />
+            <GlowOrb color={roles.accentSoft} top={height * 0.40} left={width * 0.35} size={240} delay={800} />
 
             {showConfetti && (
                 <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -248,7 +248,7 @@ export default function MatchScreen() {
                                 end={{ x: 1, y: 1 }}
                                 style={styles.sparkleBadgeBg}
                             >
-                                <Sparkles size={40} color="white" />
+                                <Sparkles size={40} color={roles.onPrimary} />
                             </LinearGradient>
                         </Animated.View>
                         <Text style={styles.title}>IT'S A LINK! 🎉</Text>
@@ -318,8 +318,8 @@ export default function MatchScreen() {
                         <GradientButton
                             title="Set the Date"
                             onPress={handleSetDate}
-                            leftIcon={<Calendar size={22} color="white" />}
-                            rightIcon={<ArrowRight size={20} color="white" />}
+                            leftIcon={<Calendar size={22} color={roles.onPrimary} />}
+                            rightIcon={<ArrowRight size={20} color={roles.onPrimary} />}
                         />
                         <View style={{ height: 12 }} />
                         <GradientButton
@@ -341,7 +341,7 @@ export default function MatchScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
 
@@ -367,9 +367,9 @@ function makeStyles(c: AppColors) {
             paddingHorizontal: 12,
             paddingVertical: 6,
             borderRadius: radii.pill,
-            backgroundColor: 'rgba(0,0,0,0.6)',
+            backgroundColor: r.scrim,
         },
-        venueCategoryText: { color: 'white', fontSize: 13, fontFamily: 'Inter_700Bold' },
+        venueCategoryText: { color: r.onMedia, fontSize: 13, fontFamily: 'Inter_700Bold' },
 
         venueName: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 24, marginBottom: 8 },
         venueMetaRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },

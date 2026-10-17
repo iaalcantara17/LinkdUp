@@ -13,7 +13,7 @@ import { useTheme } from '../context/ThemeContext';
 
 export default function JoinPartyScreen() {
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
+    const { colors, roles } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
     const [code, setCode] = useState('');
@@ -61,7 +61,7 @@ export default function JoinPartyScreen() {
                         autoCapitalize="characters"
                         maxLength={6}
                         placeholder="ABCDEF"
-                        placeholderTextColor={colors.text30}
+                        placeholderTextColor={colors.textMuted}
                         autoFocus
                     />
 
@@ -69,7 +69,7 @@ export default function JoinPartyScreen() {
                         title="Join"
                         onPress={handleJoin}
                         loading={loading}
-                        rightIcon={<ArrowRight size={20} color="white" />}
+                        rightIcon={<ArrowRight size={20} color={roles.onPrimary} />}
                     />
                 </Animated.View>
             </SafeAreaView>

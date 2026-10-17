@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -10,10 +10,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, Heart } from 'lucide-react-native';
-import { colors, radii } from '../../theme';
+import { radii } from '../../theme';
+import type { AppColors, ColorRoles } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import Callout from './Callout';
 
 export default function SlideFourVisual() {
+    const { colors, roles: r } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, r), [colors, r]);
     const rotation  = useSharedValue(0);
     const heartGlow = useSharedValue(0.35);
 
@@ -73,7 +77,7 @@ export default function SlideFourVisual() {
                         end={{ x: 1, y: 1 }}
                         style={styles.heartBtn}
                     >
-                        <Heart size={20} color="white" fill="white" />
+                        <Heart size={20} color={r.onPrimary} fill={r.onPrimary} />
                     </LinearGradient>
                 </View>
             </View>
@@ -83,57 +87,59 @@ export default function SlideFourVisual() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { alignItems: 'center', gap: 10 },
-    card: {
-        width: 185,
-        height: 145,
-        borderRadius: radii.xl,
-        overflow: 'hidden',
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.glassBorder,
-    },
-    photo: { flex: 1 },
-    info: { padding: 9 },
-    venueName: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 12 },
-    venueSub:  { color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
-    buttons: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 20,
-    },
-    passBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        borderWidth: 2,
-        borderColor: colors.danger,
-        backgroundColor: 'rgba(239,68,68,0.10)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    heartWrap: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    heartGlow: {
-        position: 'absolute',
-        top: -7,
-        left: -7,
-        width: 54,
-        height: 54,
-        borderRadius: 27,
-        borderWidth: 2,
-        borderColor: '#6C3EF4',
-    },
-    heartBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-});
+function makeStyles(colors: AppColors, r: ColorRoles) {
+    return StyleSheet.create({
+        root: { alignItems: 'center', gap: 10 },
+        card: {
+            width: 185,
+            height: 145,
+            borderRadius: radii.xl,
+            overflow: 'hidden',
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.glassBorder,
+        },
+        photo: { flex: 1 },
+        info: { padding: 9 },
+        venueName: { color: r.text, fontFamily: 'Inter_700Bold', fontSize: 12 },
+        venueSub:  { color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
+        buttons: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 20,
+        },
+        passBtn: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            borderWidth: 2,
+            borderColor: colors.danger,
+            backgroundColor: r.dangerSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        heartWrap: {
+            width: 40,
+            height: 40,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        heartGlow: {
+            position: 'absolute',
+            top: -7,
+            left: -7,
+            width: 54,
+            height: 54,
+            borderRadius: 27,
+            borderWidth: 2,
+            borderColor: r.primary,
+        },
+        heartBtn: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+    });
+}

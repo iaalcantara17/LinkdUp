@@ -15,8 +15,8 @@ import { ArrowLeft, Check, X, Star } from 'lucide-react-native';
 import { api, photoUri } from '../services/api';
 import { supabase } from '../services/supabase';
 import AvatarBubble from '../components/AvatarBubble';
-import { typography, radii } from '../theme';
-import type { AppColors } from '../theme';
+import { typography, radii, palette } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface Venue {
@@ -40,8 +40,8 @@ export default function ProposalScreen() {
     const route = useRoute<any>();
     const partyId: string = route.params?.partyId;
     const initialLocationId: string = route.params?.locationId;
-    const { colors, isDark } = useTheme();
-    const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [venue, setVenue] = useState<Venue | null>(null);
     const [partyName, setPartyName] = useState('');
@@ -262,7 +262,7 @@ export default function ProposalScreen() {
                                 </View>
                             )}
                             <LinearGradient
-                                colors={['transparent', 'rgba(0,0,0,0.92)']}
+                                colors={['transparent', roles.scrimStrong]}
                                 style={styles.heroOverlay}
                             >
                                 {venue.category ? (
@@ -274,7 +274,7 @@ export default function ProposalScreen() {
                                 <View style={styles.venueMeta}>
                                     {venue.rating ? (
                                         <>
-                                            <Star size={13} color="#FBBF24" fill="#FBBF24" />
+                                            <Star size={13} color={palette.yellow400} fill={palette.yellow400} />
                                             <Text style={styles.metaText}>{venue.rating}</Text>
                                             <Text style={styles.metaDot}>•</Text>
                                         </>
@@ -303,12 +303,12 @@ export default function ProposalScreen() {
                                             />
                                             {resp === true && (
                                                 <View style={styles.badgeYes}>
-                                                    <Check size={10} color="white" />
+                                                    <Check size={10} color={roles.onPrimary} />
                                                 </View>
                                             )}
                                             {resp === false && (
                                                 <View style={styles.badgeNo}>
-                                                    <X size={10} color="white" />
+                                                    <X size={10} color={roles.onPrimary} />
                                                 </View>
                                             )}
                                             {resp === undefined && (
@@ -369,7 +369,7 @@ export default function ProposalScreen() {
     );
 }
 
-function makeStyles(c: AppColors, _dark: boolean) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
 
@@ -422,22 +422,22 @@ function makeStyles(c: AppColors, _dark: boolean) {
         },
         categoryPill: {
             alignSelf: 'flex-start',
-            backgroundColor: 'rgba(108,62,244,0.75)',
+            backgroundColor: r.primary,
             paddingHorizontal: 10,
             paddingVertical: 4,
             borderRadius: radii.pill,
             marginBottom: 8,
         },
-        categoryText: { color: 'white', fontSize: 11, fontFamily: 'Inter_700Bold' },
+        categoryText: { color: r.onPrimary, fontSize: 11, fontFamily: 'Inter_700Bold' },
         venueName: {
-            color: 'white',
+            color: r.onMedia,
             fontFamily: 'Inter_900Black',
             fontSize: 26,
             marginBottom: 6,
         },
         venueMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-        metaText: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontFamily: 'Inter_400Regular' },
-        metaDot: { color: 'rgba(255,255,255,0.5)' },
+        metaText: { color: r.onMediaMuted, fontSize: 13, fontFamily: 'Inter_400Regular' },
+        metaDot: { color: r.onMediaFaint },
 
         section: {
             backgroundColor: c.surface,
@@ -472,7 +472,7 @@ function makeStyles(c: AppColors, _dark: boolean) {
             width: 20,
             height: 20,
             borderRadius: 10,
-            backgroundColor: '#22C55E',
+            backgroundColor: r.successFill,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 2,
@@ -485,7 +485,7 @@ function makeStyles(c: AppColors, _dark: boolean) {
             width: 20,
             height: 20,
             borderRadius: 10,
-            backgroundColor: '#EF4444',
+            backgroundColor: r.dangerStrong,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 2,
@@ -524,7 +524,7 @@ function makeStyles(c: AppColors, _dark: boolean) {
             borderRadius: radii.lg,
             alignItems: 'center',
         },
-        yesBtnText: { color: 'white', fontFamily: 'Inter_700Bold', fontSize: 17 },
+        yesBtnText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 17 },
         noBtn: {
             paddingVertical: 16,
             borderRadius: radii.lg,

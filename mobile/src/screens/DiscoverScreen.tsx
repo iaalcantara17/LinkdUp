@@ -105,7 +105,7 @@ function PriceLevel({ level }: { level: number | null }) {
                 <DollarSign key={`f-${i}`} size={11} color={colors.success} />
             ))}
             {Array.from({ length: empty }).map((_, i) => (
-                <DollarSign key={`e-${i}`} size={11} color={colors.text30} />
+                <DollarSign key={`e-${i}`} size={11} color={colors.textMuted} />
             ))}
         </View>
     );

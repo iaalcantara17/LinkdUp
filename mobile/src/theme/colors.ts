@@ -6,7 +6,7 @@ const l = color.light;
 export const darkColors = {
     primary: d.primary,
     primaryAlt: d.accent,
-    gradient: [d.primary, d.accent] as const,
+    gradient: [d.primary, d.gradientEnd] as const,
 
     bg: d.background,
     bgBlack: palette.black,
@@ -22,7 +22,6 @@ export const darkColors = {
     text80: 'rgba(255,255,255,0.80)',
     text60: d.textMuted,
     text40: d.textFaint,
-    text30: 'rgba(255,255,255,0.30)',
     textSecondary: d.textMuted,
     textMuted: d.textFaint,
 
@@ -41,7 +40,7 @@ export const darkColors = {
 export const lightColors: typeof darkColors = {
     primary: l.primary,
     primaryAlt: l.accent,
-    gradient: [l.primary, l.accent] as const,
+    gradient: [l.primary, l.gradientEnd] as const,
 
     bg: l.background,
     bgBlack: palette.black,
@@ -57,7 +56,6 @@ export const lightColors: typeof darkColors = {
     text80: 'rgba(10,10,15,0.80)',
     text60: l.textMuted,
     text40: l.textFaint,
-    text30: 'rgba(10,10,15,0.30)',
     textSecondary: l.textMuted,
     textMuted: l.textFaint,
 

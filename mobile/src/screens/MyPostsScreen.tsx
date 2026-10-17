@@ -12,7 +12,7 @@ import { api } from '../services/api';
 import DialogHost from '../components/DialogHost';
 import { confirm, showError } from '../components/dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import BottomNav from '../components/BottomNav';
 
@@ -31,8 +31,8 @@ const TILE_PADDING = 16;
 
 export default function MyPostsScreen() {
     const nav = useNavigation<any>();
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
     const { width } = useWindowDimensions();
 
     const [posts, setPosts] = useState<PostItem[]>([]);
@@ -117,15 +117,15 @@ export default function MyPostsScreen() {
                 hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
                 activeOpacity={0.8}
             >
-                <MoreVertical size={18} color="white" />
+                <MoreVertical size={18} color={roles.onMedia} />
             </TouchableOpacity>
 
             <View style={styles.cardMeta}>
                 <Text style={styles.venueName} numberOfLines={1}>{item.venue_name}</Text>
                 <View style={styles.counts}>
-                    <Heart size={11} color="white" fill="white" />
+                    <Heart size={11} color={roles.textMuted} fill={roles.textMuted} />
                     <Text style={styles.countText}>{item.like_count}</Text>
-                    <MessageCircle size={11} color="white" />
+                    <MessageCircle size={11} color={roles.textMuted} />
                     <Text style={styles.countText}>{item.comment_count}</Text>
                 </View>
                 {item.caption ? (
@@ -163,7 +163,7 @@ export default function MyPostsScreen() {
                             end={{ x: 1, y: 1 }}
                             style={styles.addBtnInner}
                         >
-                            <Plus size={20} color="white" strokeWidth={2.5} />
+                            <Plus size={20} color={roles.onPrimary} strokeWidth={2.5} />
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
@@ -190,7 +190,7 @@ export default function MyPostsScreen() {
                             end={{ x: 1, y: 0 }}
                             style={styles.emptyBtn}
                         >
-                            <Plus size={16} color="white" strokeWidth={2.5} style={{ marginRight: 6 }} />
+                            <Plus size={16} color={roles.onPrimary} strokeWidth={2.5} style={{ marginRight: 6 }} />
                             <Text style={styles.emptyBtnText}>Create your first post</Text>
                         </LinearGradient>
                     </TouchableOpacity>
@@ -244,11 +244,11 @@ export default function MyPostsScreen() {
                         onPress={() => menuPost && handleDelete(menuPost)}
                         activeOpacity={0.8}
                     >
-                        <View style={[styles.actionIcon, { backgroundColor: 'rgba(255,59,92,0.12)' }]}>
-                            <Trash2 size={18} color="#FF3B5C" />
+                        <View style={[styles.actionIcon, { backgroundColor: roles.dangerSoft }]}>
+                            <Trash2 size={18} color={roles.danger} />
                         </View>
                         <View>
-                            <Text style={[styles.actionLabel, { color: '#FF3B5C' }]}>Delete post</Text>
+                            <Text style={[styles.actionLabel, { color: roles.danger }]}>Delete post</Text>
                             <Text style={[styles.actionSub, { color: colors.text60 }]}>Permanently remove this post</Text>
                         </View>
                     </TouchableOpacity>
@@ -321,7 +321,7 @@ export default function MyPostsScreen() {
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: {
             flex: 1,
@@ -383,7 +383,7 @@ function makeStyles(c: AppColors) {
             borderRadius: radii.pill,
         },
         emptyBtnText: {
-            color: 'white',
+            color: r.onPrimary,
             fontFamily: 'Inter_700Bold',
             fontSize: 14,
         },
@@ -391,14 +391,14 @@ function makeStyles(c: AppColors) {
             position: 'absolute',
             top: 90,
             alignSelf: 'center',
-            backgroundColor: 'rgba(0,0,0,0.75)',
+            backgroundColor: r.scrimStrong,
             paddingHorizontal: 20,
             paddingVertical: 10,
             borderRadius: 20,
             zIndex: 99,
         },
         toastText: {
-            color: 'white',
+            color: r.onMedia,
             fontFamily: 'Inter_500Medium',
             fontSize: 13,
         },
@@ -428,7 +428,7 @@ function makeStyles(c: AppColors) {
             width: 30,
             height: 30,
             borderRadius: 15,
-            backgroundColor: 'rgba(0,0,0,0.45)',
+            backgroundColor: r.scrim,
             alignItems: 'center',
             justifyContent: 'center',
         },
@@ -460,7 +460,7 @@ function makeStyles(c: AppColors) {
         },
         menuBackdrop: {
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: r.scrim,
         },
         actionSheet: {
             borderTopLeftRadius: radii.xl,
@@ -472,7 +472,7 @@ function makeStyles(c: AppColors) {
             width: 36,
             height: 4,
             borderRadius: 2,
-            backgroundColor: 'rgba(128,128,128,0.35)',
+            backgroundColor: r.borderStrong,
             alignSelf: 'center',
             marginBottom: 12,
         },
@@ -548,7 +548,7 @@ function makeStyles(c: AppColors) {
             alignItems: 'center',
         },
         saveBtnText: {
-            color: 'white',
+            color: r.onPrimary,
             fontFamily: 'Inter_700Bold',
             fontSize: 15,
         },

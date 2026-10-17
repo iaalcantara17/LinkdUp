@@ -11,7 +11,7 @@ import { api } from '../services/api';
 import DialogHost from './DialogHost';
 import { confirm, errorText, showError } from './dialogs';
 import { radii } from '../theme';
-import type { AppColors } from '../theme';
+import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
 interface Comment {
@@ -45,8 +45,8 @@ function relativeTime(iso: string): string {
 export default function CommentSheet({
     postId, visible, onClose, currentUserId, initialCommentCount, onCommentCountChange,
 }: Props) {
-    const { colors } = useTheme();
-    const styles = useMemo(() => makeStyles(colors), [colors]);
+    const { colors, roles } = useTheme();
+    const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
 
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(false);
@@ -220,14 +220,14 @@ export default function CommentSheet({
                                 activeOpacity={0.8}
                             >
                                 <LinearGradient
-                                    colors={(!draft.trim() || posting) ? ['#444', '#444'] : (colors.gradient as any)}
+                                    colors={(!draft.trim() || posting) ? [roles.fillStrong, roles.fillStrong] : (colors.gradient as any)}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 0 }}
                                     style={styles.sendBtn}
                                 >
                                     {posting
-                                        ? <ActivityIndicator size="small" color="white" />
-                                        : <Send size={16} color="white" />
+                                        ? <ActivityIndicator size="small" color={roles.text} />
+                                        : <Send size={16} color={draft.trim() ? roles.onPrimary : roles.textFaint} />
                                     }
                                 </LinearGradient>
                             </TouchableOpacity>
@@ -240,11 +240,11 @@ export default function CommentSheet({
     );
 }
 
-function makeStyles(c: AppColors) {
+function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         backdrop: {
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: r.scrim,
         },
         sheet: {
             backgroundColor: c.surface,
