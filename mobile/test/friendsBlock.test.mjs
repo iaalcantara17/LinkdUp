@@ -8,7 +8,7 @@ test('friend rows offer Block through the shared confirm', () => {
     const src = read('screens/FriendsScreen.tsx');
     assert.match(src, /confirmBlock\(/);
     assert.match(src, /api\.blockUser\(/);
-    assert.match(src, /accessibilityLabel=\{`Block \$\{/);
+    assert.match(src, /(accessibilityLabel|label)=\{`Block \$\{/);
 });
 
 test('every block flow uses the shared confirm', () => {

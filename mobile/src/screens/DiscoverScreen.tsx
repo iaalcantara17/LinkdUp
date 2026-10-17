@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    View, Text, StyleSheet, ScrollView,
     Image, Modal, RefreshControl, ActivityIndicator, Platform,
 } from 'react-native';
+import { Chip, EmptyState, Skeleton, SkeletonList, Tap } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,7 +30,7 @@ import { errorText, showError, toast } from '../components/dialogs';
 import { getLiveLocation, useLocationPermission } from '../services/liveLocation';
 import { discoverStep, permissionLabel, type AskReason } from '../services/locationChoice';
 import PlaceSearch, { Place } from '../components/PlaceSearch';
-import { radii } from '../theme';
+import { radii, motion } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { listView } from '../hooks/listView';
@@ -100,7 +101,7 @@ function PriceLevel({ level }: { level: number | null }) {
     const filled = level;
     const empty = 4 - level;
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 0 }}>
             {Array.from({ length: filled }).map((_, i) => (
                 <DollarSign key={`f-${i}`} size={11} color={colors.success} />
             ))}
@@ -160,9 +161,9 @@ function VenueDetailModal({ venue, onClose }: { venue: DiscoverVenue | null; onC
                         </LinearGradient>
                     )}
 
-                    <TouchableOpacity style={modalStyles.closeBtn} onPress={onClose} activeOpacity={0.8}>
+                    <Tap style={modalStyles.closeBtn} onPress={onClose} activeOpacity={0.8}>
                         <X size={18} color={r.onMedia} />
-                    </TouchableOpacity>
+                    </Tap>
 
                     <View style={modalStyles.body}>
                         {venue.category ? (
@@ -192,21 +193,21 @@ function VenueDetailModal({ venue, onClose }: { venue: DiscoverVenue | null; onC
                         </View>
 
                         <View style={modalStyles.addressRow}>
-                            <MapPin size={14} color={colors.text40} style={{ marginTop: 2 }} />
+                            <MapPin size={14} color={colors.text40} style={{ marginTop: 4 }} />
                             <Text style={modalStyles.addressText}>{venue.address}</Text>
                         </View>
 
                         {!pitch && !pitchLoading && (
-                            <TouchableOpacity
+                            <Tap
                                 style={modalStyles.pitchBtn}
                                 onPress={fetchPitch}
                                 activeOpacity={0.85}
                             >
                                 <Text style={modalStyles.pitchBtnText}>✨ Why this?</Text>
-                            </TouchableOpacity>
+                            </Tap>
                         )}
                         {pitchLoading && (
-                            <View style={{ marginTop: 14, alignItems: 'center' }}>
+                            <View style={{ marginTop: 16, alignItems: 'center' }}>
                                 <ActivityIndicator color={colors.primary} />
                             </View>
                         )}
@@ -235,38 +236,41 @@ function VenueCard({
     const { colors, roles: r } = useTheme();
     const venueCardStyles = useMemo(() => makeVenueCardStyles(colors, r), [colors, r]);
     return (
-        <TouchableOpacity style={venueCardStyles.card} onPress={onPress} activeOpacity={0.85}>
-            {venue.photo_url ? (
-                <Image source={{ uri: photoUri(venue.photo_url) }} style={venueCardStyles.photo} />
-            ) : (
-                <LinearGradient
-                    colors={colors.gradient as any}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={venueCardStyles.photo}
-                >
-                    <Compass size={32} color={r.onMedia} />
+        <View style={venueCardStyles.frame}>
+            <Tap style={venueCardStyles.card} onPress={onPress} accessibilityLabel={venue.name} activeOpacity={0.85}>
+                {venue.photo_url ? (
+                    <Image source={{ uri: photoUri(venue.photo_url) }} style={venueCardStyles.photo} />
+                ) : (
+                    <LinearGradient
+                        colors={colors.gradient as any}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={venueCardStyles.photo}
+                    >
+                        <Compass size={32} color={r.onMedia} />
+                    </LinearGradient>
+                )}
+                <LinearGradient colors={['transparent', r.scrimStrong]} style={venueCardStyles.overlay}>
+                    <Text style={venueCardStyles.name} numberOfLines={2}>{venue.name}</Text>
+                    <View style={venueCardStyles.metaRow}>
+                        {venue.rating !== null ? (
+                            <>
+                                <Star size={12} color={colors.warning} fill={colors.warning} />
+                                <Text style={venueCardStyles.metaText}>{venue.rating.toFixed(1)}</Text>
+                                <Text style={venueCardStyles.dot}>•</Text>
+                            </>
+                        ) : null}
+                        <MapPin size={11} color={r.onMediaMuted} />
+                        <Text style={venueCardStyles.metaText}>{venue.distance_miles} mi</Text>
+                    </View>
                 </LinearGradient>
-            )}
-            <LinearGradient colors={['transparent', r.scrimStrong]} style={venueCardStyles.overlay}>
-                <Text style={venueCardStyles.name} numberOfLines={2}>{venue.name}</Text>
-                <View style={venueCardStyles.metaRow}>
-                    {venue.rating !== null ? (
-                        <>
-                            <Star size={12} color={colors.warning} fill={colors.warning} />
-                            <Text style={venueCardStyles.metaText}>{venue.rating.toFixed(1)}</Text>
-                            <Text style={venueCardStyles.dot}>•</Text>
-                        </>
-                    ) : null}
-                    <MapPin size={11} color={r.onMediaMuted} />
-                    <Text style={venueCardStyles.metaText}>{venue.distance_miles} mi</Text>
-                </View>
-            </LinearGradient>
+            </Tap>
 
             {onLike && (
-                <TouchableOpacity
+                <Tap
                     style={venueCardStyles.heartBtn}
-                    onPress={(e) => { (e as any).stopPropagation?.(); onLike(); }}
+                    onPress={onLike}
+                    accessibilityLabel={liked ? `Unlike ${venue.name}` : `Like ${venue.name}`}
                     activeOpacity={0.8}
                     hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                 >
@@ -275,9 +279,9 @@ function VenueCard({
                         color={liked ? colors.danger : r.onMedia}
                         fill={liked ? colors.danger : 'transparent'}
                     />
-                </TouchableOpacity>
+                </Tap>
             )}
-        </TouchableOpacity>
+        </View>
     );
 }
 
@@ -301,14 +305,15 @@ function LikedVenueCard({ venue, onUnlike }: { venue: DiscoverLike; onUnlike: ()
                         <Compass size={24} color={r.onMedia} />
                     </LinearGradient>
                 )}
-                <TouchableOpacity
+                <Tap
                     style={likedCardStyles.heartBtn}
                     onPress={onUnlike}
+                    accessibilityLabel={`Unlike ${venue.name}`}
                     activeOpacity={0.8}
                     hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                 >
                     <Heart size={16} color={colors.danger} fill={colors.danger} />
-                </TouchableOpacity>
+                </Tap>
             </View>
             <View style={likedCardStyles.info}>
                 {venue.category ? (
@@ -344,7 +349,7 @@ function PartyCard({ party, onJoin, joining }: { party: DiscoverParty; onJoin: (
     const statusLabel = party.status === 'swiping' ? 'SWIPING NOW' : 'OPEN';
 
     return (
-        <Animated.View entering={FadeInDown.duration(350)}>
+        <Animated.View entering={FadeInDown.duration(motion.base)}>
             <View style={partyCardStyles.card}>
                 <View style={partyCardStyles.top}>
                     <View style={{ flex: 1 }}>
@@ -374,7 +379,7 @@ function PartyCard({ party, onJoin, joining }: { party: DiscoverParty; onJoin: (
                     </View>
                 </View>
 
-                <TouchableOpacity
+                <Tap
                     style={partyCardStyles.joinBtn}
                     onPress={onJoin}
                     activeOpacity={0.8}
@@ -388,7 +393,7 @@ function PartyCard({ party, onJoin, joining }: { party: DiscoverParty; onJoin: (
                     >
                         <Text style={partyCardStyles.joinText}>{joining ? 'Joining…' : 'Join'}</Text>
                     </LinearGradient>
-                </TouchableOpacity>
+                </Tap>
             </View>
         </Animated.View>
     );
@@ -698,39 +703,14 @@ export default function DiscoverScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 16 }}>
                     <View style={[styles.tabBar, { flex: 1 }]}>
-                        <TouchableOpacity
-                            style={[styles.tabPill, activeTab === 'explore' && styles.tabPillActive]}
-                            onPress={() => handleTabChange('explore')}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={[styles.tabText, activeTab === 'explore' && styles.tabTextActive]}>
-                                Explore
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.tabPill}
-                            onPress={() => handleTabChange('feed')}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.tabText}>
-                                Feed
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.tabPill, activeTab === 'likes' && styles.tabPillActive]}
+                        <Chip label="Explore" selected={activeTab === 'explore'} onPress={() => handleTabChange('explore')} />
+                        <Chip label="Feed" selected={false} onPress={() => handleTabChange('feed')} />
+                        <Chip
+                            label="Your Likes"
+                            selected={activeTab === 'likes'}
                             onPress={() => handleTabChange('likes')}
-                            activeOpacity={0.8}
-                        >
-                            <Heart
-                                size={13}
-                                color={activeTab === 'likes' ? r.onPrimary : colors.text60}
-                                fill={activeTab === 'likes' ? r.onPrimary : 'transparent'}
-                                style={{ marginRight: 5 }}
-                            />
-                            <Text style={[styles.tabText, activeTab === 'likes' && styles.tabTextActive]}>
-                                Your Likes
-                            </Text>
-                        </TouchableOpacity>
+                            icon={(tint) => <Heart size={14} color={tint} fill={activeTab === 'likes' ? tint : 'transparent'} />}
+                        />
                     </View>
                     <HelpButton items={DISCOVER_HELP} />
                 </View>
@@ -748,7 +728,7 @@ export default function DiscoverScreen() {
                 >
                     {activeTab === 'explore' && (
                         <>
-                            <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
+                            <Animated.View entering={FadeInDown.duration(motion.base)} style={styles.header}>
                                 <Text style={styles.title}>Discover</Text>
                                 <Text style={styles.subtitle}>
                                     {pickedLabel ? `Trending spots and parties near ${pickedLabel}` : 'Trending spots and parties near you'}
@@ -763,7 +743,7 @@ export default function DiscoverScreen() {
                                 )}
                                 {pickedLabel && !noLocation && (
                                     <View style={styles.linkRow}>
-                                        <TouchableOpacity
+                                        <Tap
                                             onPress={() => setCityOpen(true)}
                                             disabled={cityOpen || locating}
                                             accessibilityRole="button"
@@ -771,8 +751,8 @@ export default function DiscoverScreen() {
                                             style={styles.link}
                                         >
                                             <Text style={styles.linkText}>Change city</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
+                                        </Tap>
+                                        <Tap
                                             onPress={() => load(true, true)}
                                             disabled={locating}
                                             accessibilityRole="button"
@@ -782,7 +762,7 @@ export default function DiscoverScreen() {
                                             <Text style={styles.linkText}>
                                                 {locating ? 'Finding your location…' : 'Use my live location instead'}
                                             </Text>
-                                        </TouchableOpacity>
+                                        </Tap>
                                     </View>
                                 )}
                                 {pickedLabel && !noLocation && citySearch}
@@ -794,7 +774,7 @@ export default function DiscoverScreen() {
                             </Animated.View>
 
                             {noLocation && (
-                                <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.emptyCard}>
+                                <Animated.View entering={FadeInDown.delay(motion.instant).duration(motion.base)} style={styles.emptyCard}>
                                     <Text style={styles.emptyIcon}>📍</Text>
                                     <Text style={styles.emptyTitle}>See spots near you</Text>
                                     <Text style={styles.emptyBody} accessibilityLiveRegion="polite">
@@ -807,7 +787,7 @@ export default function DiscoverScreen() {
                                             loading={locating}
                                         />
                                         {cityOpen ? citySearch : (
-                                            <View style={{ marginTop: 10 }}>
+                                            <View style={{ marginTop: 8 }}>
                                                 <GradientButton variant="ghost" title="Pick a city" onPress={() => setCityOpen(true)} />
                                             </View>
                                         )}
@@ -816,15 +796,13 @@ export default function DiscoverScreen() {
                             )}
 
                             {!noLocation && (
-                                <Animated.View entering={FadeInDown.delay(60).duration(400)}>
+                                <Animated.View entering={FadeInDown.delay(motion.instant).duration(motion.base)}>
                                     <Text style={styles.sectionTitle}>Trending near you</Text>
 
                                     {venuesView === 'loading' ? (
                                         <>
-                                            <View style={styles.loadingRow}>
-                                                <ActivityIndicator color={colors.primary} />
-                                                <Text style={styles.loadingText}>Finding nearby spots…</Text>
-                                            </View>
+                                            <Skeleton height={220} round={radii.xl} />
+                                            <Text style={styles.loadingText}>Finding nearby spots…</Text>
                                             <SlowLoadNote loading />
                                         </>
                                     ) : venuesView === 'empty' && venueError ? (
@@ -842,7 +820,7 @@ export default function DiscoverScreen() {
                                             {/* Web-only: featured card — show first unLiked venue */}
                                             {Platform.OS === 'web' && venues.filter(v => !likedPlaceIds.has(v.google_place_id))[featuredIndex] && (
                                                 <View style={webCardStyles.wrapper}>
-                                                    <TouchableOpacity
+                                                    <Tap
                                                         activeOpacity={0.9}
                                                         onPress={() => setSelectedVenue(venues[featuredIndex])}
                                                     >
@@ -882,18 +860,20 @@ export default function DiscoverScreen() {
                                                                 </Text>
                                                             </View>
                                                         </LinearGradient>
-                                                    </TouchableOpacity>
+                                                    </Tap>
                                                     <View style={webCardStyles.buttons}>
-                                                        <TouchableOpacity
+                                                        <Tap
                                                             style={webCardStyles.passBtn}
+                                                            accessibilityLabel={`Skip ${venues[featuredIndex]?.name ?? 'this spot'}`}
                                                             activeOpacity={0.85}
                                                             onPress={() => setFeaturedIndex((i) => Math.min(i + 1, venues.length - 1))}
                                                         >
                                                             <X size={24} color={colors.danger} />
-                                                        </TouchableOpacity>
+                                                        </Tap>
                                                         <View ref={featuredHeartRef}>
-                                                        <TouchableOpacity
+                                                        <Tap
                                                             activeOpacity={0.85}
+                                                            accessibilityLabel={`Like ${venues[featuredIndex]?.name ?? 'this spot'}`}
                                                             onPress={() => {
                                                                 const v = venues[featuredIndex];
                                                                 if (likedPlaceIds.has(v.google_place_id)) {
@@ -915,7 +895,7 @@ export default function DiscoverScreen() {
                                                                     fill={likedPlaceIds.has(venues[featuredIndex]?.google_place_id) ? r.onPrimary : 'transparent'}
                                                                 />
                                                             </LinearGradient>
-                                                        </TouchableOpacity>
+                                                        </Tap>
                                                         </View>
                                                     </View>
                                                 </View>
@@ -923,13 +903,13 @@ export default function DiscoverScreen() {
 
                                             <View style={styles.trendingScrollWrap}>
                                                 {Platform.OS === 'web' && trendingScrollX > 10 && (
-                                                    <TouchableOpacity
+                                                    <Tap
                                                         style={styles.chevronLeft}
                                                         onPress={scrollLeft}
                                                         activeOpacity={0.8}
                                                     >
                                                         <ChevronLeft size={20} color={r.onMedia} />
-                                                    </TouchableOpacity>
+                                                    </Tap>
                                                 )}
                                                 <ScrollView
                                                     ref={trendingScrollRef}
@@ -951,7 +931,7 @@ export default function DiscoverScreen() {
                                                         />
                                                     ))}
                                                     {hasMoreVenues && (
-                                                        <TouchableOpacity
+                                                        <Tap
                                                             style={venueLoadMoreStyles.card}
                                                             onPress={handleLoadMoreVenues}
                                                             activeOpacity={0.8}
@@ -965,17 +945,17 @@ export default function DiscoverScreen() {
                                                                     <Text style={venueLoadMoreStyles.label}>Load{'\n'}more</Text>
                                                                 </>
                                                             )}
-                                                        </TouchableOpacity>
+                                                        </Tap>
                                                     )}
                                                 </ScrollView>
                                                 {Platform.OS === 'web' && (
-                                                    <TouchableOpacity
+                                                    <Tap
                                                         style={styles.chevronRight}
                                                         onPress={scrollRight}
                                                         activeOpacity={0.8}
                                                     >
                                                         <ChevronRight size={20} color={r.onMedia} />
-                                                    </TouchableOpacity>
+                                                    </Tap>
                                                 )}
                                             </View>
                                         </>
@@ -984,26 +964,22 @@ export default function DiscoverScreen() {
                             )}
 
                             {!noLocation && (
-                                <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginTop: 32 }}>
+                                <Animated.View entering={FadeInDown.delay(motion.instant).duration(motion.base)} style={{ marginTop: 32 }}>
                                     <Text style={styles.sectionTitle}>Active parties nearby</Text>
 
                                     {partiesView === 'loading' ? (
-                                        <View style={styles.loadingRow}>
-                                            <ActivityIndicator color={colors.primary} />
+                                        <>
+                                            <Skeleton height={96} />
                                             <Text style={styles.loadingText}>Looking for parties…</Text>
-                                        </View>
+                                        </>
                                     ) : partiesView === 'empty' ? (
-                                        <View style={styles.emptyCard}>
-                                            <Text style={styles.emptyIcon}>🎉</Text>
-                                            <Text style={styles.emptyTitle}>No one's hanging out nearby yet</Text>
-                                            <Text style={styles.emptyBody}>Be the first to start a party!</Text>
-                                            <View style={{ marginTop: 20, alignSelf: 'stretch' }}>
-                                                <GradientButton
-                                                    title="Start a Party"
-                                                    onPress={() => nav.navigate('CreateParty')}
-                                                />
-                                            </View>
-                                        </View>
+                                        <EmptyState
+                                            card
+                                            emoji="🎉"
+                                            title="No one's hanging out nearby yet"
+                                            body="Be the first to start a party!"
+                                            action={<GradientButton title="Start a Party" onPress={() => nav.navigate('CreateParty')} />}
+                                        />
                                     ) : (
                                         <View style={{ gap: 12 }}>
                                             {parties.map((p) => (
@@ -1022,31 +998,25 @@ export default function DiscoverScreen() {
                     )}
 
                     {activeTab === 'likes' && (
-                        <Animated.View entering={FadeInDown.duration(350)} style={{ paddingTop: 8 }}>
+                        <Animated.View entering={FadeInDown.duration(motion.base)} style={{ paddingTop: 8 }}>
                             <Text style={styles.title}>Your Likes</Text>
                             <Text style={[styles.subtitle, { marginBottom: 24 }]}>
                                 Venues you've saved from Explore
                             </Text>
 
                             {loadingLikes ? (
-                                <View style={[styles.loadingRow, { justifyContent: 'center', paddingTop: 40 }]}>
-                                    <ActivityIndicator color={colors.primary} />
+                                <>
+                                    <SkeletonList count={3} height={96} label="Loading your likes" />
                                     <Text style={styles.loadingText}>Loading your likes…</Text>
-                                </View>
+                                </>
                             ) : likedVenues.length === 0 ? (
-                                <View style={styles.emptyCard}>
-                                    <Text style={styles.emptyIcon}>💛</Text>
-                                    <Text style={styles.emptyTitle}>Nothing liked yet</Text>
-                                    <Text style={styles.emptyBody}>
-                                        Head to Explore and tap the heart on venues you want to save.
-                                    </Text>
-                                    <View style={{ marginTop: 20, alignSelf: 'stretch' }}>
-                                        <GradientButton
-                                            title="Go to Explore"
-                                            onPress={() => handleTabChange('explore')}
-                                        />
-                                    </View>
-                                </View>
+                                <EmptyState
+                                    card
+                                    emoji="💛"
+                                    title="Nothing liked yet"
+                                    body="Head to Explore and tap the heart on venues you want to save."
+                                    action={<GradientButton title="Go to Explore" onPress={() => handleTabChange('explore')} />}
+                                />
                             ) : (
                                 <View style={{ gap: 12 }}>
                                     {likedVenues.map((like) => (
@@ -1103,31 +1073,11 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
             paddingBottom: 4,
             gap: 8,
         },
-        tabPill: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 18,
-            paddingVertical: 9,
-            borderRadius: radii.pill,
-            backgroundColor: r.fill,
-            borderWidth: 1,
-            borderColor: colors.glassBorder,
-        },
-        tabPillActive: {
-            backgroundColor: colors.primary,
-            borderColor: colors.primary,
-        },
-        tabText: {
-            color: colors.text60,
-            fontFamily: 'Inter_600SemiBold',
-            fontSize: 14,
-        },
-        tabTextActive: { color: r.onPrimary },
 
         header: { paddingTop: 8, paddingBottom: 24 },
         title: { color: r.text, fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 4 },
         subtitle: { color: colors.text60, fontSize: 14, fontFamily: 'Inter_400Regular' },
-        sourceLine: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 6 },
+        sourceLine: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 8 },
         linkRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 },
         link: { minHeight: 44, justifyContent: 'center' },
         linkText: { color: r.primaryText, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
@@ -1137,7 +1087,7 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
             fontSize: 13,
             lineHeight: 20,
             marginTop: 4,
-            paddingLeft: 10,
+            paddingLeft: 8,
             borderLeftWidth: 3,
             borderLeftColor: colors.danger,
         },
@@ -1182,13 +1132,7 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
             justifyContent: 'center',
         },
 
-        loadingRow: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 10,
-            paddingVertical: 20,
-        },
-        loadingText: { color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 14 },
+        loadingText: { color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 14, paddingVertical: 12 },
 
         inlineEmpty: {
             paddingVertical: 20,
@@ -1205,7 +1149,7 @@ function makeStyles(colors: AppColors, r: ColorRoles) {
             alignItems: 'center',
             marginTop: 8,
         },
-        emptyIcon: { fontSize: 44, marginBottom: 14 },
+        emptyIcon: { fontSize: 44, marginBottom: 16 },
         emptyTitle: {
             color: r.text,
             fontFamily: 'Inter_700Bold',
@@ -1249,8 +1193,8 @@ function makeWebCardStyles(colors: AppColors, r: ColorRoles) {
             padding: 16,
             paddingTop: 48,
         },
-        name: { color: r.onMedia, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 6 },
-        meta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+        name: { color: r.onMedia, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 8 },
+        meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
         metaText: { color: r.onMediaMuted, fontSize: 13, fontFamily: 'Inter_400Regular' },
         dot: { color: r.onMediaFaint },
         buttons: {
@@ -1300,6 +1244,7 @@ function makeVenueLoadMoreStyles(colors: AppColors, r: ColorRoles) {
 
 function makeVenueCardStyles(colors: AppColors, r: ColorRoles) {
     return StyleSheet.create({
+        frame: { width: 180, height: 220 },
         card: {
             width: 180,
             height: 220,
@@ -1319,14 +1264,14 @@ function makeVenueCardStyles(colors: AppColors, r: ColorRoles) {
             left: 0,
             right: 0,
             bottom: 0,
-            padding: 14,
+            padding: 16,
             paddingTop: 40,
         },
         name: {
             color: r.onMedia,
             fontFamily: 'Inter_700Bold',
             fontSize: 14,
-            marginBottom: 6,
+            marginBottom: 8,
             lineHeight: 18,
         },
         metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -1389,16 +1334,16 @@ function makeLikedCardStyles(colors: AppColors, r: ColorRoles) {
             fontSize: 11,
             textTransform: 'uppercase',
             letterSpacing: 0.6,
-            marginBottom: 3,
+            marginBottom: 4,
         },
         name: {
             color: r.text,
             fontFamily: 'Inter_700Bold',
             fontSize: 15,
-            marginBottom: 6,
+            marginBottom: 8,
             lineHeight: 20,
         },
-        metaRow: { gap: 6 },
+        metaRow: { gap: 8 },
         metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
         metaText: {
             color: colors.text60,
@@ -1414,18 +1359,18 @@ function makePartyCardStyles(colors: AppColors, r: ColorRoles) {
         card: {
             backgroundColor: colors.glass,
             borderRadius: radii.lg,
-            padding: 18,
+            padding: 16,
             borderWidth: 1,
             borderColor: colors.glassBorder,
         },
         top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
-        name: { color: r.text, fontFamily: 'Inter_700Bold', fontSize: 16, marginBottom: 2 },
+        name: { color: r.text, fontFamily: 'Inter_700Bold', fontSize: 16, marginBottom: 4 },
         host: { color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 13 },
         friendBadge: {
             alignSelf: 'flex-start',
-            marginTop: 6,
+            marginTop: 8,
             paddingHorizontal: 8,
-            paddingVertical: 3,
+            paddingVertical: 4,
             borderRadius: radii.pill,
             backgroundColor: r.primarySoft,
             borderWidth: 1,
@@ -1446,10 +1391,10 @@ function makePartyCardStyles(colors: AppColors, r: ColorRoles) {
         },
         statusText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.4 },
         metaRow: { flexDirection: 'row', gap: 16, marginBottom: 16 },
-        metaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+        metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
         metaText: { color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular' },
         joinBtn: { borderRadius: radii.md, overflow: 'hidden', alignSelf: 'flex-start' },
-        joinGradient: { paddingHorizontal: 24, paddingVertical: 10, alignItems: 'center' },
+        joinGradient: { paddingHorizontal: 24, paddingVertical: 8, alignItems: 'center' },
         joinText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
     });
 }
@@ -1495,23 +1440,23 @@ function makeModalStyles(colors: AppColors, r: ColorRoles) {
             fontSize: 12,
             textTransform: 'uppercase',
             letterSpacing: 0.8,
-            marginBottom: 6,
+            marginBottom: 8,
         },
         venueName: {
             color: r.text,
             fontFamily: 'Inter_900Black',
             fontSize: 24,
-            marginBottom: 14,
+            marginBottom: 16,
             lineHeight: 30,
         },
         metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
         metaChip: {
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 5,
+            gap: 4,
             backgroundColor: colors.glass,
-            paddingHorizontal: 10,
-            paddingVertical: 6,
+            paddingHorizontal: 8,
+            paddingVertical: 8,
             borderRadius: radii.pill,
             borderWidth: 1,
             borderColor: colors.glassBorder,
@@ -1533,7 +1478,7 @@ function makeModalStyles(colors: AppColors, r: ColorRoles) {
             marginTop: 16,
             alignSelf: 'flex-start',
             paddingHorizontal: 16,
-            paddingVertical: 9,
+            paddingVertical: 8,
             borderRadius: 20,
             backgroundColor: r.primarySoft,
             borderWidth: 1,
@@ -1545,8 +1490,8 @@ function makeModalStyles(colors: AppColors, r: ColorRoles) {
             fontSize: 14,
         },
         pitchBox: {
-            marginTop: 14,
-            padding: 14,
+            marginTop: 16,
+            padding: 16,
             borderRadius: 12,
             backgroundColor: r.primarySoft,
             borderWidth: 1,

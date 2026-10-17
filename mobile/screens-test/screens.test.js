@@ -114,7 +114,7 @@ describe('Home', () => {
         screen.getByText('Friday Crew');
     });
 
-    test.skip('BUG: Join a party, Friends and Help have no button role, so they have no accessible name as buttons', async () => {
+    test('Join a party, Friends and Help are named buttons', async () => {
         await show(HomeScreen);
         button(/Join a party/);
         button(/Friends/);
@@ -158,7 +158,7 @@ describe('Friends', () => {
         screen.getByText('No pending requests');
     });
 
-    test.skip('BUG: Find Friends and the Friends, Requests and Search tabs have no accessible role', async () => {
+    test('Find Friends is a button and Requests is a tab', async () => {
         await show(FriendsScreen, { getFriends: [] });
         button('Find Friends');
         screen.getByRole('tab', { name: 'Requests' });
@@ -221,7 +221,7 @@ describe('PartyLobby', () => {
         }
     });
 
-    test.skip('BUG: the back arrow, Invite friends tab and join code share have no accessible role or name', async () => {
+    test('the back arrow and join code share are named buttons and Invite friends is a tab', async () => {
         await show(PartyLobbyScreen);
         button(/back/i);
         screen.getByRole('tab', { name: 'Invite friends' });
@@ -310,7 +310,7 @@ describe('Discover', () => {
         expect(screen.getAllByText('Hudson Taproom').length).toBeGreaterThan(0);
     });
 
-    test.skip('BUG: the Explore, Feed and Your Likes switch has no tab role', async () => {
+    test('the Explore, Feed and Your Likes switch is a set of tabs', async () => {
         at(46.0);
         await show(DiscoverScreen);
         screen.getByRole('tab', { name: 'Feed' });
@@ -341,7 +341,7 @@ describe('Profile', () => {
         screen.getByText('Alice Liddell');
     });
 
-    test.skip('BUG: Sign out, Delete account and Edit photo have no button role', async () => {
+    test('Sign out, Delete account and Edit photo are buttons', async () => {
         await show(ProfileScreen);
         button('Sign out');
         button('Delete account');

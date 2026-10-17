@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable,
-    Modal, Image, RefreshControl, ActivityIndicator,
+    View, Text, StyleSheet, ScrollView, Pressable,
+    Modal, Image, RefreshControl,
 } from 'react-native';
+import { EmptyState, SkeletonList, Tap } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,7 +23,7 @@ import { locationSourceLabel } from '../services/locationChoice';
 import DialogHost from '../components/DialogHost';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { confirm, errorText, showError } from '../components/dialogs';
-import { typography, radii } from '../theme';
+import { typography, radii, motion, stagger } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -90,7 +91,7 @@ function PartyProgressBar({ totalVotes, memberCount, venueCount, colors }: {
 
     useEffect(() => {
         if (trackWidth > 0) {
-            widthAnim.value = withTiming(trackWidth * progress, { duration: 500 });
+            widthAnim.value = withTiming(trackWidth * progress, { duration: motion.base });
         }
     }, [trackWidth, progress]);
 
@@ -99,7 +100,7 @@ function PartyProgressBar({ totalVotes, memberCount, venueCount, colors }: {
 
     return (
         <View style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                 <Text style={{ color: colors.text60, fontSize: 12, fontFamily: 'Inter_500Medium' }}>Voting Progress</Text>
                 <Text style={{ color: colors.text40, fontSize: 12, fontFamily: 'Inter_400Regular' }}>{swiped}</Text>
             </View>
@@ -135,12 +136,12 @@ function PartyCard({ party, onPress, onMenuPress, colors }: { party: PartyRow; o
         >
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                 <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 2 }} numberOfLines={1}>{party.name}</Text>
+                    <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 4 }} numberOfLines={1}>{party.name}</Text>
                     <Text style={{ color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
                         {party.member_count} {party.member_count === 1 ? 'member' : 'members'}
                     </Text>
                     <Text
-                        style={{ color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}
+                        style={{ color: colors.text60, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 4 }}
                         numberOfLines={1}
                         accessibilityLabel={`Your location for this party: ${locationSourceLabel(party.my_location).replace('Custom: ', 'Custom, ')}`}
                     >
@@ -153,18 +154,18 @@ function PartyCard({ party, onPress, onMenuPress, colors }: { party: PartyRow; o
                             <Text style={{ color: r.onPrimary, fontFamily: 'Inter_900Black', fontSize: 11 }}>MATCHED! 🎉</Text>
                         </View>
                     )}
-                    <TouchableOpacity
+                    <Tap
                         onPress={(e) => { e.stopPropagation?.(); onMenuPress(); }}
                         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                        style={{ padding: 6, zIndex: 10 }}
+                        style={{ padding: 8, zIndex: 10 }}
                         activeOpacity={0.6}
                     >
                         <MoreVertical size={18} color={colors.text60} />
-                    </TouchableOpacity>
+                    </Tap>
                 </View>
             </View>
             {party.member_avatars.length > 0 && (
-                <View style={{ marginTop: 10 }}>
+                <View style={{ marginTop: 8 }}>
                     <StackedAvatars avatars={party.member_avatars} colors={colors} />
                 </View>
             )}
@@ -186,8 +187,8 @@ function OnlineFriendBubble({ friend, onPress, index, colors }: { friend: any; o
     const initials = name.slice(0, 2).toUpperCase();
 
     return (
-        <Animated.View entering={FadeIn.delay(index * 50).duration(300)} style={{ alignItems: 'center', width: 64 }}>
-            <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ alignItems: 'center' }}>
+        <Animated.View entering={FadeIn.delay(stagger(index, false)).duration(motion.base)} style={{ alignItems: 'center', width: 64 }}>
+            <Tap onPress={onPress} activeOpacity={0.8} style={{ alignItems: 'center' }}>
                 <View style={{ position: 'relative', width: 64, height: 64 }}>
                     {friend.avatar_url ? (
                         <Image source={{ uri: friend.avatar_url }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: colors.glassBorder }} />
@@ -198,8 +199,8 @@ function OnlineFriendBubble({ friend, onPress, index, colors }: { friend: any; o
                     )}
                     <View style={{ position: 'absolute', bottom: 1, right: 1, width: 16, height: 16, borderRadius: 8, backgroundColor: r.success, borderWidth: 2, borderColor: colors.bg }} />
                 </View>
-                <Text style={{ color: colors.text60, fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 6, textAlign: 'center', maxWidth: 64 }} numberOfLines={1}>{name.split(' ')[0]}</Text>
-            </TouchableOpacity>
+                <Text style={{ color: colors.text60, fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 8, textAlign: 'center', maxWidth: 64 }} numberOfLines={1}>{name.split(' ')[0]}</Text>
+            </Tap>
         </Animated.View>
     );
 }
@@ -216,7 +217,7 @@ function AnimatedFAB({ onPress, colors }: { onPress: () => void; colors: AppColo
 
     return (
         <Animated.View style={[{ position: 'absolute', bottom: 96, right: 24, borderRadius: 32, shadowColor: colors.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.45, shadowRadius: 20, elevation: 12 }, fabStyle]}>
-            <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={{ width: 64, height: 64, borderRadius: 32, overflow: 'hidden', backgroundColor: 'transparent' }}>
+            <Tap activeOpacity={0.85} onPress={onPress} style={{ width: 64, height: 64, borderRadius: 32, overflow: 'hidden', backgroundColor: 'transparent' }}>
                 <LinearGradient
                     colors={colors.gradient as any}
                     start={{ x: 0, y: 0 }}
@@ -225,7 +226,7 @@ function AnimatedFAB({ onPress, colors }: { onPress: () => void; colors: AppColo
                 >
                     <Plus size={28} color={r.onPrimary} strokeWidth={3} />
                 </LinearGradient>
-            </TouchableOpacity>
+            </Tap>
         </Animated.View>
     );
 }
@@ -361,7 +362,7 @@ export default function HomeScreen() {
                     showsVerticalScrollIndicator={false}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text60} />}
                 >
-                    <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
+                    <Animated.View entering={FadeInDown.duration(motion.base)} style={styles.header}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                             <Text style={[styles.wordmark, { color: colors.primary }]}>LINKDUP</Text>
                             <HelpButton items={HOME_HELP} />
@@ -372,7 +373,7 @@ export default function HomeScreen() {
                     </Animated.View>
 
                     {onlineFriends.length > 0 && (
-                        <Animated.View entering={FadeInDown.delay(80).duration(400)} style={{ marginTop: 24 }}>
+                        <Animated.View entering={FadeInDown.delay(motion.instant).duration(motion.base)} style={{ marginTop: 24 }}>
                             <Text style={styles.sectionLabel}>Online Alumni</Text>
                             <ScrollView
                                 horizontal
@@ -393,7 +394,7 @@ export default function HomeScreen() {
                     )}
 
                     <View ref={friendsCardRef}>
-                        <TouchableOpacity
+                        <Tap
                             onPress={() => nav.navigate('Friends')}
                             style={styles.friendsCard}
                             activeOpacity={0.85}
@@ -420,7 +421,7 @@ export default function HomeScreen() {
                                 )}
                                 <ChevronRight size={20} color={colors.text40} />
                             </View>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
 
                     <View style={{ marginTop: 32, paddingHorizontal: 24 }}>
@@ -430,21 +431,16 @@ export default function HomeScreen() {
                             <LoadError title="We couldn't load your parties" error={loadError} onRetry={retryLoad} />
                         ) : partiesView === 'loading' ? (
                             <>
-                                <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+                                <SkeletonList count={2} height={144} round={radii.xl} label="Loading your parties" />
                                 <SlowLoadNote loading />
                             </>
                         ) : partiesView === 'empty' ? (
-                            <View style={styles.emptyCard}>
-                                <Text style={styles.emptyTitle}>No parties yet</Text>
-                                <Text style={styles.emptyBody}>
-                                    Tap the + button below to create your first party, or join one with a code.
-                                </Text>
-                            </View>
+                            <EmptyState card title="No parties yet" body="Tap the + button below to create your first party, or join one with a code." />
                         ) : (
                             activeParties.map((party, i) => {
                                 const target = routeForParty(party);
                                 return (
-                                    <Animated.View key={party.id} entering={FadeInLeft.delay(i * 100).duration(400)}>
+                                    <Animated.View key={party.id} entering={FadeInLeft.delay(stagger(i, false)).duration(motion.base)}>
                                         <PartyCard
                                             party={party}
                                             colors={colors}
@@ -456,13 +452,13 @@ export default function HomeScreen() {
                             })
                         )}
 
-                        <TouchableOpacity
+                        <Tap
                             style={{ padding: 16, alignItems: 'center', marginTop: 8 }}
                             onPress={() => nav.navigate('JoinParty')}
                             activeOpacity={0.8}
                         >
                             <Text style={{ color: colors.text60, fontSize: 14, fontFamily: 'Inter_500Medium' }}>Have a code? Join a party →</Text>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 </ScrollView>
             </SafeAreaView>
@@ -490,25 +486,25 @@ export default function HomeScreen() {
                             {displayParty?.name ?? 'Party options'}
                         </Text>
                         {displayParty?.host_user_id === me?.id ? (
-                            <TouchableOpacity
+                            <Tap
                                 style={styles.menuRow}
                                 onPress={() => displayParty && confirmDelete(displayParty)}
                                 activeOpacity={0.7}
                             >
                                 <Text style={styles.menuDestructive}>Delete party</Text>
-                            </TouchableOpacity>
+                            </Tap>
                         ) : (
-                            <TouchableOpacity
+                            <Tap
                                 style={styles.menuRow}
                                 onPress={() => displayParty && confirmLeave(displayParty)}
                                 activeOpacity={0.7}
                             >
                                 <Text style={styles.menuDestructive}>Leave party</Text>
-                            </TouchableOpacity>
+                            </Tap>
                         )}
-                        <TouchableOpacity style={styles.menuRow} onPress={closePartyMenu} activeOpacity={0.7}>
+                        <Tap style={styles.menuRow} onPress={closePartyMenu} activeOpacity={0.7}>
                             <Text style={styles.menuCancel}>Cancel</Text>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 </Pressable>
                 <DialogHost />
@@ -549,7 +545,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             alignItems: 'center',
             paddingVertical: 16,
             paddingHorizontal: 16,
-            gap: 14,
+            gap: 16,
         },
         friendsCardIcon: {
             width: 44, height: 44, borderRadius: 22,
@@ -557,26 +553,16 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             alignItems: 'center', justifyContent: 'center',
         },
         friendsCardTitle: { color: c.textPrimary, fontSize: 17, fontFamily: 'Inter_700Bold' },
-        friendsCardSubtitle: { color: c.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 2 },
+        friendsCardSubtitle: { color: c.text60, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 4 },
         friendsCardBadge: {
             backgroundColor: r.dangerStrong,
             minWidth: 22, height: 22, borderRadius: 11,
-            paddingHorizontal: 6,
+            paddingHorizontal: 8,
             alignItems: 'center', justifyContent: 'center',
             marginRight: 4,
         },
         friendsCardBadgeText: { color: r.onPrimary, fontSize: 12, fontFamily: 'Inter_700Bold' },
         sectionHeader: { ...typography.h2, color: c.textPrimary, marginBottom: 16, fontSize: 20 },
-        emptyCard: {
-            backgroundColor: c.glass,
-            borderRadius: radii.lg,
-            padding: 24,
-            borderWidth: 1,
-            borderColor: c.glassBorder,
-            alignItems: 'center',
-        },
-        emptyTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 16, marginBottom: 6 },
-        emptyBody: { color: c.text60, fontSize: 13, textAlign: 'center', fontFamily: 'Inter_400Regular' },
         menuOverlay: { flex: 1, backgroundColor: r.scrim, justifyContent: 'flex-end' },
         menuSheet: {
             backgroundColor: c.bg,

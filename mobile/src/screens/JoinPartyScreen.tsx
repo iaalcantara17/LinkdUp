@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { ScreenHeader, Tap } from '../components/kit';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, ArrowRight } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
-import { typography, radii } from '../theme';
+import { typography, radii, motion } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -42,15 +43,9 @@ export default function JoinPartyScreen() {
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
-                        <ArrowLeft size={24} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Join a Party</Text>
-                    <View style={{ width: 40 }} />
-                </View>
+                <ScreenHeader title="Join a Party" onBack={() => nav.goBack()} />
 
-                <Animated.View entering={FadeInDown.duration(400)} style={styles.content}>
+                <Animated.View entering={FadeInDown.duration(motion.base)} style={styles.content}>
                     <Text style={styles.title}>Enter the code</Text>
                     <Text style={styles.sub}>Ask the host for the 6-character party code</Text>
 
@@ -80,8 +75,6 @@ export default function JoinPartyScreen() {
 function makeStyles(c: AppColors) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
-        header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
-        headerTitle: { ...typography.h3, color: c.textPrimary },
         content: { flex: 1, padding: 24, paddingTop: 48 },
         title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 32, marginBottom: 8 },
         sub: { color: c.text60, fontSize: 15, marginBottom: 32, fontFamily: 'Inter_400Regular' },

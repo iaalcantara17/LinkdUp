@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { ScreenHeader, Tap } from '../components/kit';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -12,13 +13,13 @@ import Animated, {
     withTiming,
     FadeInDown,
 } from 'react-native-reanimated';
-import { Calendar as CalendarIcon, Clock, MapPin, Users, ArrowLeft } from 'lucide-react-native';
+import { Calendar as CalendarIcon, Clock, MapPin, Users } from 'lucide-react-native';
 import IconBadge from '../components/IconBadge';
 import GradientButton from '../components/GradientButton';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { api } from '../services/api';
 import { errorText, showError, showInfo, toast } from '../components/dialogs';
-import { typography, spacing, radii, palette } from '../theme';
+import { typography, spacing, radii, palette, motion } from '../theme';
 import type { AppColors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -299,16 +300,10 @@ export default function CalendarConfirmationScreen() {
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={{ padding: 8 }}>
-                        <ArrowLeft size={24} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Confirm</Text>
-                    <View style={{ width: 40 }} />
-                </View>
+                <ScreenHeader title="Confirm" onBack={() => nav.goBack()} />
 
                 <ScrollView contentContainerStyle={{ padding: 24 }} showsVerticalScrollIndicator={false}>
-                    <Animated.View entering={FadeInDown.duration(500)} style={{ alignItems: 'center', marginBottom: 24 }}>
+                    <Animated.View entering={FadeInDown.duration(motion.base)} style={{ alignItems: 'center', marginBottom: 24 }}>
                         <Animated.View style={badgeStyle}>
                             <IconBadge size={80} radius={40}>
                                 <CalendarIcon size={40} color={roles.onPrimary} />
@@ -328,7 +323,7 @@ export default function CalendarConfirmationScreen() {
                             }}
                         />
                     ) : (
-                    <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.eventCard}>
+                    <Animated.View entering={FadeInDown.delay(motion.instant).duration(motion.base)} style={styles.eventCard}>
                         {partyId !== 'demo' && !detailsLoaded && <SlowLoadNote loading />}
                         <View style={styles.venueBlock}>
                             <Text style={styles.venueName}>{venue?.name ?? 'Loading...'}</Text>
@@ -382,7 +377,7 @@ export default function CalendarConfirmationScreen() {
                             </IconBadge>
                             <View style={{ flex: 1, marginLeft: 16 }}>
                                 <Text style={styles.rowLabel}>Attendees ({attendees.length})</Text>
-                                <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                                <View style={{ flexDirection: 'row', marginTop: 8 }}>
                                     {attendees.map((a, i) => (
                                         <View key={a.id} style={{ marginLeft: i === 0 ? 0 : -10 }}>
                                             <AvatarBubble name={a.name} color={a.color} avatarUrl={a.avatarUrl} size={36} />
@@ -394,7 +389,7 @@ export default function CalendarConfirmationScreen() {
                     </Animated.View>
                     )}
 
-                    <Animated.View entering={FadeInDown.delay(400).duration(500)}>
+                    <Animated.View entering={FadeInDown.delay(motion.fast).duration(motion.base)}>
                         <GradientButton
                             title="Add to Google Calendar"
                             variant="white"
@@ -428,11 +423,9 @@ export default function CalendarConfirmationScreen() {
 function makeStyles(c: AppColors) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
-        header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 8 },
-        headerTitle: { ...typography.h3, color: c.textPrimary },
 
         title: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 36, marginTop: 16, textAlign: 'center' },
-        subtitle: { color: c.text60, fontSize: 16, textAlign: 'center', marginTop: 6, fontFamily: 'Inter_400Regular' },
+        subtitle: { color: c.text60, fontSize: 16, textAlign: 'center', marginTop: 8, fontFamily: 'Inter_400Regular' },
 
         eventCard: {
             backgroundColor: c.glass,
@@ -443,12 +436,12 @@ function makeStyles(c: AppColors) {
             marginBottom: 24,
         },
         venueBlock: { marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: c.glassBorder },
-        venueName: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 26, marginBottom: 6 },
-        venueAddress: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+        venueName: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 26, marginBottom: 8 },
+        venueAddress: { flexDirection: 'row', alignItems: 'center', gap: 8 },
         venueAddressText: { color: c.text60, fontSize: 13, fontFamily: 'Inter_400Regular' },
 
         row: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-        rowLabel: { color: c.text60, fontSize: 12, marginBottom: 2, fontFamily: 'Inter_400Regular' },
+        rowLabel: { color: c.text60, fontSize: 12, marginBottom: 4, fontFamily: 'Inter_400Regular' },
         rowValue: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
         attendeeAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: c.bg },
 

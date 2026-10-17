@@ -25,6 +25,8 @@ import SavedScreen from '../screens/SavedScreen';
 import FollowListScreen from '../screens/FollowListScreen';
 import BlockedUsersScreen from '../screens/BlockedUsersScreen';
 import { useTheme } from '../context/ThemeContext';
+import { useReducedMotion, withScreenFade } from '../components/kit';
+import { motion } from '../theme';
 
 export type MainStackParamList = {
     Home: undefined;
@@ -60,39 +62,42 @@ interface MainStackProps {
 
 export default function MainStack({ startScreen = 'Home' }: MainStackProps) {
     const { colors } = useTheme();
+    const reduced = useReducedMotion();
+    const anim = <T extends string>(a: T) => (reduced ? 'none' : a);
     return (
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
             <Stack.Navigator
                 screenOptions={{
                     headerShown: false,
                     contentStyle: { backgroundColor: colors.bg },
-                    animation: 'slide_from_right',
+                    animation: anim('slide_from_right'),
+                    animationDuration: motion.base,
                 }}
                 initialRouteName={startScreen}
             >
-                <Stack.Screen name="Home" component={HomeScreen} />
-                <Stack.Screen name="Discover" component={DiscoverScreen} />
-                <Stack.Screen name="Profile" component={ProfileScreen} />
-                <Stack.Screen name="LocationPermission" component={LocationPermissionScreen} />
-                <Stack.Screen name="CreateParty" component={CreatePartyScreen} options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="JoinParty" component={JoinPartyScreen} options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="PartyLobby" component={PartyLobbyScreen} />
-                <Stack.Screen name="Swipe" component={SwipeScreen} />
-                <Stack.Screen name="Proposal" component={ProposalScreen} options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="Match" component={MatchScreen} options={{ animation: 'fade' }} />
-                <Stack.Screen name="DateTimeSetup" component={DateTimeSetupScreen} />
-                <Stack.Screen name="CalendarConfirmation" component={CalendarConfirmationScreen} />
-                <Stack.Screen name="Hangouts" component={HangoutsScreen} />
-                <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} />
-                <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
-                <Stack.Screen name="Friends" component={FriendsScreen} options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="CrewMapFullscreen" component={CrewMapFullscreenScreen} options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="Walkthrough" component={WalkthroughScreen} options={{ animation: 'fade', gestureEnabled: false }} />
-                <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="MyPosts" component={MyPostsScreen} options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="Saved" component={SavedScreen} options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="FollowList" component={FollowListScreen} options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="Home" component={withScreenFade(HomeScreen)} />
+                <Stack.Screen name="Discover" component={withScreenFade(DiscoverScreen)} />
+                <Stack.Screen name="Profile" component={withScreenFade(ProfileScreen)} />
+                <Stack.Screen name="LocationPermission" component={withScreenFade(LocationPermissionScreen)} />
+                <Stack.Screen name="CreateParty" component={withScreenFade(CreatePartyScreen)} options={{ animation: anim('slide_from_bottom') }} />
+                <Stack.Screen name="JoinParty" component={withScreenFade(JoinPartyScreen)} options={{ animation: anim('slide_from_bottom') }} />
+                <Stack.Screen name="PartyLobby" component={withScreenFade(PartyLobbyScreen)} />
+                <Stack.Screen name="Swipe" component={withScreenFade(SwipeScreen)} />
+                <Stack.Screen name="Proposal" component={withScreenFade(ProposalScreen)} options={{ animation: anim('slide_from_bottom') }} />
+                <Stack.Screen name="Match" component={withScreenFade(MatchScreen)} options={{ animation: anim('fade') }} />
+                <Stack.Screen name="DateTimeSetup" component={withScreenFade(DateTimeSetupScreen)} />
+                <Stack.Screen name="CalendarConfirmation" component={withScreenFade(CalendarConfirmationScreen)} />
+                <Stack.Screen name="Hangouts" component={withScreenFade(HangoutsScreen)} />
+                <Stack.Screen name="AuthCallback" component={withScreenFade(AuthCallbackScreen)} />
+                <Stack.Screen name="CompleteProfile" component={withScreenFade(CompleteProfileScreen)} options={{ animation: anim('slide_from_bottom'), gestureEnabled: false }} />
+                <Stack.Screen name="Friends" component={withScreenFade(FriendsScreen)} options={{ animation: anim('slide_from_right') }} />
+                <Stack.Screen name="CrewMapFullscreen" component={withScreenFade(CrewMapFullscreenScreen)} options={{ animation: anim('slide_from_bottom') }} />
+                <Stack.Screen name="Walkthrough" component={withScreenFade(WalkthroughScreen)} options={{ animation: anim('fade'), gestureEnabled: false }} />
+                <Stack.Screen name="CreatePost" component={withScreenFade(CreatePostScreen)} options={{ animation: anim('slide_from_bottom') }} />
+                <Stack.Screen name="MyPosts" component={withScreenFade(MyPostsScreen)} options={{ animation: anim('slide_from_right') }} />
+                <Stack.Screen name="Saved" component={withScreenFade(SavedScreen)} options={{ animation: anim('slide_from_right') }} />
+                <Stack.Screen name="FollowList" component={withScreenFade(FollowListScreen)} options={{ animation: anim('slide_from_right') }} />
+                <Stack.Screen name="BlockedUsers" component={withScreenFade(BlockedUsersScreen)} options={{ animation: anim('slide_from_right') }} />
             </Stack.Navigator>
         </View>
     );

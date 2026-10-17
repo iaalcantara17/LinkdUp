@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Modal, ActivityIndicator, Platform, Share } from 'react-native';
+import { View, Text, StyleSheet, Image, Dimensions, Modal, ActivityIndicator, Platform, Share } from 'react-native';
+import { Tap } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -33,7 +34,7 @@ const SWIPE_HELP: { title: string; description: string }[] = [
 ];
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
-import { typography, radii, palette } from '../theme';
+import { typography, radii, palette, motion } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -538,7 +539,7 @@ export default function SwipeScreen() {
 
     const swipeOff = (direction: 'left' | 'right') => {
         const liked = direction === 'right';
-        translateX.value = withTiming(direction === 'right' ? width * 1.5 : -width * 1.5, { duration: 250 }, () => {
+        translateX.value = withTiming(direction === 'right' ? width * 1.5 : -width * 1.5, { duration: motion.fast }, () => {
             runOnJS(advance)(liked);
         });
     };
@@ -614,16 +615,16 @@ export default function SwipeScreen() {
                 <Text style={[typography.body, { color: colors.text60, textAlign: 'center', marginBottom: 32, lineHeight: 22 }]}>
                     Try expanding your party's search area, or invite more people to pull the midpoint somewhere busier.
                 </Text>
-                <TouchableOpacity activeOpacity={0.85} onPress={() => nav.navigate('PartyLobby', { partyId })}>
+                <Tap activeOpacity={0.85} onPress={() => nav.navigate('PartyLobby', { partyId })}>
                     <LinearGradient
                         colors={colors.gradient as any}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
-                        style={{ paddingHorizontal: 36, paddingVertical: 18, borderRadius: radii.lg }}
+                        style={{ paddingHorizontal: 36, paddingVertical: 16, borderRadius: radii.lg }}
                     >
                         <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 }}>Back to lobby</Text>
                     </LinearGradient>
-                </TouchableOpacity>
+                </Tap>
             </View>
         );
     }
@@ -639,7 +640,7 @@ export default function SwipeScreen() {
                     <Text style={[typography.body, { color: colors.text60, textAlign: 'center', marginBottom: 32, lineHeight: 22 }]}>
                         Nobody clicked yes on the same place.{'\n'}Want to reset and try again?
                     </Text>
-                    <TouchableOpacity
+                    <Tap
                         activeOpacity={0.85}
                         disabled={resetting}
                         onPress={async () => {
@@ -662,16 +663,16 @@ export default function SwipeScreen() {
                             colors={colors.gradient as any}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
-                            style={{ paddingHorizontal: 36, paddingVertical: 18, borderRadius: radii.lg, opacity: resetting ? 0.6 : 1 }}
+                            style={{ paddingHorizontal: 36, paddingVertical: 16, borderRadius: radii.lg, opacity: resetting ? 0.6 : 1 }}
                         >
                             <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 }}>
                                 {resetting ? 'Resetting…' : 'Reset & Try Again'}
                             </Text>
                         </LinearGradient>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => nav.navigate('Home')} style={{ marginTop: 16, padding: 12 }}>
+                    </Tap>
+                    <Tap onPress={() => nav.navigate('Home')} style={{ marginTop: 16, padding: 12 }}>
                         <Text style={{ color: colors.text60, fontFamily: 'Inter_500Medium', fontSize: 14 }}>Back to Home</Text>
-                    </TouchableOpacity>
+                    </Tap>
                 </View>
             );
         }
@@ -682,11 +683,11 @@ export default function SwipeScreen() {
                 <Text style={[typography.body, { color: colors.text60, textAlign: 'center', marginVertical: 12 }]}>
                     Check back later or go home
                 </Text>
-                <TouchableOpacity onPress={() => nav.navigate('Home')} activeOpacity={0.85}>
+                <Tap onPress={() => nav.navigate('Home')} activeOpacity={0.85}>
                     <LinearGradient colors={colors.gradient as any} style={{ paddingHorizontal: 32, paddingVertical: 16, borderRadius: radii.lg }}>
                         <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 }}>Back to Home</Text>
                     </LinearGradient>
-                </TouchableOpacity>
+                </Tap>
             </View>
         );
     }
@@ -727,25 +728,25 @@ export default function SwipeScreen() {
                         ) : (
                             <Text style={styles.pitchBody}>{pitchModal?.pitch}</Text>
                         )}
-                        <TouchableOpacity onPress={() => setPitchModal(null)} style={styles.pitchDismiss} activeOpacity={0.8}>
+                        <Tap onPress={() => setPitchModal(null)} style={styles.pitchDismiss} activeOpacity={0.8}>
                             <Text style={styles.pitchDismissText}>Got it</Text>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 </View>
             </Modal>
 
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <View style={styles.topBar}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={styles.topIconBtn} accessibilityRole="button" accessibilityLabel="Back">
+                    <Tap onPress={() => nav.goBack()} style={styles.topIconBtn} accessibilityRole="button" accessibilityLabel="Back">
                         <ArrowLeft size={22} color={roles.onMedia} />
-                    </TouchableOpacity>
+                    </Tap>
                     <BlurView intensity={40} tint="dark" style={styles.midpointPill}>
                         <MapPin size={14} color={colors.primary} />
                         <Text style={styles.midpointText}>{distance.toFixed(1)} mi from midpoint</Text>
                     </BlurView>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <HelpButton items={SWIPE_HELP} />
-                        <TouchableOpacity
+                        <Tap
                             style={styles.topIconBtn}
                             onPress={() => {
                                 if (isDemo) return;
@@ -756,10 +757,10 @@ export default function SwipeScreen() {
                             }}
                         >
                             <Info size={22} color={roles.onMedia} />
-                        </TouchableOpacity>
+                        </Tap>
                         {isSolo && (
                             <View ref={donePillRef}>
-                                <TouchableOpacity onPress={() => setForceMatchModal(true)} activeOpacity={0.85}>
+                                <Tap onPress={() => setForceMatchModal(true)} activeOpacity={0.85}>
                                     <LinearGradient
                                         colors={colors.gradient as any}
                                         start={{ x: 0, y: 0 }}
@@ -769,7 +770,7 @@ export default function SwipeScreen() {
                                         <Check size={13} color={roles.onPrimary} />
                                         <Text style={styles.donePickText}>Done — pick now</Text>
                                     </LinearGradient>
-                                </TouchableOpacity>
+                                </Tap>
                             </View>
                         )}
                     </View>
@@ -837,9 +838,9 @@ export default function SwipeScreen() {
                                     <Text style={[styles.venueName, { flex: 1 }]}>{current.name}</Text>
                                     {!current.id.startsWith('demo-') && (
                                         <View ref={whyThisRef}>
-                                            <TouchableOpacity onPress={handleWhyThis} activeOpacity={0.85} style={styles.whyChip}>
+                                            <Tap onPress={handleWhyThis} activeOpacity={0.85} style={styles.whyChip}>
                                                 <Text style={styles.whyChipText}>✨ Why this?</Text>
-                                            </TouchableOpacity>
+                                            </Tap>
                                         </View>
                                     )}
                                 </View>
@@ -865,7 +866,7 @@ export default function SwipeScreen() {
                                             {crew.map((member) => {
                                                 const voted = votedOnCurrentCard.has(member.user_id);
                                                 return (
-                                                    <View key={member.user_id} style={{ alignItems: 'center', marginHorizontal: 6 }}>
+                                                    <View key={member.user_id} style={{ alignItems: 'center', marginHorizontal: 8 }}>
                                                         <View style={{ opacity: voted ? 1 : 0.4 }}>
                                                             <AvatarBubble
                                                                 name={member.display_name}
@@ -934,7 +935,7 @@ export default function SwipeScreen() {
 
                 {Platform.OS !== 'web' ? (
                     <View style={styles.actions}>
-                        <TouchableOpacity
+                        <Tap
                             onPress={() => { if (!buttonsLocked) swipeOff('left'); }}
                             accessibilityRole="button"
                             accessibilityLabel={`Skip ${current?.name ?? 'this spot'}`}
@@ -945,8 +946,8 @@ export default function SwipeScreen() {
                             <View style={styles.passBtn}>
                                 <X size={32} color={colors.danger} />
                             </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity
+                        </Tap>
+                        <Tap
                             onPress={() => { if (!buttonsLocked) swipeOff('right'); }}
                             accessibilityRole="button"
                             accessibilityLabel={`Like ${current?.name ?? 'this spot'}`}
@@ -962,11 +963,11 @@ export default function SwipeScreen() {
                             >
                                 <Heart size={40} color={roles.onPrimary} fill={roles.onPrimary} />
                             </LinearGradient>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 ) : (
                     <View style={styles.webActions}>
-                        <TouchableOpacity
+                        <Tap
                             onPress={() => { if (!buttonsLocked) swipeOff('left'); }}
                             accessibilityRole="button"
                             accessibilityLabel={`Skip ${current?.name ?? 'this spot'}`}
@@ -975,8 +976,8 @@ export default function SwipeScreen() {
                             style={[styles.webPassBtn, buttonsLocked && { opacity: 0.3 }]}
                         >
                             <X size={26} color={colors.danger} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
+                        </Tap>
+                        <Tap
                             onPress={() => { if (!buttonsLocked) swipeOff('right'); }}
                             accessibilityRole="button"
                             accessibilityLabel={`Like ${current?.name ?? 'this spot'}`}
@@ -992,7 +993,7 @@ export default function SwipeScreen() {
                             >
                                 <Heart size={26} color={roles.onPrimary} fill={roles.onPrimary} />
                             </LinearGradient>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 )}
             </SafeAreaView>
@@ -1027,7 +1028,7 @@ export default function SwipeScreen() {
                         <View style={styles.pitchDragBar} />
                         <Text style={styles.pitchVenueName}>{partyInfo?.party?.name ?? 'Party Info'}</Text>
                         <View style={{ gap: 12, marginTop: 4 }}>
-                            <TouchableOpacity
+                            <Tap
                                 activeOpacity={0.85}
                                 onPress={() => {
                                     const code = partyInfo?.party?.code;
@@ -1046,8 +1047,8 @@ export default function SwipeScreen() {
                                         {partyInfo?.party?.code ?? '—'}
                                     </Text>
                                 </View>
-                            </TouchableOpacity>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                            </Tap>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                                 {(partyInfo?.members ?? []).map((m: any) => (
                                     <View key={m.user_id} style={{ alignItems: 'center' }}>
                                         <AvatarBubble
@@ -1081,9 +1082,9 @@ export default function SwipeScreen() {
                                 </Text>
                             </View>
                         </View>
-                        <TouchableOpacity onPress={() => setInfoModal(false)} style={[styles.pitchDismiss, { marginTop: 24 }]} activeOpacity={0.8}>
+                        <Tap onPress={() => setInfoModal(false)} style={[styles.pitchDismiss, { marginTop: 24 }]} activeOpacity={0.8}>
                             <Text style={styles.pitchDismissText}>Close</Text>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 </View>
             </Modal>
@@ -1095,21 +1096,21 @@ export default function SwipeScreen() {
                         <View style={styles.pitchDragBar} />
                         <Text style={styles.pitchVenueName}>Match from your likes so far?</Text>
                         <Text style={styles.pitchBody}>We'll pick the venue you liked most recently.</Text>
-                        <TouchableOpacity
+                        <Tap
                             onPress={handleForceMatch}
-                            style={[styles.pitchDismiss, { marginBottom: 10, opacity: forcingMatch ? 0.6 : 1 }]}
+                            style={[styles.pitchDismiss, { marginBottom: 8, opacity: forcingMatch ? 0.6 : 1 }]}
                             activeOpacity={0.85}
                             disabled={forcingMatch}
                         >
                             <Text style={styles.pitchDismissText}>{forcingMatch ? 'Picking...' : 'Yes, pick one'}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
+                        </Tap>
+                        <Tap
                             onPress={() => setForceMatchModal(false)}
                             style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radii.md, paddingVertical: 12, alignItems: 'center' }}
                             activeOpacity={0.85}
                         >
                             <Text style={{ color: colors.text80, fontFamily: 'Inter_700Bold', fontSize: 15 }}>Nope, keep swiping</Text>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 </View>
             </Modal>
@@ -1128,7 +1129,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
         midpointPill: {
             flexDirection: 'row', alignItems: 'center', gap: 8,
-            paddingHorizontal: 14, paddingVertical: 10,
+            paddingHorizontal: 16, paddingVertical: 8,
             borderRadius: radii.pill, overflow: 'hidden', backgroundColor: r.scrim,
         },
         midpointText: { color: r.onMedia, fontSize: 13, fontFamily: 'Inter_500Medium' },
@@ -1159,17 +1160,17 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
         cardOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24, paddingTop: 80 },
         categoryPill: {
-            alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6,
+            alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8,
             borderRadius: radii.pill, overflow: 'hidden', marginBottom: 12,
         },
         categoryText: { color: r.onMedia, fontSize: 12, fontFamily: 'Inter_700Bold' },
-        venueName: { color: r.onMedia, fontSize: 28, fontFamily: 'Inter_900Black', marginBottom: 6 },
+        venueName: { color: r.onMedia, fontSize: 28, fontFamily: 'Inter_900Black', marginBottom: 8 },
         venueMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
         metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
         metaText: { color: r.onMediaMuted, fontSize: 14, fontFamily: 'Inter_500Medium' },
         metaDot: { color: r.onMediaFaint },
 
-        stamp: { position: 'absolute', top: '30%', borderWidth: 4, borderRadius: radii.lg, paddingHorizontal: 20, paddingVertical: 10 },
+        stamp: { position: 'absolute', top: '30%', borderWidth: 4, borderRadius: radii.lg, paddingHorizontal: 20, paddingVertical: 8 },
         stampLike: { left: 24, borderColor: c.success, transform: [{ rotate: '-20deg' }] },
         stampLikeText: { color: c.success, fontSize: 36, fontFamily: 'Inter_900Black' },
         stampNope: { right: 24, borderColor: c.danger, transform: [{ rotate: '20deg' }] },
@@ -1215,10 +1216,10 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
 
         crewHud: {
-            marginHorizontal: 16, marginTop: 8, padding: 14,
+            marginHorizontal: 16, marginTop: 8, padding: 16,
             borderRadius: radii.lg, borderWidth: 1, borderColor: c.glassBorder, overflow: 'hidden',
         },
-        crewHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+        crewHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
         crewLabel: { color: c.text60, fontSize: 12, fontFamily: 'Inter_500Medium' },
         crewCount: { color: c.textPrimary, fontSize: 12, fontFamily: 'Inter_700Bold' },
         crewRow: { flexDirection: 'row', justifyContent: 'space-around' },
@@ -1241,7 +1242,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             fontFamily: 'Inter_600SemiBold',
             fontSize: 13,
             textAlign: 'center',
-            marginTop: 10,
+            marginTop: 8,
             paddingHorizontal: 20,
         },
 
@@ -1260,7 +1261,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
 
         donePickPill: {
-            flexDirection: 'row', alignItems: 'center', gap: 5,
+            flexDirection: 'row', alignItems: 'center', gap: 4,
             paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.pill,
         },
         donePickText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 12 },
@@ -1268,15 +1269,15 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         voteCountPill: {
             position: 'absolute', top: 16, right: 16,
             backgroundColor: r.successFill,
-            borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5,
+            borderRadius: radii.pill, paddingHorizontal: 8, paddingVertical: 4,
         },
         voteCountText: { color: r.onPrimary, fontSize: 12, fontFamily: 'Inter_700Bold' },
 
-        venueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 6 },
+        venueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 8 },
         whyChip: {
             flexShrink: 0, backgroundColor: r.primary,
-            paddingHorizontal: 10, paddingVertical: 5,
-            borderRadius: radii.pill, marginBottom: 2,
+            paddingHorizontal: 8, paddingVertical: 4,
+            borderRadius: radii.pill, marginBottom: 4,
         },
         whyChipText: { color: r.onPrimary, fontSize: 11, fontFamily: 'Inter_600SemiBold' },
 
@@ -1314,7 +1315,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             backgroundColor: c.text40, alignSelf: 'center', marginBottom: 20,
         },
         pitchPhoto: { width: '100%', height: 160, borderRadius: radii.md, marginBottom: 12, resizeMode: 'cover' },
-        pitchVenueName: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 14 },
+        pitchVenueName: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 16 },
         pitchBody: { color: c.text80, fontSize: 15, fontFamily: 'Inter_400Regular', lineHeight: 22, marginBottom: 24 },
         pitchDismiss: { backgroundColor: c.primary, borderRadius: radii.md, paddingVertical: 12, alignItems: 'center' },
         pitchDismissText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },

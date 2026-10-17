@@ -1,7 +1,8 @@
 import React, { ReactNode, cloneElement, isValidElement, useMemo } from 'react';
-import { Text, TouchableOpacity, ViewStyle, ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Text, ViewStyle, ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AppColors, ColorRoles, elevation, palette, radius, space, typeScale } from '../theme';
+import { AppColors, ColorRoles, control, elevation, palette, radius, space, typeScale } from '../theme';
+import { Tap } from './kit';
 import { useTheme } from '../context/ThemeContext';
 
 type Variant = 'gradient' | 'ghost' | 'white';
@@ -48,20 +49,19 @@ export default function GradientButton({
     const padV = size === 'lg' ? space.s4 : space.s3;
 
     return (
-        <TouchableOpacity
+        <Tap
             onPress={onPress}
             disabled={isDisabled}
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
             accessibilityState={{ disabled: isDisabled, busy: !!loading }}
-            activeOpacity={0.85}
             style={[variant !== 'gradient' && isDisabled && { opacity: 0.5 }, style]}
         >
             <LinearGradient
                 colors={fill as any}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={[styles.base, variant === 'ghost' && styles.ghost, { paddingVertical: padV }]}
+                style={[styles.base, variant === 'ghost' && styles.ghost, { paddingVertical: padV, minHeight: control[size] }]}
             >
                 <View style={styles.inner}>
                     {tint(leftIcon, text)}
@@ -69,7 +69,7 @@ export default function GradientButton({
                     {tint(rightIcon, text)}
                 </View>
             </LinearGradient>
-        </TouchableOpacity>
+        </Tap>
     );
 }
 
@@ -79,7 +79,7 @@ function makeStyles(r: ColorRoles) {
             borderRadius: radius.lg,
             alignItems: 'center',
             justifyContent: 'center',
-            paddingHorizontal: space.s6,
+            paddingHorizontal: space.s4,
             ...elevation[2],
         },
         ghost: {

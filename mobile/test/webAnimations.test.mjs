@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { settleFinishedAnimations } from '../src/services/webAnimations.ts';
+import { settleFinishedAnimations, installWebMotion } from '../src/services/webAnimations.ts';
 
 function fakeDoc() {
     const listeners = new Map();
@@ -52,4 +52,36 @@ test('stopping removes the listener', () => {
 test('the app settles animations on web before anything renders', () => {
     const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
     assert.match(app, /if \(Platform\.OS === 'web' && typeof document !== 'undefined'\) settleFinishedAnimations\(document\);/);
+});
+
+function styleDoc() {
+    const nodes = [];
+    return {
+        nodes,
+        getElementById: (id) => nodes.find((n) => n.id === id) ?? null,
+        createElement: () => ({ id: '', textContent: '' }),
+        head: { appendChild: (n) => nodes.push(n) },
+    };
+}
+
+test('web motion turns on smooth and momentum scrolling and drops animation when reduced motion is set', () => {
+    const doc = styleDoc();
+    installWebMotion(doc);
+    assert.equal(doc.nodes.length, 1);
+    const css = doc.nodes[0].textContent;
+    assert.match(css, /scroll-behavior:\s*smooth/);
+    assert.match(css, /-webkit-overflow-scrolling:\s*touch/);
+    assert.match(css, /@media \(prefers-reduced-motion: reduce\)\s*\{[^@]*scroll-behavior:\s*auto[^@]*animation-duration:\s*1ms[^@]*transition-duration:\s*1ms/);
+});
+
+test('web motion styles are added once', () => {
+    const doc = styleDoc();
+    installWebMotion(doc);
+    installWebMotion(doc);
+    assert.equal(doc.nodes.length, 1);
+});
+
+test('the app installs web motion on web before anything renders', () => {
+    const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
+    assert.match(app, /if \(Platform\.OS === 'web' && typeof document !== 'undefined'\) installWebMotion\(document\);/);
 });

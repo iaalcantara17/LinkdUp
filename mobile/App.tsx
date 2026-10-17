@@ -18,10 +18,11 @@ import { HintsProvider } from './src/context/HintsContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import DialogHost from './src/components/DialogHost';
-import { settleFinishedAnimations } from './src/services/webAnimations';
+import { installWebMotion, settleFinishedAnimations } from './src/services/webAnimations';
 import { inject } from '@vercel/analytics';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') settleFinishedAnimations(document);
+if (Platform.OS === 'web' && typeof document !== 'undefined') installWebMotion(document);
 if (Platform.OS === 'web') inject();
 
 const linking: LinkingOptions<any> = {

@@ -115,7 +115,6 @@ async function shoot(browser, base, [name, route, opts = {}], theme, width) {
     }
     await page.waitForTimeout(1500);
     await page.screenshot({ path: join(out, `${name}-${theme}-${width}.png`) });
-    if (process.env.SHOTS_AUDIT && width === 390) for (const l of await page.evaluate(`(${readFileSync(process.env.SHOTS_AUDIT, 'utf8')})()`)) console.log(`${name} ${theme}: ${l}`);
     await context.close();
 }
 

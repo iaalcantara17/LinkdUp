@@ -133,3 +133,13 @@ export const elevation = {
 };
 
 export const motion = { instant: 100, fast: 200, base: 300, slow: 500 };
+
+export const control = { md: 48, lg: 56 };
+
+export type MotionName = 'instant' | 'fast' | 'base';
+
+export const duration = (name: MotionName, reduced: boolean) => (reduced ? 0 : motion[name]);
+
+export const stagger = (index: number, reduced: boolean) => (reduced ? 0 : Math.min(index, 6) * 40);
+
+export const press = { scale: 0.97, opacity: 0.85, ms: motion.instant };

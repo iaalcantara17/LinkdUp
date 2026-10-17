@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    View, Text, StyleSheet, ScrollView,
     Modal, ActivityIndicator,
 } from 'react-native';
+import { ScreenHeader, Tap } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
-    ArrowLeft, CalendarPlus, Check, ChevronLeft, ChevronRight,
+    CalendarPlus, Check, ChevronLeft, ChevronRight,
     Clock, Lock, Trash2, X,
 } from 'lucide-react-native';
 import GradientButton from '../components/GradientButton';
@@ -17,7 +18,7 @@ import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
 import { supabase } from '../services/supabase';
-import { typography, radii } from '../theme';
+import { typography, radii, motion, stagger } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 
@@ -196,21 +197,21 @@ function CalendarModal({ visible, selectedDayKey, onSelect, onClose, colors }: C
             <View style={calStyles.overlay}>
                 <SafeAreaView style={calStyles.sheet} edges={['bottom']}>
                     <View style={calStyles.calHeader}>
-                        <TouchableOpacity onPress={onClose} style={calStyles.closeBtn}>
+                        <Tap onPress={onClose} style={calStyles.closeBtn}>
                             <X size={20} color={colors.textPrimary} />
-                        </TouchableOpacity>
+                        </Tap>
                         <Text style={calStyles.calTitle}>Pick a Date</Text>
                         <View style={{ width: 36 }} />
                     </View>
 
                     <View style={calStyles.monthNav}>
-                        <TouchableOpacity onPress={prevMonth} style={calStyles.navBtn}>
+                        <Tap onPress={prevMonth} style={calStyles.navBtn}>
                             <ChevronLeft size={20} color={colors.textPrimary} />
-                        </TouchableOpacity>
+                        </Tap>
                         <Text style={calStyles.monthLabel}>{MONTH_NAMES[month]} {year}</Text>
-                        <TouchableOpacity onPress={nextMonth} style={calStyles.navBtn}>
+                        <Tap onPress={nextMonth} style={calStyles.navBtn}>
                             <ChevronRight size={20} color={colors.textPrimary} />
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
 
                     <View style={calStyles.dowRow}>
@@ -226,7 +227,7 @@ function CalendarModal({ visible, selectedDayKey, onSelect, onClose, colors }: C
                             const disabled = !isCurrent || key < todayStr;
 
                             return (
-                                <TouchableOpacity
+                                <Tap
                                     key={`${cell.type}-${i}`}
                                     style={calStyles.cell}
                                     activeOpacity={disabled ? 1 : 0.75}
@@ -251,7 +252,7 @@ function CalendarModal({ visible, selectedDayKey, onSelect, onClose, colors }: C
                                             <Text style={calStyles.dayNum}>{cell.day}</Text>
                                         </View>
                                     )}
-                                </TouchableOpacity>
+                                </Tap>
                             );
                         })}
                     </View>
@@ -469,13 +470,7 @@ export default function DateTimeSetupScreen() {
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={styles.headerBtn}>
-                        <ArrowLeft size={24} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Pick a Date</Text>
-                    <View style={{ width: 40 }} />
-                </View>
+                <ScreenHeader title="Pick a Date" onBack={() => nav.goBack()} />
 
                 {loading ? (
                     <View style={styles.loadingWrap}>
@@ -484,25 +479,25 @@ export default function DateTimeSetupScreen() {
                 ) : (
                     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                         {lockedDate && (
-                            <Animated.View entering={FadeInDown.duration(300)} style={styles.lockedCard}>
+                            <Animated.View entering={FadeInDown.duration(motion.base)} style={styles.lockedCard}>
                                 <View style={styles.lockedIcon}>
                                     <Lock size={22} color={roles.onPrimary} />
                                 </View>
                                 <Text style={styles.lockedKicker}>Date confirmed!</Text>
                                 <Text style={styles.lockedTitle}>{formatDateTime(lockedDate.starts_at)}</Text>
-                                <TouchableOpacity
+                                <Tap
                                     style={styles.calendarBtn}
                                     activeOpacity={0.85}
                                     onPress={() => nav.navigate('CalendarConfirmation', { partyId })}
                                 >
                                     <CalendarPlus size={18} color={roles.onPrimary} />
                                     <Text style={styles.calendarBtnText}>Add to Google Calendar</Text>
-                                </TouchableOpacity>
+                                </Tap>
                             </Animated.View>
                         )}
 
                         {!lockedDate && (
-                            <Animated.View entering={FadeInDown.duration(350)} style={styles.section}>
+                            <Animated.View entering={FadeInDown.duration(motion.base)} style={styles.section}>
                                 <Text style={styles.sectionTitle}>Propose a date</Text>
                                 <Text style={styles.sectionSub}>Tap a day, choose a time, and add it to the shared list.</Text>
 
@@ -516,8 +511,8 @@ export default function DateTimeSetupScreen() {
                                         const dayAbbrev = d.date.toLocaleDateString(undefined, { weekday: 'short' });
                                         const monthAbbrev = d.date.toLocaleDateString(undefined, { month: 'short' });
                                         return (
-                                            <Animated.View key={d.key} entering={FadeInDown.delay(i * 12).duration(250)}>
-                                                <TouchableOpacity onPress={() => setSelectedDayKey(d.key)} activeOpacity={0.85}>
+                                            <Animated.View key={d.key} entering={FadeInDown.delay(stagger(i, false)).duration(motion.fast)}>
+                                                <Tap onPress={() => setSelectedDayKey(d.key)} activeOpacity={0.85}>
                                                     {isSelected ? (
                                                         <LinearGradient
                                                             colors={colors.gradient as any}
@@ -542,15 +537,15 @@ export default function DateTimeSetupScreen() {
                                                             </Text>
                                                         </View>
                                                     )}
-                                                </TouchableOpacity>
+                                                </Tap>
                                             </Animated.View>
                                         );
                                     })}
                                 </ScrollView>
 
-                                <TouchableOpacity onPress={() => setShowCalendar(true)} activeOpacity={0.75} style={styles.calendarLink}>
+                                <Tap onPress={() => setShowCalendar(true)} activeOpacity={0.75} style={styles.calendarLink}>
                                     <Text style={styles.calendarLinkText}>Pick a specific date</Text>
-                                </TouchableOpacity>
+                                </Tap>
 
                                 {selectedDayKey && (
                                     <View style={styles.timePanel}>
@@ -561,7 +556,7 @@ export default function DateTimeSetupScreen() {
 
                                         <View style={styles.segmentedSwitch}>
                                             {(['quick', 'custom'] as const).map((mode) => (
-                                                <TouchableOpacity
+                                                <Tap
                                                     key={mode}
                                                     style={[styles.segmentBtn, timeMode === mode && styles.segmentBtnActive]}
                                                     activeOpacity={0.8}
@@ -570,7 +565,7 @@ export default function DateTimeSetupScreen() {
                                                     <Text style={[styles.segmentText, timeMode === mode && styles.segmentTextActive]}>
                                                         {mode === 'quick' ? 'Quick' : 'Custom'}
                                                     </Text>
-                                                </TouchableOpacity>
+                                                </Tap>
                                             ))}
                                         </View>
 
@@ -579,7 +574,7 @@ export default function DateTimeSetupScreen() {
                                                 {QUICK_TIMES.map(([label], idx) => {
                                                     const isSelected = quickIdx === idx;
                                                     return (
-                                                        <TouchableOpacity
+                                                        <Tap
                                                             key={label}
                                                             onPress={() => setQuickIdx(idx)}
                                                             activeOpacity={0.85}
@@ -599,39 +594,39 @@ export default function DateTimeSetupScreen() {
                                                                     <Text style={styles.timeText}>{label}</Text>
                                                                 </View>
                                                             )}
-                                                        </TouchableOpacity>
+                                                        </Tap>
                                                     );
                                                 })}
                                             </View>
                                         ) : (
                                             <View style={styles.customTimePicker}>
                                                 <View style={styles.stepperGroup}>
-                                                    <TouchableOpacity style={styles.stepBtn} onPress={() => setCustomHour(h => h === 1 ? 12 : h - 1)}>
+                                                    <Tap style={styles.stepBtn} onPress={() => setCustomHour(h => h === 1 ? 12 : h - 1)}>
                                                         <Text style={styles.stepBtnText}>-</Text>
-                                                    </TouchableOpacity>
+                                                    </Tap>
                                                     <Text style={styles.stepValue}>{String(customHour).padStart(2, '0')}</Text>
-                                                    <TouchableOpacity style={styles.stepBtn} onPress={() => setCustomHour(h => h === 12 ? 1 : h + 1)}>
+                                                    <Tap style={styles.stepBtn} onPress={() => setCustomHour(h => h === 12 ? 1 : h + 1)}>
                                                         <Text style={styles.stepBtnText}>+</Text>
-                                                    </TouchableOpacity>
+                                                    </Tap>
                                                 </View>
 
                                                 <Text style={styles.timeSep}>:</Text>
 
                                                 <View style={styles.stepperGroup}>
-                                                    <TouchableOpacity style={styles.stepBtn} onPress={() => setCustomMin(m => m === 0 ? 45 : m - 15)}>
+                                                    <Tap style={styles.stepBtn} onPress={() => setCustomMin(m => m === 0 ? 45 : m - 15)}>
                                                         <Text style={styles.stepBtnText}>-</Text>
-                                                    </TouchableOpacity>
+                                                    </Tap>
                                                     <Text style={styles.stepValue}>{String(customMin).padStart(2, '0')}</Text>
-                                                    <TouchableOpacity style={styles.stepBtn} onPress={() => setCustomMin(m => m === 45 ? 0 : m + 15)}>
+                                                    <Tap style={styles.stepBtn} onPress={() => setCustomMin(m => m === 45 ? 0 : m + 15)}>
                                                         <Text style={styles.stepBtnText}>+</Text>
-                                                    </TouchableOpacity>
+                                                    </Tap>
                                                 </View>
 
-                                                <TouchableOpacity style={styles.ampmToggle} activeOpacity={0.8} onPress={() => setCustomAmPm(v => v === 'AM' ? 'PM' : 'AM')}>
+                                                <Tap style={styles.ampmToggle} activeOpacity={0.8} onPress={() => setCustomAmPm(v => v === 'AM' ? 'PM' : 'AM')}>
                                                     <LinearGradient colors={colors.gradient as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ampmGradient}>
                                                         <Text style={styles.ampmText}>{customAmPm}</Text>
                                                     </LinearGradient>
-                                                </TouchableOpacity>
+                                                </Tap>
                                             </View>
                                         )}
                                     </View>
@@ -648,7 +643,7 @@ export default function DateTimeSetupScreen() {
                             </Animated.View>
                         )}
 
-                        <Animated.View entering={FadeInDown.delay(100).duration(350)} style={styles.section}>
+                        <Animated.View entering={FadeInDown.delay(motion.instant).duration(motion.base)} style={styles.section}>
                             <Text style={styles.sectionTitle}>Proposed dates</Text>
                             <Text style={styles.sectionSub}>
                                 Vote on every date that works. No vote means unavailable.
@@ -683,14 +678,14 @@ export default function DateTimeSetupScreen() {
                                                 </View>
                                             </View>
                                             {canDelete && (
-                                                <TouchableOpacity
+                                                <Tap
                                                     style={styles.iconBtn}
                                                     activeOpacity={0.75}
                                                     disabled={busyDateId === date.id}
                                                     onPress={() => handleDelete(date.id)}
                                                 >
                                                     <Trash2 size={18} color={colors.danger} />
-                                                </TouchableOpacity>
+                                                </Tap>
                                             )}
                                         </View>
 
@@ -715,7 +710,7 @@ export default function DateTimeSetupScreen() {
                                         </View>
 
                                         <View style={styles.actionRow}>
-                                            <TouchableOpacity
+                                            <Tap
                                                 style={[styles.voteBtn, date.my_vote === true && styles.voteBtnYesActive]}
                                                 activeOpacity={0.82}
                                                 disabled={busyDateId === date.id}
@@ -725,9 +720,9 @@ export default function DateTimeSetupScreen() {
                                                 <Text style={[styles.voteBtnText, date.my_vote === true && styles.voteBtnTextActive]}>
                                                     Works for me
                                                 </Text>
-                                            </TouchableOpacity>
+                                            </Tap>
 
-                                            <TouchableOpacity
+                                            <Tap
                                                 style={[styles.voteBtn, styles.voteBtnNo, date.my_vote === false && styles.voteBtnNoActive]}
                                                 activeOpacity={0.82}
                                                 disabled={busyDateId === date.id}
@@ -737,11 +732,11 @@ export default function DateTimeSetupScreen() {
                                                 <Text style={[styles.voteBtnText, styles.voteBtnNoText, date.my_vote === false && styles.voteBtnTextActive]}>
                                                     Can't make it
                                                 </Text>
-                                            </TouchableOpacity>
+                                            </Tap>
                                         </View>
 
                                         {showLock && (
-                                            <TouchableOpacity
+                                            <Tap
                                                 style={styles.lockBtn}
                                                 activeOpacity={0.85}
                                                 disabled={busyDateId === date.id}
@@ -749,7 +744,7 @@ export default function DateTimeSetupScreen() {
                                             >
                                                 <Lock size={16} color={roles.onPrimary} />
                                                 <Text style={styles.lockBtnText}>Set as date</Text>
-                                            </TouchableOpacity>
+                                            </Tap>
                                         )}
                                     </View>
                                 );
@@ -785,23 +780,14 @@ export default function DateTimeSetupScreen() {
 function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 24,
-            paddingTop: 8,
-        },
-        headerBtn: { padding: 8 },
-        headerTitle: { ...typography.h3, color: c.textPrimary },
         loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
         content: { padding: 24, paddingBottom: 48, gap: 20 },
         section: {
-            gap: 14,
+            gap: 16,
         },
         sectionTitle: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 24 },
         sectionSub: { color: c.text60, fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 },
-        dayList: { gap: 10, paddingRight: 24 },
+        dayList: { gap: 8, paddingRight: 24 },
         dayCard: {
             width: 76,
             height: 104,
@@ -815,10 +801,10 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
         dayCellSelected: { transform: [{ scale: 1.04 }], borderColor: 'transparent' },
         dayLabel: { color: c.text60, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 4 },
-        monthLabel: { color: c.text60, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 2 },
+        monthLabel: { color: c.text60, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 4 },
         dateLabel: { color: c.textPrimary, fontSize: 20, fontFamily: 'Inter_900Black' },
         proposedCount: { color: c.text40, fontSize: 10, fontFamily: 'Inter_600SemiBold', marginTop: 8 },
-        calendarLink: { alignSelf: 'flex-start', paddingVertical: 2 },
+        calendarLink: { alignSelf: 'flex-start', paddingVertical: 4 },
         calendarLinkText: { color: r.primaryText, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
         timePanel: {
             padding: 16,
@@ -826,7 +812,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             backgroundColor: c.glass,
             borderWidth: 1,
             borderColor: c.glassBorder,
-            gap: 14,
+            gap: 16,
         },
         timeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
         timeTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
@@ -838,14 +824,14 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             borderColor: c.glassBorder,
             overflow: 'hidden',
         },
-        segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center' },
+        segmentBtn: { flex: 1, paddingVertical: 8, alignItems: 'center' },
         segmentBtnActive: { backgroundColor: r.primarySoft },
         segmentText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
         segmentTextActive: { color: c.textPrimary },
-        timeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
-        timeSlot: { paddingVertical: 14, borderRadius: radii.md, alignItems: 'center' },
+        timeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
+        timeSlot: { paddingVertical: 16, borderRadius: radii.md, alignItems: 'center' },
         timeSlotUnselected: {
-            paddingVertical: 14,
+            paddingVertical: 16,
             borderRadius: radii.md,
             alignItems: 'center',
             backgroundColor: c.glass,
@@ -854,7 +840,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
         timeText: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
         timeTextSelected: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
-        customTimePicker: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+        customTimePicker: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
         stepperGroup: {
             flexDirection: 'row',
             alignItems: 'center',
@@ -881,7 +867,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
         timeSep: { color: c.textPrimary, fontSize: 22, fontFamily: 'Inter_700Bold' },
         ampmToggle: { borderRadius: radii.md, overflow: 'hidden' },
-        ampmGradient: { paddingHorizontal: 18, height: 50, alignItems: 'center', justifyContent: 'center' },
+        ampmGradient: { paddingHorizontal: 16, height: 50, alignItems: 'center', justifyContent: 'center' },
         ampmText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 16 },
         selectedLabel: { color: c.text60, fontSize: 13, textAlign: 'center', fontFamily: 'Inter_500Medium' },
         lockedCard: {
@@ -890,7 +876,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             backgroundColor: c.surfaceElevated,
             borderWidth: 1,
             borderColor: c.glassBorderStrong,
-            gap: 10,
+            gap: 8,
         },
         lockedIcon: {
             width: 42,
@@ -903,19 +889,19 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         lockedKicker: { color: c.success, fontFamily: 'Inter_700Bold', fontSize: 14 },
         lockedTitle: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 24, lineHeight: 30 },
         calendarBtn: {
-            marginTop: 6,
+            marginTop: 8,
             alignSelf: 'flex-start',
             flexDirection: 'row',
             alignItems: 'center',
             gap: 8,
             backgroundColor: c.primary,
-            paddingHorizontal: 14,
-            paddingVertical: 11,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
             borderRadius: 999,
         },
         calendarBtnText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
         emptyState: {
-            padding: 18,
+            padding: 16,
             borderRadius: radii.lg,
             backgroundColor: c.glass,
             borderWidth: 1,
@@ -929,15 +915,15 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             backgroundColor: c.glass,
             borderWidth: 1,
             borderColor: c.glassBorder,
-            gap: 14,
+            gap: 16,
         },
         dateCardLocked: {
             borderColor: c.success,
             backgroundColor: c.successDim,
         },
-        dateTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+        dateTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
         dateTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, lineHeight: 24 },
-        proposerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+        proposerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
         proposerText: { color: c.text60, fontFamily: 'Inter_500Medium', fontSize: 13, flex: 1 },
         iconBtn: {
             width: 36,
@@ -951,12 +937,12 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             padding: 12,
             borderRadius: radii.md,
             backgroundColor: c.glassStrong,
-            gap: 10,
+            gap: 8,
         },
         voteSummaryText: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 14 },
-        yesAvatarRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30 },
+        yesAvatarRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 30 },
         noVotesText: { color: c.text40, fontFamily: 'Inter_500Medium', fontSize: 13 },
-        actionRow: { flexDirection: 'row', gap: 10 },
+        actionRow: { flexDirection: 'row', gap: 8 },
         voteBtn: {
             flex: 1,
             minHeight: 44,
@@ -966,8 +952,8 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 6,
-            paddingHorizontal: 10,
+            gap: 8,
+            paddingHorizontal: 8,
         },
         voteBtnYesActive: { backgroundColor: r.successFill },
         voteBtnNo: { borderColor: c.danger },
@@ -993,7 +979,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             backgroundColor: r.scrimStrong,
             borderRadius: 999,
             paddingVertical: 12,
-            paddingHorizontal: 18,
+            paddingHorizontal: 16,
             alignItems: 'center',
         },
         toastText: { color: r.onMedia, fontSize: 13, fontFamily: 'Inter_600SemiBold' },

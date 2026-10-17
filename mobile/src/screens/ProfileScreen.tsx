@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    View, Text, StyleSheet, ScrollView,
     Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
+import { Tap } from '../components/kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,7 +22,7 @@ import { api } from '../services/api';
 import DialogHost from '../components/DialogHost';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { confirm, errorText, showError, toast } from '../components/dialogs';
-import { radii } from '../theme';
+import { radii, motion } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import type { ThemeMode } from '../context/ThemeContext';
@@ -65,7 +66,7 @@ function computeAgeFromISO(bday: string | null | undefined): number | null {
 
 function NotSetPill({ colors }: { colors: AppColors }) {
     return (
-        <View style={{ alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}>
+        <View style={{ alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}>
             <Text style={{ color: colors.text40, fontSize: 13, fontFamily: 'Inter_400Regular' }}>Not set</Text>
         </View>
     );
@@ -333,7 +334,7 @@ export default function ProfileScreen() {
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 24, paddingBottom: 140 }}>
-                    <Animated.View entering={FadeInDown.duration(400)}>
+                    <Animated.View entering={FadeInDown.duration(motion.base)}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                             <Text style={styles.title}>Profile</Text>
                             <HelpButton items={PROFILE_HELP} />
@@ -361,37 +362,37 @@ export default function ProfileScreen() {
                         {me === null && <SlowLoadNote loading />}
                         <View style={{ alignItems: 'center', marginBottom: 32 }}>
                             <AvatarBubble name={me?.display_name ?? '?'} color={me?.avatar_color} avatarUrl={me?.avatar_url} size={96} />
-                            <TouchableOpacity onPress={handleEditPhoto} disabled={avatarUploading} style={styles.editPhotoBtn}>
+                            <Tap onPress={handleEditPhoto} disabled={avatarUploading} style={styles.editPhotoBtn} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}>
                                 <Text style={styles.editPhotoText}>{avatarUploading ? 'Uploading...' : 'Edit photo'}</Text>
-                            </TouchableOpacity>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 6 }}>
+                            </Tap>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 }}>
                                 <Text style={styles.name}>{me?.display_name ?? 'Loading...'}</Text>
                                 {me && (
-                                    <TouchableOpacity onPress={() => openEdit('displayName')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                    <Tap onPress={() => openEdit('displayName')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                         <Pencil size={14} color={colors.text60} />
-                                    </TouchableOpacity>
+                                    </Tap>
                                 )}
                             </View>
                             {me?.username && <Text style={styles.username}>@{me.username}</Text>}
                             <Text style={styles.email}>{me?.email ?? ''}</Text>
                             {me && (
-                                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                                    <TouchableOpacity
+                                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                                    <Tap
                                         onPress={() => nav.navigate('FollowList', { userId: me.id, initialTab: 'followers', username: me.username })}
-                                        style={{ alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
+                                        style={{ alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
                                         activeOpacity={0.75}
                                     >
                                         <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>{followCounts?.followers ?? '–'}</Text>
                                         <Text style={{ color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 12 }}>Followers</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
+                                    </Tap>
+                                    <Tap
                                         onPress={() => nav.navigate('FollowList', { userId: me.id, initialTab: 'following', username: me.username })}
-                                        style={{ alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
+                                        style={{ alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder }}
                                         activeOpacity={0.75}
                                     >
                                         <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>{followCounts?.following ?? '–'}</Text>
                                         <Text style={{ color: colors.text60, fontFamily: 'Inter_400Regular', fontSize: 12 }}>Following</Text>
-                                    </TouchableOpacity>
+                                    </Tap>
                                 </View>
                             )}
                         </View>
@@ -399,9 +400,9 @@ export default function ProfileScreen() {
                         <GlassCard style={{ marginBottom: 16 }}>
                             <View style={styles.fieldHeader}>
                                 <Text style={styles.label}>USERNAME</Text>
-                                <TouchableOpacity onPress={() => openEdit('username')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Tap onPress={() => openEdit('username')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                     <Pencil size={13} color={colors.text60} />
-                                </TouchableOpacity>
+                                </Tap>
                             </View>
                             {me === null ? <Text style={styles.value}>Loading...</Text> : me?.username ? <Text style={styles.value}>@{me.username}</Text> : <NotSetPill colors={colors} />}
                         </GlassCard>
@@ -409,17 +410,17 @@ export default function ProfileScreen() {
                         <GlassCard>
                             <View style={styles.fieldHeader}>
                                 <Text style={styles.label}>SCHOOL</Text>
-                                <TouchableOpacity onPress={() => openEdit('school')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Tap onPress={() => openEdit('school')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                     <Pencil size={13} color={colors.text60} />
-                                </TouchableOpacity>
+                                </Tap>
                             </View>
                             {me === null ? <Text style={styles.value}>Loading...</Text> : schoolName ? <Text style={styles.value}>{schoolName}</Text> : <NotSetPill colors={colors} />}
 
                             <View style={[styles.fieldHeader, { marginTop: 16 }]}>
                                 <Text style={styles.label}>GRAD YEAR</Text>
-                                <TouchableOpacity onPress={() => openEdit('gradYear')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Tap onPress={() => openEdit('gradYear')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                     <Pencil size={13} color={colors.text60} />
-                                </TouchableOpacity>
+                                </Tap>
                             </View>
                             {me === null ? <Text style={styles.value}>Loading...</Text> : me?.graduation_year ? <Text style={styles.value}>{me.graduation_year}</Text> : <NotSetPill colors={colors} />}
                         </GlassCard>
@@ -427,25 +428,25 @@ export default function ProfileScreen() {
                         <GlassCard style={{ marginTop: 16 }}>
                             <View style={styles.fieldHeader}>
                                 <Text style={styles.label}>PRONOUNS</Text>
-                                <TouchableOpacity onPress={() => openEdit('pronouns')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Tap onPress={() => openEdit('pronouns')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                     <Pencil size={13} color={colors.text60} />
-                                </TouchableOpacity>
+                                </Tap>
                             </View>
                             {me === null ? <Text style={styles.value}>Loading...</Text> : me?.pronouns ? <Text style={styles.value}>{me.pronouns}</Text> : <NotSetPill colors={colors} />}
 
                             <View style={[styles.fieldHeader, { marginTop: 16 }]}>
                                 <Text style={styles.label}>AGE</Text>
-                                <TouchableOpacity onPress={() => openEdit('birthday')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Tap onPress={() => openEdit('birthday')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                     <Pencil size={13} color={colors.text60} />
-                                </TouchableOpacity>
+                                </Tap>
                             </View>
                             {me === null ? <Text style={styles.value}>Loading...</Text> : me?.age !== null && me?.age !== undefined ? <Text style={styles.value}>{me.age}</Text> : <NotSetPill colors={colors} />}
 
                             <View style={[styles.fieldHeader, { marginTop: 16 }]}>
                                 <Text style={styles.label}>BIO</Text>
-                                <TouchableOpacity onPress={() => openEdit('bio')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Tap onPress={() => openEdit('bio')} style={{ padding: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                     <Pencil size={13} color={colors.text60} />
-                                </TouchableOpacity>
+                                </Tap>
                             </View>
                             {me === null ? <Text style={styles.value}>Loading...</Text> : me?.bio ? <Text style={[styles.value, { lineHeight: 22 }]}>{me.bio}</Text> : <NotSetPill colors={colors} />}
                         </GlassCard>
@@ -456,13 +457,13 @@ export default function ProfileScreen() {
                         <GlassCard style={{ marginTop: 16 }}>
 
                             {/* Location */}
-                            <Text style={[styles.label, { marginBottom: 10 }]}>LOCATION</Text>
-                            <TouchableOpacity
+                            <Text style={[styles.label, { marginBottom: 8 }]}>LOCATION</Text>
+                            <Tap
                                 style={styles.settingsRow}
                                 onPress={() => nav.navigate('LocationPermission')}
                                 activeOpacity={0.75}
                             >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                                     <MapPin size={18} color={colors.text60} />
                                     <View>
                                         <Text style={styles.settingsRowTitle}>Saved location</Text>
@@ -479,15 +480,15 @@ export default function ProfileScreen() {
                                     </View>
                                 </View>
                                 <ChevronRight size={18} color={colors.text60} />
-                            </TouchableOpacity>
+                            </Tap>
                             {me?.location_permission_status === 'granted' && (
-                                <TouchableOpacity
+                                <Tap
                                     style={[styles.settingsRow, { paddingTop: 4 }]}
                                     onPress={handleRevokeLocation}
                                     disabled={revoking}
                                     activeOpacity={0.75}
                                 >
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                                         <MapPin size={18} color={colors.danger} />
                                         <View style={{ flex: 1 }}>
                                             <Text style={[styles.settingsRowTitle, { color: colors.danger }]}>
@@ -496,7 +497,7 @@ export default function ProfileScreen() {
                                             <Text style={styles.settingsRowSub}>Removes the location saved to your profile. {CLEAR_SCOPE_NOTE}</Text>
                                         </View>
                                     </View>
-                                </TouchableOpacity>
+                                </Tap>
                             )}
                             <Text style={[styles.settingsRowSub, { paddingHorizontal: 16, paddingBottom: 8 }]}>
                                 {LOCATION_PERMISSION_NOTE}
@@ -509,25 +510,25 @@ export default function ProfileScreen() {
                             {THEME_OPTIONS.map((opt) => {
                                 const active = themeMode === opt.mode;
                                 return (
-                                    <TouchableOpacity
+                                    <Tap
                                         key={opt.mode}
                                         onPress={() => setThemeMode(opt.mode)}
                                         activeOpacity={0.75}
                                         style={[styles.themeRow, active && styles.themeRowActive]}
                                     >
                                         <View style={{ flex: 1 }}>
-                                            <Text style={[styles.themeLabel, active && { color: colors.primary }]}>{opt.label}</Text>
+                                            <Text style={[styles.themeLabel, active && { color: roles.primaryText }]}>{opt.label}</Text>
                                             <Text style={styles.themeDesc}>{opt.desc}</Text>
                                         </View>
-                                        {active && <Check size={18} color={colors.primary} />}
-                                    </TouchableOpacity>
+                                        {active && <Check size={18} color={roles.primaryText} />}
+                                    </Tap>
                                 );
                             })}
 
                             <View style={styles.settingsDivider} />
 
                             {/* Party Defaults */}
-                            <Text style={[styles.label, { marginBottom: 10 }]}>PARTY DEFAULTS</Text>
+                            <Text style={[styles.label, { marginBottom: 8 }]}>PARTY DEFAULTS</Text>
                             <View style={styles.settingsRow}>
                                 <View style={{ flex: 1, marginRight: 12 }}>
                                     <Text style={styles.settingsRowTitle}>New parties start private</Text>
@@ -550,29 +551,29 @@ export default function ProfileScreen() {
                             <View style={styles.settingsDivider} />
 
                             {/* My Content */}
-                            <Text style={[styles.label, { marginBottom: 10 }]}>MY CONTENT</Text>
-                            <TouchableOpacity
+                            <Text style={[styles.label, { marginBottom: 8 }]}>MY CONTENT</Text>
+                            <Tap
                                 style={styles.settingsRow}
                                 onPress={() => nav.navigate('MyPosts')}
                                 activeOpacity={0.75}
                             >
                                 <Text style={styles.settingsRowTitle}>My Posts</Text>
                                 <ChevronRight size={18} color={colors.text60} />
-                            </TouchableOpacity>
-                            <TouchableOpacity
+                            </Tap>
+                            <Tap
                                 style={styles.settingsRow}
                                 onPress={() => nav.navigate('Saved')}
                                 activeOpacity={0.75}
                             >
                                 <Text style={styles.settingsRowTitle}>Saved</Text>
                                 <ChevronRight size={18} color={colors.text60} />
-                            </TouchableOpacity>
+                            </Tap>
 
                             <View style={styles.settingsDivider} />
 
                             {/* Account */}
-                            <Text style={[styles.label, { marginBottom: 10 }]}>ACCOUNT</Text>
-                            <TouchableOpacity
+                            <Text style={[styles.label, { marginBottom: 8 }]}>ACCOUNT</Text>
+                            <Tap
                                 ref={tourRowRef}
                                 style={styles.settingsRow}
                                 onPress={() => nav.navigate('Walkthrough', { fromSignup: false })}
@@ -580,38 +581,38 @@ export default function ProfileScreen() {
                             >
                                 <Text style={styles.settingsRowTitle}>Take the tour again</Text>
                                 <ChevronRight size={18} color={colors.text60} />
-                            </TouchableOpacity>
-                            <TouchableOpacity
+                            </Tap>
+                            <Tap
                                 style={styles.settingsRow}
                                 onPress={() => nav.navigate('BlockedUsers')}
                                 activeOpacity={0.75}
                             >
                                 <Text style={styles.settingsRowTitle}>Blocked Users</Text>
                                 <ChevronRight size={18} color={colors.text60} />
-                            </TouchableOpacity>
-                            <TouchableOpacity
+                            </Tap>
+                            <Tap
                                 style={styles.settingsRow}
                                 onPress={signOut}
                                 activeOpacity={0.75}
                             >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                     <LogOut size={18} color={colors.text60} />
                                     <Text style={styles.settingsRowTitle}>Sign out</Text>
                                 </View>
-                            </TouchableOpacity>
+                            </Tap>
 
                             <View style={styles.settingsDivider} />
 
                             {/* Danger Zone */}
-                            <Text style={[styles.label, { marginBottom: 10, color: colors.danger }]}>DANGER ZONE</Text>
-                            <TouchableOpacity
-                                style={[styles.settingsRow, { justifyContent: 'flex-start', gap: 10 }]}
+                            <Text style={[styles.label, { marginBottom: 8, color: colors.danger }]}>DANGER ZONE</Text>
+                            <Tap
+                                style={[styles.settingsRow, { justifyContent: 'flex-start', gap: 8 }]}
                                 onPress={() => { setDeleteTyped(''); setDeleteModal(true); }}
                                 activeOpacity={0.75}
                             >
                                 <Trash2 size={16} color={colors.danger} />
                                 <Text style={[styles.settingsRowTitle, { color: colors.danger }]}>Delete account</Text>
-                            </TouchableOpacity>
+                            </Tap>
 
                         </GlassCard>
                     </Animated.View>
@@ -621,7 +622,7 @@ export default function ProfileScreen() {
             {/* ── Edit modal ── */}
             <Modal visible={editModal !== null} transparent animationType="slide" onRequestClose={closeEdit}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={closeEdit} />
+                    <Tap style={{ flex: 1 }} activeOpacity={1} onPress={closeEdit} />
                     <View style={styles.modalSheet}>
                         <View style={styles.modalHandle} />
                         <Text style={styles.modalTitle}>{modalTitle}</Text>
@@ -629,13 +630,13 @@ export default function ProfileScreen() {
                         {editModal === 'birthday' ? (
                             <View style={{ gap: 12 }}>
                                 {(['month', 'day', 'year'] as const).map((field) => (
-                                    <TouchableOpacity key={field} style={styles.bdayDropdownRow} onPress={() => setBdayPickerOpen(field)} activeOpacity={0.85}>
+                                    <Tap key={field} style={styles.bdayDropdownRow} onPress={() => setBdayPickerOpen(field)} activeOpacity={0.85}>
                                         <Text style={styles.bdayDropdownLabel}>{field.charAt(0).toUpperCase() + field.slice(1)}</Text>
                                         <Text style={styles.bdayDropdownValue}>
                                             {field === 'month' ? MONTH_NAMES[bdayMonth - 1] : field === 'day' ? bdayDay : bdayYear}
                                         </Text>
                                         <Text style={styles.bdayDropdownHint}>Choose ▾</Text>
-                                    </TouchableOpacity>
+                                    </Tap>
                                 ))}
                                 <Text style={styles.bdayPreview}>{`Your birthday: ${MONTH_NAMES[bdayMonth - 1]} ${bdayDay}, ${bdayYear}`}</Text>
                             </View>
@@ -670,14 +671,14 @@ export default function ProfileScreen() {
                         {editModal === 'pronouns' && (
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                                 {PRONOUNS_SUGGESTIONS.map((p) => (
-                                    <TouchableOpacity
+                                    <Tap
                                         key={p}
                                         style={[styles.chip, editValue === p && styles.chipActive]}
                                         onPress={() => setEditValue(p)}
                                         activeOpacity={0.75}
                                     >
                                         <Text style={[styles.chipText, editValue === p && { color: roles.primaryText }]}>{p}</Text>
-                                    </TouchableOpacity>
+                                    </Tap>
                                 ))}
                             </View>
                         )}
@@ -687,7 +688,7 @@ export default function ProfileScreen() {
                         )}
 
                         {editModal === 'school' && (
-                            <Text style={{ color: colors.text40, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 6 }}>
+                            <Text style={{ color: colors.text40, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 8 }}>
                                 Type your school's full name, e.g. Rutgers University
                             </Text>
                         )}
@@ -695,9 +696,9 @@ export default function ProfileScreen() {
                         <View style={{ marginTop: 20 }}>
                             <GradientButton title={editSaving ? 'Saving…' : 'Save'} onPress={handleSave} loading={editSaving} />
                         </View>
-                        <TouchableOpacity onPress={closeEdit} style={{ alignItems: 'center', marginTop: 12, paddingVertical: 10 }}>
+                        <Tap onPress={closeEdit} style={{ alignItems: 'center', marginTop: 12, paddingVertical: 8 }}>
                             <Text style={{ color: colors.text60, fontSize: 15, fontFamily: 'Inter_500Medium' }}>Cancel</Text>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 </KeyboardAvoidingView>
                 <DialogHost />
@@ -706,14 +707,14 @@ export default function ProfileScreen() {
             {/* ── Birthday picker ── */}
             <Modal visible={bdayPickerOpen !== null} transparent animationType="slide" onRequestClose={() => setBdayPickerOpen(null)}>
                 <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: roles.scrim }}>
-                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setBdayPickerOpen(null)} />
+                    <Tap style={{ flex: 1 }} activeOpacity={1} onPress={() => setBdayPickerOpen(null)} />
                     <View style={styles.bdayPickerSheet}>
                         <Text style={styles.bdayPickerTitle}>
                             {bdayPickerOpen === 'month' ? 'Month' : bdayPickerOpen === 'day' ? 'Day' : 'Year'}
                         </Text>
                         <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
                             {bdayPickerOpen === 'month' && MONTH_NAMES.map((name, i) => (
-                                <TouchableOpacity key={name} style={styles.bdayPickerItem} onPress={() => {
+                                <Tap key={name} style={styles.bdayPickerItem} onPress={() => {
                                     const m = i + 1;
                                     setBdayMonth(m);
                                     const max = daysInMonth(bdayYear, m);
@@ -721,17 +722,17 @@ export default function ProfileScreen() {
                                     setBdayPickerOpen(null);
                                 }}>
                                     <Text style={styles.bdayPickerItemText}>{name}</Text>
-                                </TouchableOpacity>
+                                </Tap>
                             ))}
                             {bdayPickerOpen === 'day' && Array.from({ length: daysInMonth(bdayYear, bdayMonth) }, (_, i) => i + 1).map((day) => (
-                                <TouchableOpacity key={day} style={styles.bdayPickerItem} onPress={() => { setBdayDay(day); setBdayPickerOpen(null); }}>
+                                <Tap key={day} style={styles.bdayPickerItem} onPress={() => { setBdayDay(day); setBdayPickerOpen(null); }}>
                                     <Text style={styles.bdayPickerItemText}>{day}</Text>
-                                </TouchableOpacity>
+                                </Tap>
                             ))}
                             {bdayPickerOpen === 'year' && Array.from({ length: maxBdayYear - minBdayYear + 1 }, (_, i) => maxBdayYear - i).map((year) => (
-                                <TouchableOpacity key={year} style={styles.bdayPickerItem} onPress={() => { setBdayYear(year); setBdayPickerOpen(null); }}>
+                                <Tap key={year} style={styles.bdayPickerItem} onPress={() => { setBdayYear(year); setBdayPickerOpen(null); }}>
                                     <Text style={styles.bdayPickerItemText}>{year}</Text>
-                                </TouchableOpacity>
+                                </Tap>
                             ))}
                         </ScrollView>
                     </View>
@@ -741,7 +742,7 @@ export default function ProfileScreen() {
             {/* ── Delete modal ── */}
             <Modal visible={deleteModal} transparent animationType="slide" onRequestClose={() => !deleting && setDeleteModal(false)}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => !deleting && setDeleteModal(false)} />
+                    <Tap style={{ flex: 1 }} activeOpacity={1} onPress={() => !deleting && setDeleteModal(false)} />
                     <View style={styles.modalSheet}>
                         <View style={styles.modalHandle} />
                         <Text style={styles.deleteModalTitle}>Delete your account?</Text>
@@ -761,17 +762,17 @@ export default function ProfileScreen() {
                             autoCorrect={false}
                             editable={!deleting}
                         />
-                        <TouchableOpacity
-                            style={[{ marginTop: 20, backgroundColor: roles.dangerStrong, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }, (deleteTyped !== 'DELETE' || deleting) && { opacity: 0.4 }]}
+                        <Tap
+                            style={[{ marginTop: 20, backgroundColor: roles.dangerStrong, borderRadius: 12, paddingVertical: 16, alignItems: 'center' }, (deleteTyped !== 'DELETE' || deleting) && { opacity: 0.4 }]}
                             onPress={handleDeleteAccount}
                             disabled={deleteTyped !== 'DELETE' || deleting}
                             activeOpacity={0.85}
                         >
                             {deleting ? <ActivityIndicator color={roles.onPrimary} size="small" /> : <Text style={{ color: roles.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 }}>Delete my account</Text>}
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => !deleting && setDeleteModal(false)} style={{ alignItems: 'center', marginTop: 12, paddingVertical: 10 }} disabled={deleting}>
+                        </Tap>
+                        <Tap onPress={() => !deleting && setDeleteModal(false)} style={{ alignItems: 'center', marginTop: 12, paddingVertical: 8 }} disabled={deleting}>
                             <Text style={{ color: colors.text60, fontSize: 15, fontFamily: 'Inter_500Medium' }}>Cancel</Text>
-                        </TouchableOpacity>
+                        </Tap>
                     </View>
                 </KeyboardAvoidingView>
                 <DialogHost />
@@ -797,31 +798,31 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         },
         tipText: { color: c.text80, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
         name: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 24 },
-        username: { color: c.text60, fontSize: 13, marginTop: 2, fontFamily: 'Inter_400Regular' },
+        username: { color: c.text60, fontSize: 13, marginTop: 4, fontFamily: 'Inter_400Regular' },
         email: { color: c.text60, fontSize: 13, marginTop: 4, fontFamily: 'Inter_400Regular' },
         editPhotoBtn: {
             marginTop: 8,
-            paddingHorizontal: 14,
-            paddingVertical: 5,
+            paddingHorizontal: 16,
+            paddingVertical: 4,
             borderRadius: 12,
             backgroundColor: r.primarySoft,
             borderWidth: 1,
             borderColor: r.primaryBorder,
         },
-        editPhotoText: { color: c.primary, fontSize: 13, fontFamily: 'Inter_500Medium' },
+        editPhotoText: { color: r.text, fontSize: 13, fontFamily: 'Inter_500Medium' },
         fieldHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
         label: { color: c.text60, fontSize: 11, letterSpacing: 1, fontFamily: 'Inter_700Bold' },
         value: { color: c.textPrimary, fontSize: 16, fontFamily: 'Inter_500Medium' },
         themeRow: {
             flexDirection: 'row',
             alignItems: 'center',
-            paddingVertical: 10,
+            paddingVertical: 8,
             paddingHorizontal: 4,
             borderRadius: 10,
         },
         themeRowActive: { backgroundColor: c.glass },
         themeLabel: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
-        themeDesc: { color: c.text40, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 1 },
+        themeDesc: { color: c.text40, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 0 },
         modalSheet: {
             backgroundColor: c.bg,
             borderTopLeftRadius: 24,
@@ -844,7 +845,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             borderWidth: 1,
             borderColor: c.glassBorder,
             borderRadius: 12,
-            paddingHorizontal: 14,
+            paddingHorizontal: 16,
             paddingVertical: 12,
             color: c.textPrimary,
             fontSize: 16,
@@ -855,20 +856,20 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingVertical: 10,
+            paddingVertical: 8,
         },
         settingsRowTitle: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 15 },
-        settingsRowSub: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 2 },
+        settingsRowSub: { color: c.text60, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 4 },
         deleteModalTitle: { color: c.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold', marginBottom: 12 },
         bdayDropdownRow: {
-            position: 'relative', paddingVertical: 12, paddingHorizontal: 14, paddingRight: 80,
+            position: 'relative', paddingVertical: 12, paddingHorizontal: 16, paddingRight: 80,
             borderRadius: 12, borderWidth: 1, borderColor: c.glassBorder, backgroundColor: c.glass,
         },
         bdayDropdownLabel: { color: c.text40, fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.8, textTransform: 'uppercase' },
         bdayDropdownValue: { color: c.textPrimary, fontFamily: 'Inter_600SemiBold', fontSize: 17, marginTop: 4 },
         bdayDropdownHint: { position: 'absolute', right: 14, top: '50%', marginTop: -8, color: c.text40, fontSize: 12, fontFamily: 'Inter_500Medium' },
         bdayPreview: {
-            color: c.text60, fontSize: 13, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 14,
+            color: c.text60, fontSize: 13, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 16,
             paddingVertical: 8, paddingHorizontal: 12, backgroundColor: r.primarySoft,
             borderRadius: 10, borderWidth: 1, borderColor: r.primaryBorder,
         },
@@ -877,10 +878,10 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             borderTopWidth: 1, borderColor: c.glassBorder, paddingBottom: 28, maxHeight: '55%',
         },
         bdayPickerTitle: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 16, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-        bdayPickerItem: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: c.glassBorder },
+        bdayPickerItem: { paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: c.glassBorder },
         bdayPickerItemText: { color: c.text80, fontFamily: 'Inter_500Medium', fontSize: 16 },
         chip: {
-            paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+            paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
             backgroundColor: c.glass, borderWidth: 1, borderColor: c.glassBorder,
         },
         chipActive: { backgroundColor: r.primarySoft, borderColor: r.primaryBorder },
