@@ -34,6 +34,11 @@ export const venues = [
     { google_place_id: 'g9', name: 'Hudson Taproom', address: '9 Hudson St', latitude: 40.74, longitude: -74.03, photo_url: null, rating: 4.3, user_ratings_total: 50, category: 'Bar', price_level: 2, distance_miles: 0.4 },
 ];
 
+export const popularSpots = [
+    { google_place_id: 'demo-harbor-light', name: 'Harbor Light Cafe (demo)', address: '100 River St, Hoboken, NJ 07030', latitude: 40.7372, longitude: -74.029, photo_url: '/demo/venue-harbor-light.jpg', rating: 4.6, user_ratings_total: 412, category: 'Cafe', price_level: 1, distance_miles: 0.3, fallback: true },
+    { google_place_id: 'demo-copper-kettle', name: 'Copper Kettle (demo)', address: '220 Washington St, Hoboken, NJ 07030', latitude: 40.7395, longitude: -74.0305, photo_url: '/demo/venue-copper-kettle.jpg', rating: 4.5, user_ratings_total: 838, category: 'Breakfast & brunch', price_level: 2, distance_miles: 0.2, fallback: true },
+];
+
 export function routes(byName) {
     return (name) => {
         const value = byName[name];

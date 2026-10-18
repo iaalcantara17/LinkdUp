@@ -16,6 +16,7 @@ import FollowListScreen from '../src/screens/FollowListScreen';
 import LoginScreen from '../src/screens/LoginScreen';
 import OnboardingScreen from '../src/screens/OnboardingScreen';
 import DemoBanner from '../src/components/DemoBanner';
+import { ColdStartNote } from '../src/components/LoadState';
 import CommentSheet from '../src/components/CommentSheet';
 import { supabase } from '../src/services/supabase';
 import * as dialogs from '../src/components/dialogs';
@@ -193,6 +194,23 @@ describe('PartyLobby', () => {
         expect(api.startParty).toHaveBeenCalledWith('p1');
     });
 
+    test('a start that hits the venue limit shows Popular spots in the lobby instead of an error and stays in the lobby', async () => {
+        const limited = Object.assign(new Error('Venue lookups are paused for today, try again tomorrow'), {
+            data: { error: 'venue_limit_reached', fallback: true, venues: fx.popularSpots },
+        });
+        await show(PartyLobbyScreen, { startParty: limited });
+        global.__navigation.replace.mockClear();
+        fireEvent.click(button('Start swiping'));
+        await settle();
+        screen.getByText('Popular spots');
+        screen.getByText('Live lookups are paused today.');
+        screen.getByText('Harbor Light Cafe (demo)');
+        screen.getByText('Copper Kettle (demo)');
+        expect(dialogs.getSnapshot().dialog).toBeFalsy();
+        expect(global.__navigation.replace).not.toHaveBeenCalledWith('Swipe', { partyId: 'p1' });
+        expect(api.vote).not.toHaveBeenCalled();
+    });
+
     test('a guest waits for the host and has no Start swiping button', async () => {
         await show(PartyLobbyScreen, { getParty: { ...lobbyParty, party: { ...fx.party, host_user_id: 'bob' } } });
         screen.getByText('Waiting for the host to start...');
@@ -286,6 +304,24 @@ describe('Discover', () => {
         await screen.findByText('Finding nearby spots…');
         screen.getByText('Looking for parties…');
         screen.getByText('Using: Live location');
+    });
+
+    test('fallback venues show as Popular spots with a plain paused line and no Load more', async () => {
+        at(39.5);
+        await show(DiscoverScreen, { discoverVenues: fx.popularSpots });
+        await screen.findByText('Popular spots');
+        screen.getByText('Live lookups are paused today.');
+        expect(screen.queryByText('Trending near you')).toBeNull();
+        expect(screen.getAllByText('Harbor Light Cafe (demo)').length).toBeGreaterThan(0);
+        expect(screen.queryByText(/Load\s+more/)).toBeNull();
+    });
+
+    test('live venues keep the Trending near you heading without the paused line', async () => {
+        at(39.7);
+        await show(DiscoverScreen);
+        await screen.findByText('Trending near you');
+        expect(screen.queryByText('Popular spots')).toBeNull();
+        expect(screen.queryByText('Live lookups are paused today.')).toBeNull();
     });
 
     test('a paused venue quota shows the paused message', async () => {
@@ -507,6 +543,64 @@ describe('slow loads', () => {
             expect(screen.getByRole('status').textContent).toBe(SLOW);
         });
     }
+});
+
+describe('Cold start note', () => {
+    const WAKING = 'Waking up the server. This can take about 30 seconds on the free plan.';
+    const actual = jest.requireActual('../src/services/api');
+    const realFetch = global.fetch;
+
+    afterEach(() => {
+        global.fetch = realFetch;
+        jest.useRealTimers();
+    });
+
+    test('the first sign in screen shows a waking up note after 3 seconds and clears it when the request finishes', async () => {
+        jest.useFakeTimers();
+        let finish;
+        global.fetch = jest.fn(() => new Promise((r) => { finish = r; }));
+        global.__route = { params: {} };
+        global.__api.reset(fx.routes({ demoAvailable: { available: false } }));
+        render(
+            <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+                <LoginScreen />
+                <ColdStartNote />
+            </SafeAreaProvider>,
+        );
+        let request;
+        await act(async () => {
+            request = actual.api.health();
+            await jest.advanceTimersByTimeAsync(2_900);
+        });
+        expect(screen.queryByText(WAKING)).toBeNull();
+        await act(async () => {
+            await jest.advanceTimersByTimeAsync(100);
+        });
+        const note = screen.getByText(WAKING);
+        expect(note.getAttribute('role')).toBe('status');
+        expect(note.getAttribute('aria-live')).toBe('polite');
+        screen.getByText('Continue with Google');
+        await act(async () => {
+            finish({ ok: true, status: 200, text: async () => '{"ok":true}' });
+            await request;
+        });
+        expect(screen.queryByText(WAKING)).toBeNull();
+    });
+
+    test('a venue limit error keeps the server body so the lobby can show the fallback spots', async () => {
+        const body = { error: 'venue_limit_reached', fallback: true, venues: fx.popularSpots };
+        global.fetch = jest.fn(async () => ({ ok: false, status: 503, text: async () => JSON.stringify(body) }));
+        const err = await actual.api.startParty('p1').catch((e) => e);
+        expect(err.message).toBe('Venue lookups are paused for today, try again tomorrow');
+        expect(err.data).toEqual(body);
+    });
+
+    test('the waking up note does not animate, so reduced motion is respected', () => {
+        const src = require('fs').readFileSync(require('path').join(__dirname, '../src/components/LoadState.tsx'), 'utf8');
+        const body = src.slice(src.indexOf('export function ColdStartNote'), src.indexOf('function makeStyles'));
+        expect(body).not.toMatch(/Animated|entering|FadeIn|transition|animation/);
+        expect(body).toMatch(/pointerEvents="none"/);
+    });
 });
 
 describe('Demo mode', () => {

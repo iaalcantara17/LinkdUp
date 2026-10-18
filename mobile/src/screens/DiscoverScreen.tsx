@@ -56,6 +56,7 @@ interface DiscoverVenue {
     category: string | null;
     price_level: number | null;
     distance_miles: number;
+    fallback?: boolean;
 }
 
 interface DiscoverLike {
@@ -684,6 +685,7 @@ export default function DiscoverScreen() {
 
     const visibleVenues = venues.filter((v) => !likedPlaceIds.has(v.google_place_id));
     const venuesView = listView(visibleVenues, loadingVenues);
+    const showingFallback = venues.length > 0 && venues.every((v) => v.fallback);
     const partiesView = listView(parties, loadingParties);
 
     const citySearch = cityOpen ? (
@@ -802,7 +804,10 @@ export default function DiscoverScreen() {
 
                             {!noLocation && (
                                 <Animated.View entering={FadeInDown.delay(motion.instant).duration(motion.base)}>
-                                    <Text style={styles.sectionTitle}>Trending near you</Text>
+                                    <Text style={styles.sectionTitle}>{showingFallback ? 'Popular spots' : 'Trending near you'}</Text>
+                                    {showingFallback && (
+                                        <Text style={styles.sourceLine} accessibilityLiveRegion="polite">Live lookups are paused today.</Text>
+                                    )}
 
                                     {venuesView === 'loading' ? (
                                         <>
@@ -935,7 +940,7 @@ export default function DiscoverScreen() {
                                                             onLike={() => handleLikeVenue(v)}
                                                         />
                                                     ))}
-                                                    {hasMoreVenues && (
+                                                    {hasMoreVenues && !showingFallback && (
                                                         <Tap
                                                             style={venueLoadMoreStyles.card}
                                                             onPress={handleLoadMoreVenues}

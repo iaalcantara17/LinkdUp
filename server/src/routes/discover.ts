@@ -9,6 +9,7 @@ import { distanceMiles, LatLng } from '../services/midpoint';
 import { fuzzedLocation, MEMBER_LOCATION_COLUMNS } from '../services/memberLocation';
 import { config } from '../config';
 import { isDemoUser, hiddenDemoUserIds } from '../middleware/demo';
+import { fallbackVenues, isFallbackVenueName } from '../services/fallbackVenues';
 
 const router = Router();
 
@@ -38,9 +39,12 @@ router.get('/venues', requireAuth, async (req: AuthedRequest, res, next) => {
         if (isNaN(lat) || isNaN(lng)) throw new HttpError(400, 'invalid_coordinates');
 
         const center = { latitude: lat, longitude: lng };
-        const venues = isDemoUser(req.user!.id)
+        const venues: PlaceCandidate[] = isDemoUser(req.user!.id)
             ? await storedVenues(req.user!.id)
-            : await searchNearbyVenues(center, 8000, 20);
+            : await searchNearbyVenues(center, 8000, 20).catch((e) => {
+                if (isGoogleQuotaError(e)) return fallbackVenues();
+                throw e;
+            });
 
         const callerLoc: LatLng = { latitude: lat, longitude: lng };
         const enriched = venues.map((v) => ({
@@ -249,7 +253,7 @@ router.get('/pitch', requireAuth, async (req: AuthedRequest, res, next) => {
         const q = req.query as Record<string, string>;
         const { name, category, rating, price_level, address, user_ratings_total } = q;
         if (!name) throw new HttpError(400, 'missing_name');
-        if (isDemoUser(req.user!.id)) return res.json({ pitch: FALLBACK_PITCH });
+        if (isDemoUser(req.user!.id) || isFallbackVenueName(name)) return res.json({ pitch: FALLBACK_PITCH });
         const result = await generateVenuePitch(
             {
                 name,

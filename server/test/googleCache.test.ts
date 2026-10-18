@@ -163,7 +163,7 @@ test('quota error with nothing in memory is the limit error and reads nothing fr
     assert.deepEqual(calls, []);
 });
 
-test('discover routes return venue_limit_reached when Google is over quota and nothing is in memory', async () => {
+test('discover routes fall back or return venue_limit_reached when Google is over quota and nothing is in memory', async () => {
     mock.method(console, 'error', () => {});
     mockSupabase({ tok: 'user-1' });
     mock.method(axios, 'post', nearbyQuota);
@@ -171,12 +171,13 @@ test('discover routes return venue_limit_reached when Google is over quota and n
     const { server, base } = await serve('/api/discover', discoverRoutes);
     try {
         const qs = 'lat=41.5&lng=-73.5';
-        for (const path of ['venues', 'venues/more']) {
-            const res = await realFetch(`${base}/api/discover/${path}?${qs}`, { headers: { authorization: 'Bearer tok' } });
-            assert.equal(res.status, 503);
-            assert.deepEqual(await res.json(), { error: 'venue_limit_reached' });
-            assert.equal(res.headers.get('x-venue-cache'), null);
-        }
+        const first = await realFetch(`${base}/api/discover/venues?${qs}`, { headers: { authorization: 'Bearer tok' } });
+        assert.equal(first.status, 200);
+        assert.ok((await first.json()).every((v: any) => v.fallback === true));
+        const more = await realFetch(`${base}/api/discover/venues/more?${qs}`, { headers: { authorization: 'Bearer tok' } });
+        assert.equal(more.status, 503);
+        assert.deepEqual(await more.json(), { error: 'venue_limit_reached' });
+        assert.equal(more.headers.get('x-venue-cache'), null);
     } finally {
         server.close();
     }
