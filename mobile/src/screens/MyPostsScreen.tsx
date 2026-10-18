@@ -5,11 +5,12 @@ import {
     Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Heart, MessageCircle, MoreVertical, Pencil, Trash2, Plus } from '../components/icons';
+import { Heart, MessageCircle, MoreVertical, Pencil, Trash2, Plus } from '../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
 import DialogHost from '../components/DialogHost';
+import { ScreenHeader } from '../components/kit';
 import { confirm, showError } from '../components/dialogs';
 import { radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
@@ -144,28 +145,26 @@ export default function MyPostsScreen() {
             )}
             <SafeAreaView edges={['top']}>
                 <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backBtn}
-                        onPress={() => nav.goBack()}
-                        activeOpacity={0.8}
-                    >
-                        <ChevronLeft size={22} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: colors.textPrimary }]}>My Posts</Text>
-                    <TouchableOpacity
-                        style={styles.addBtn}
-                        onPress={() => nav.navigate('CreatePost')}
-                        activeOpacity={0.85}
-                    >
-                        <LinearGradient
-                            colors={colors.gradient as any}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.addBtnInner}
-                        >
-                            <Plus size={20} color={roles.onPrimary} strokeWidth={2.5} />
-                        </LinearGradient>
-                    </TouchableOpacity>
+                    <ScreenHeader
+                        title="My Posts"
+                        onBack={() => nav.goBack()}
+                        right={
+                            <TouchableOpacity
+                                style={styles.addBtn}
+                                onPress={() => nav.navigate('CreatePost')}
+                                activeOpacity={0.85}
+                            >
+                                <LinearGradient
+                                    colors={colors.gradient as any}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={styles.addBtnInner}
+                                >
+                                    <Plus size={20} color={roles.onPrimary} strokeWidth={2.5} />
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        }
+                    />
                 </View>
             </SafeAreaView>
 
@@ -326,25 +325,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         root: {
             flex: 1,
         },
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: TILE_PADDING,
-            paddingVertical: 12,
-        },
-        backBtn: {
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.glass,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        title: {
-            fontFamily: 'Inter_700Bold',
-            fontSize: 18,
-        },
+        header: { paddingBottom: 12 },
         addBtn: {
             width: 40,
             height: 40,

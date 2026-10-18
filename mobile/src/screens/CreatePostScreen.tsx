@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { X, MapPin, ImagePlus } from '../components/icons';
 import { api } from '../services/api';
 import { errorText, showError } from '../components/dialogs';
+import { ScreenHeader } from '../components/kit';
 import { radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -131,11 +132,7 @@ export default function CreatePostScreen() {
             )}
 
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => nav.goBack()} activeOpacity={0.8} hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}>
-                    <X size={22} color={colors.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>New Post</Text>
-                <View style={{ width: 22 }} />
+                <ScreenHeader title="New Post" close onBack={() => nav.goBack()} />
             </View>
 
             <ScrollView
@@ -273,18 +270,9 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             backgroundColor: c.bg,
         },
         header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 20,
-            paddingVertical: 14,
+            paddingBottom: 8,
             borderBottomWidth: 1,
             borderBottomColor: c.glassBorder,
-        },
-        headerTitle: {
-            color: c.textPrimary,
-            fontFamily: 'Inter_700Bold',
-            fontSize: 17,
         },
         content: {
             paddingHorizontal: 20,

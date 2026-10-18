@@ -20,6 +20,10 @@ import { ColdStartNote } from '../src/components/LoadState';
 import CommentSheet from '../src/components/CommentSheet';
 import UserProfileSheet from '../src/components/UserProfileSheet';
 import SavedScreen from '../src/screens/SavedScreen';
+import BlockedUsersScreen from '../src/screens/BlockedUsersScreen';
+import MyPostsScreen from '../src/screens/MyPostsScreen';
+import CreatePostScreen from '../src/screens/CreatePostScreen';
+import CrewMapFullscreenScreen from '../src/screens/CrewMapFullscreenScreen';
 import { supabase } from '../src/services/supabase';
 import * as dialogs from '../src/components/dialogs';
 import { color } from '../src/theme';
@@ -621,6 +625,26 @@ describe('Saved', () => {
         await settle();
         expect(api.deleteCollection).not.toHaveBeenCalled();
     });
+});
+
+describe('Screen headers', () => {
+    const cases = [
+        ['BlockedUsers', BlockedUsersScreen, {}, 'Blocked Users', 'Back'],
+        ['FollowList', FollowListScreen, { userId: 'alice', initialTab: 'followers', username: 'alice' }, '@alice', 'Back'],
+        ['MyPosts', MyPostsScreen, {}, 'My Posts', 'Back'],
+        ['Saved', SavedScreen, {}, 'Saved', 'Back'],
+        ['CrewMapFullscreen', CrewMapFullscreenScreen, { partyId: 'p1' }, 'Friday Crew', 'Back'],
+        ['CreatePost', CreatePostScreen, {}, 'New Post', 'Close'],
+    ];
+    for (const [name, Screen, params, title, label] of cases) {
+        test(`${name} keeps its ${title} title and its ${label} button goes back`, async () => {
+            await show(Screen, { getBlockedUsers: [], getFollowers: [], getMyFeedPosts: [], getCollections: [], getSavedPosts: { posts: [] } }, params);
+            screen.getByRole('heading', { name: title });
+            global.__navigation.goBack.mockClear();
+            fireEvent.click(button(label));
+            expect(global.__navigation.goBack).toHaveBeenCalledTimes(1);
+        });
+    }
 });
 
 describe('Walkthrough', () => {

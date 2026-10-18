@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft } from '../components/icons';
+import { ScreenHeader } from '../components/kit';
 import CrewMap from '../components/CrewMap';
 import { api } from '../services/api';
 import { radii } from '../theme';
@@ -58,13 +58,7 @@ export default function CrewMapFullscreenScreen() {
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
-                        <ArrowLeft size={22} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle} numberOfLines={1}>
-                        {partyName ?? 'Party Map'}
-                    </Text>
-                    <View style={{ width: 40 }} />
+                    <ScreenHeader title={partyName ?? 'Party Map'} onBack={() => nav.goBack()} />
                 </View>
 
                 <CrewMap
@@ -94,29 +88,9 @@ function makeStyles(c: AppColors) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
         header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 10,
+            paddingBottom: 8,
             borderBottomWidth: 1,
             borderBottomColor: c.glassBorder,
-        },
-        backBtn: {
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.glass,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        headerTitle: {
-            color: c.textPrimary,
-            fontFamily: 'Inter_700Bold',
-            fontSize: 17,
-            flex: 1,
-            textAlign: 'center',
-            paddingHorizontal: 8,
         },
         legend: {
             paddingHorizontal: 20,

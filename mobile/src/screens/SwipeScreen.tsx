@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, Dimensions, Modal, ActivityIndicator, Platform, Share } from 'react-native';
-import { Tap } from '../components/kit';
+import { ScreenHeader, Tap } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -15,7 +15,7 @@ import Animated, {
     Extrapolation,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { X, Heart, MapPin, Info, ArrowLeft, Star, Check } from '../components/icons';
+import { X, Heart, MapPin, Info, Star, Check } from '../components/icons';
 import { api, photoUri } from '../services/api';
 import { errorText } from '../components/dialogs';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
@@ -738,45 +738,47 @@ export default function SwipeScreen() {
             </Modal>
 
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                <View style={styles.topBar}>
-                    <Tap onPress={() => nav.goBack()} style={styles.topIconBtn} accessibilityRole="button" accessibilityLabel="Back">
-                        <ArrowLeft size={22} color={roles.onMedia} />
-                    </Tap>
-                    <BlurView intensity={40} tint="dark" style={styles.midpointPill}>
-                        <MapPin size={14} color={colors.primary} />
-                        <Text style={styles.midpointText}>{distance.toFixed(1)} mi from midpoint</Text>
-                    </BlurView>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <HelpButton items={SWIPE_HELP} />
-                        <Tap
-                            style={styles.topIconBtn}
-                            onPress={() => {
-                                if (isDemo) return;
-                                api.getParty(partyId).then((d: any) => {
-                                    setPartyInfo(d);
-                                    setInfoModal(true);
-                                }).catch(() => {});
-                            }}
-                        >
-                            <Info size={22} color={roles.onMedia} />
-                        </Tap>
-                        {isSolo && (
-                            <View ref={donePillRef}>
-                                <Tap onPress={() => setForceMatchModal(true)} activeOpacity={0.85}>
-                                    <LinearGradient
-                                        colors={colors.gradient as any}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={styles.donePickPill}
-                                    >
-                                        <Check size={13} color={roles.onPrimary} />
-                                        <Text style={styles.donePickText}>Done — pick now</Text>
-                                    </LinearGradient>
-                                </Tap>
-                            </View>
-                        )}
-                    </View>
-                </View>
+                <ScreenHeader
+                    onBack={() => nav.goBack()}
+                    title={
+                        <BlurView intensity={40} tint="dark" style={styles.midpointPill}>
+                            <MapPin size={14} color={colors.primary} />
+                            <Text style={styles.midpointText}>{distance.toFixed(1)} mi from midpoint</Text>
+                        </BlurView>
+                    }
+                    right={
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <HelpButton items={SWIPE_HELP} />
+                            <Tap
+                                style={styles.topIconBtn}
+                                onPress={() => {
+                                    if (isDemo) return;
+                                    api.getParty(partyId).then((d: any) => {
+                                        setPartyInfo(d);
+                                        setInfoModal(true);
+                                    }).catch(() => {});
+                                }}
+                            >
+                                <Info size={22} color={roles.onMedia} />
+                            </Tap>
+                            {isSolo && (
+                                <View ref={donePillRef}>
+                                    <Tap onPress={() => setForceMatchModal(true)} activeOpacity={0.85}>
+                                        <LinearGradient
+                                            colors={colors.gradient as any}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                            style={styles.donePickPill}
+                                        >
+                                            <Check size={13} color={roles.onPrimary} />
+                                            <Text style={styles.donePickText}>Done — pick now</Text>
+                                        </LinearGradient>
+                                    </Tap>
+                                </View>
+                            )}
+                        </View>
+                    }
+                />
 
                 {/* Progress bar */}
                 <View style={styles.progressWrap}>
@@ -1127,7 +1129,6 @@ export default function SwipeScreen() {
 function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
-        topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
         topIconBtn: {
             width: 40, height: 40, borderRadius: 20,
             backgroundColor: r.scrim,

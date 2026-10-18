@@ -5,11 +5,11 @@ import {
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, MoreHorizontal } from '../components/icons';
+import { MoreHorizontal } from '../components/icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
 import { confirm, showError, showMenu } from '../components/dialogs';
-import { IconButton } from '../components/kit';
+import { IconButton, ScreenHeader } from '../components/kit';
 import { radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -122,16 +122,10 @@ export default function SavedScreen() {
     return (
         <View style={[styles.root, { backgroundColor: colors.bg }]}>
             <SafeAreaView edges={['top']}>
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backBtn}
-                        onPress={() => nav.goBack()}
-                        activeOpacity={0.8}
-                    >
-                        <ChevronLeft size={22} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: colors.textPrimary }]}>Saved</Text>
-                    {activeCollection ? (
+                <ScreenHeader
+                    title="Saved"
+                    onBack={() => nav.goBack()}
+                    right={activeCollection ? (
                         <IconButton
                             label={`Options for ${activeCollection.name}`}
                             onPress={() => showMenu(activeCollection.name, [
@@ -140,10 +134,8 @@ export default function SavedScreen() {
                         >
                             <MoreHorizontal size={20} color={colors.textPrimary} />
                         </IconButton>
-                    ) : (
-                        <View style={{ width: 40 }} />
-                    )}
-                </View>
+                    ) : null}
+                />
 
                 {/* Collection tabs */}
                 <ScrollView
@@ -216,27 +208,9 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         root: {
             flex: 1,
         },
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-        },
-        backBtn: {
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.glass,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        title: {
-            fontFamily: 'Inter_700Bold',
-            fontSize: 18,
-        },
         tabsRow: {
             paddingHorizontal: 16,
+            paddingTop: 12,
             paddingBottom: 12,
             gap: 8,
         },
