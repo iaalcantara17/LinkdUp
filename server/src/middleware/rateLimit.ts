@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 
-export function rateLimit(limit: number, windowMs: number) {
+export function rateLimit(limit: number, windowMs: number, keyOf: (req: Request) => string | undefined = (req) => req.ip) {
     const hits = new Map<string, { count: number; resetAt: number }>();
     return (req: Request, res: Response, next: NextFunction) => {
         const now = Date.now();
-        const key = req.ip ?? 'unknown';
+        const key = keyOf(req) ?? 'unknown';
         let hit = hits.get(key);
         if (!hit || hit.resetAt <= now) {
             if (hits.size >= 10_000) hits.clear();

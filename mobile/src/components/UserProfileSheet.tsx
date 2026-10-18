@@ -9,7 +9,8 @@ import { X, GraduationCap, UserPlus, UserCheck, Clock, MoreHorizontal } from './
 import AvatarBubble from './AvatarBubble';
 import { api } from '../services/api';
 import DialogHost from './DialogHost';
-import { confirmBlock, errorText, showError, showMenu, toast } from './dialogs';
+import ReportDialog from './ReportDialog';
+import { confirmBlock, errorText, showError, showMenu } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -52,6 +53,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
     const [friendBusy, setFriendBusy] = useState(false);
     const [myId, setMyId] = useState<string | null>(null);
     const [blockBusy, setBlockBusy] = useState(false);
+    const [reporting, setReporting] = useState(false);
 
     useEffect(() => {
         if (!visible || !userId) return;
@@ -63,6 +65,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
         setFriendUi('loading');
         setFriendshipId(null);
         setMyId(null);
+        setReporting(false);
 
         api.getPublicUser(userId)
             .then((data) => { if (!cancelled) setProfile(data); })
@@ -124,7 +127,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
         if (!profile) return;
         showMenu(profile.display_name ?? 'Profile options', [
             { label: 'Block', destructive: true, onPress: handleBlock },
-            { label: 'Report', onPress: () => toast("Reporting isn't available yet. You can block this person for now.", 'info') },
+            { label: 'Report', onPress: () => setReporting(true) },
         ]);
     };
 
@@ -310,6 +313,9 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                     </ScrollView>
                 </SafeAreaView>
             </View>
+            {reporting && profile && userId ? (
+                <ReportDialog userId={userId} name={profile.username ? `@${profile.username}` : profile.display_name} onClose={() => setReporting(false)} />
+            ) : null}
             <DialogHost />
         </Modal>
     );

@@ -19,6 +19,7 @@ import feedRoutes from './routes/feed';
 import friendsRoutes from './routes/friends';
 import photoRoutes from './routes/photo';
 import healthRoutes from './routes/health';
+import reportsRoutes from './routes/reports';
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/discover', discoverRoutes);
 app.use('/api/discover', feedRoutes);
 app.use('/api/friends', friendsRoutes);
 app.use('/api/photo', photoRoutes);
+app.use('/api/reports', reportsRoutes);
 
 app.use((req, res) => {
     res.status(404).json({ error: 'not_found', path: req.path });

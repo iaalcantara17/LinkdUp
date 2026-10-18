@@ -148,13 +148,14 @@ export function TextField({ left, right, containerStyle, style, ...input }: Text
     );
 }
 
-export function Chip({ label, selected, onPress, icon, role = 'tab', style }: { label: string; selected: boolean; onPress: () => void; icon?: (color: string) => ReactNode; role?: 'tab' | 'button'; style?: StyleProp<ViewStyle> }) {
+export function Chip({ label, selected, onPress, icon, role = 'tab', style }: { label: string; selected: boolean; onPress: () => void; icon?: (color: string) => ReactNode; role?: 'tab' | 'button' | 'radio'; style?: StyleProp<ViewStyle> }) {
     const { roles } = useTheme();
     const styles = useKitStyles();
     return (
         <Tap
             accessibilityRole={role}
-            accessibilityState={{ selected }}
+            accessibilityState={role === 'radio' ? { checked: selected } : { selected }}
+            aria-checked={role === 'radio' ? selected : undefined}
             onPress={onPress}
             style={[styles.chip, selected && styles.chipOn, style]}
         >

@@ -289,6 +289,8 @@ export const api = {
         request<{ blocked: boolean }>('POST', `/api/user/${userId}/block`),
     unblockUser: (userId: string) =>
         request<{ ok: boolean }>('DELETE', `/api/user/${userId}/block`),
+    reportUser: (userId: string, reason: 'spam' | 'harassment' | 'inappropriate' | 'other', details?: string) =>
+        request<{ ok: boolean }>('POST', '/api/reports', { reported_user_id: userId, reason, ...(details ? { details } : {}) }),
     getBlockedUsers: () =>
         request<any[]>('GET', '/api/user/me/blocked'),
 

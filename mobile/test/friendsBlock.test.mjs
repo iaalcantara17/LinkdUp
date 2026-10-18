@@ -17,10 +17,14 @@ test('every block flow uses the shared confirm', () => {
     }
 });
 
-test('report does not promise a review that never happens', () => {
-    const src = read('components/UserProfileSheet.tsx');
-    assert.doesNotMatch(src, /review/i);
-    assert.match(src, /Reporting isn't available yet/);
+test('Report opens the report dialog, sends it to the server and thanks the person', () => {
+    const sheet = read('components/UserProfileSheet.tsx');
+    const dialog = read('components/ReportDialog.tsx');
+    assert.doesNotMatch(sheet, /Reporting isn't available yet/);
+    assert.match(sheet, /<ReportDialog/);
+    assert.match(dialog, /api\.reportUser\(/);
+    assert.match(dialog, /Thanks, we'll take a look\./);
+    for (const src of [sheet, dialog]) assert.doesNotMatch(src, /review/i);
 });
 
 test('Report lives only in the profile sheet menu, behind a labeled button', () => {
