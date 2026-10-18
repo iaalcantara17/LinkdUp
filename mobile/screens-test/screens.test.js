@@ -19,6 +19,7 @@ import DemoBanner from '../src/components/DemoBanner';
 import { ColdStartNote } from '../src/components/LoadState';
 import CommentSheet from '../src/components/CommentSheet';
 import UserProfileSheet from '../src/components/UserProfileSheet';
+import SavedScreen from '../src/screens/SavedScreen';
 import { supabase } from '../src/services/supabase';
 import * as dialogs from '../src/components/dialogs';
 import { color } from '../src/theme';
@@ -567,6 +568,58 @@ describe('Report', () => {
         await settle();
         expect(screen.queryByRole('dialog', { name: 'Report @bob?' })).toBeNull();
         expect(api.reportUser).not.toHaveBeenCalled();
+    });
+});
+
+describe('Saved', () => {
+    const saved = {
+        getCollections: [{ id: 'c1', name: 'Brunch' }],
+        getSavedPosts: { posts: [{ id: 'f1', image_url: 'https://img.test/1.jpg', venue_name: 'Blue Bottle Cafe', like_count: 0, comment_count: 0, bookmarked_at: '2026-10-01T00:00:00Z', collection_id: 'c1' }] },
+        deleteCollection: { ok: true },
+    };
+
+    beforeEach(() => {
+        while (dialogs.getSnapshot().dialog) dialogs.dismiss();
+    });
+
+    test('All Saved has no collection menu', async () => {
+        await show(SavedScreen, saved, {});
+        expect(screen.queryByRole('button', { name: /^Options for/ })).toBeNull();
+    });
+
+    test('the selected collection menu offers Delete collection through the shared confirm', async () => {
+        await show(SavedScreen, saved, {});
+        fireEvent.click(screen.getByText('Brunch'));
+        await settle();
+        fireEvent.click(button('Options for Brunch'));
+        await settle();
+        const menu = dialogs.getSnapshot().dialog;
+        expect(menu.title).toBe('Brunch');
+        expect(menu.buttons).toEqual([{ label: 'Delete collection', style: 'destructive' }, { label: 'Cancel', style: 'cancel' }]);
+        act(() => dialogs.respond(0));
+        await settle();
+        const ask = dialogs.getSnapshot().dialog;
+        expect(ask.title).toBe('Delete "Brunch"?');
+        expect(ask.message).toBe('Its posts stay saved and move to All Saved.');
+        act(() => dialogs.respond(1));
+        await settle();
+        expect(api.deleteCollection).toHaveBeenCalledWith('c1');
+        expect(screen.queryByText('Brunch')).toBeNull();
+        expect(screen.queryByRole('button', { name: /^Options for/ })).toBeNull();
+        screen.getByText('Blue Bottle Cafe');
+    });
+
+    test('long press on a collection tab still asks to delete it', async () => {
+        await show(SavedScreen, saved, {});
+        const tab = screen.getByText('Brunch');
+        fireEvent.mouseDown(tab);
+        await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+        fireEvent.mouseUp(tab);
+        await settle();
+        expect(dialogs.getSnapshot().dialog.title).toBe('Delete "Brunch"?');
+        act(() => dialogs.respond(0));
+        await settle();
+        expect(api.deleteCollection).not.toHaveBeenCalled();
     });
 });
 

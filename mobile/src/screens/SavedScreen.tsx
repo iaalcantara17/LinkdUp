@@ -5,10 +5,11 @@ import {
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Trash2 } from '../components/icons';
+import { ChevronLeft, MoreHorizontal } from '../components/icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
-import { confirm, showError } from '../components/dialogs';
+import { confirm, showError, showMenu } from '../components/dialogs';
+import { IconButton } from '../components/kit';
 import { radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -64,6 +65,8 @@ export default function SavedScreen() {
     useFocusEffect(useCallback(() => {
         loadData();
     }, [loadData]));
+
+    const activeCollection = collections.find((c) => c.id === activeTab) ?? null;
 
     const visiblePosts = useMemo(() => {
         if (activeTab === 'all') return posts;
@@ -128,7 +131,18 @@ export default function SavedScreen() {
                         <ChevronLeft size={22} color={colors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={[styles.title, { color: colors.textPrimary }]}>Saved</Text>
-                    <View style={{ width: 40 }} />
+                    {activeCollection ? (
+                        <IconButton
+                            label={`Options for ${activeCollection.name}`}
+                            onPress={() => showMenu(activeCollection.name, [
+                                { label: 'Delete collection', destructive: true, onPress: () => handleDeleteCollection(activeCollection) },
+                            ])}
+                        >
+                            <MoreHorizontal size={20} color={colors.textPrimary} />
+                        </IconButton>
+                    ) : (
+                        <View style={{ width: 40 }} />
+                    )}
                 </View>
 
                 {/* Collection tabs */}
@@ -159,14 +173,6 @@ export default function SavedScreen() {
                             <Text style={[styles.tabText, activeTab === col.id && { color: colors.primary }]}>
                                 {col.name}
                             </Text>
-                            {activeTab === col.id && (
-                                <TouchableOpacity
-                                    onPress={() => handleDeleteCollection(col)}
-                                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 4 }}
-                                >
-                                    <Trash2 size={12} color={colors.danger} />
-                                </TouchableOpacity>
-                            )}
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
