@@ -5,10 +5,11 @@ import {
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Trash2 } from '../components/icons';
+import { MoreHorizontal } from '../components/icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { api } from '../services/api';
-import { confirm, showError } from '../components/dialogs';
+import { confirm, showError, showMenu } from '../components/dialogs';
+import { IconButton, ScreenHeader } from '../components/kit';
 import { radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -65,6 +66,8 @@ export default function SavedScreen() {
         loadData();
     }, [loadData]));
 
+    const activeCollection = collections.find((c) => c.id === activeTab) ?? null;
+
     const visiblePosts = useMemo(() => {
         if (activeTab === 'all') return posts;
         if (activeTab === 'none') return posts.filter((p) => p.collection_id === null);
@@ -119,17 +122,20 @@ export default function SavedScreen() {
     return (
         <View style={[styles.root, { backgroundColor: colors.bg }]}>
             <SafeAreaView edges={['top']}>
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backBtn}
-                        onPress={() => nav.goBack()}
-                        activeOpacity={0.8}
-                    >
-                        <ChevronLeft size={22} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={[styles.title, { color: colors.textPrimary }]}>Saved</Text>
-                    <View style={{ width: 40 }} />
-                </View>
+                <ScreenHeader
+                    title="Saved"
+                    onBack={() => nav.goBack()}
+                    right={activeCollection ? (
+                        <IconButton
+                            label={`Options for ${activeCollection.name}`}
+                            onPress={() => showMenu(activeCollection.name, [
+                                { label: 'Delete collection', destructive: true, onPress: () => handleDeleteCollection(activeCollection) },
+                            ])}
+                        >
+                            <MoreHorizontal size={20} color={colors.textPrimary} />
+                        </IconButton>
+                    ) : null}
+                />
 
                 {/* Collection tabs */}
                 <ScrollView
@@ -159,14 +165,6 @@ export default function SavedScreen() {
                             <Text style={[styles.tabText, activeTab === col.id && { color: colors.primary }]}>
                                 {col.name}
                             </Text>
-                            {activeTab === col.id && (
-                                <TouchableOpacity
-                                    onPress={() => handleDeleteCollection(col)}
-                                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 4 }}
-                                >
-                                    <Trash2 size={12} color={colors.danger} />
-                                </TouchableOpacity>
-                            )}
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
@@ -210,27 +208,9 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         root: {
             flex: 1,
         },
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-        },
-        backBtn: {
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: c.glass,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        title: {
-            fontFamily: 'Inter_700Bold',
-            fontSize: 18,
-        },
         tabsRow: {
             paddingHorizontal: 16,
+            paddingTop: 12,
             paddingBottom: 12,
             gap: 8,
         },

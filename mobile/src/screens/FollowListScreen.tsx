@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { ArrowLeft } from '../components/icons';
+import { ScreenHeader } from '../components/kit';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
@@ -229,13 +229,7 @@ export default function FollowListScreen() {
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <ArrowLeft size={22} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle} numberOfLines={1}>
-                        {username ? `@${username}` : 'Users'}
-                    </Text>
-                    <View style={{ width: 38 }} />
+                    <ScreenHeader title={username ? `@${username}` : 'Users'} onBack={() => nav.goBack()} />
                 </View>
 
                 <View style={styles.tabBar}>
@@ -280,26 +274,7 @@ export default function FollowListScreen() {
 function makeStyles(c: AppColors, r: ColorRoles) {
     return StyleSheet.create({
         root: { flex: 1, backgroundColor: c.bg },
-        header: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-        },
-        backBtn: {
-            width: 38,
-            height: 38,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        headerTitle: {
-            color: c.textPrimary,
-            fontFamily: 'Inter_700Bold',
-            fontSize: 17,
-            flex: 1,
-            textAlign: 'center',
-        },
+        header: { paddingBottom: 12 },
         tabBar: {
             flexDirection: 'row',
             marginHorizontal: 16,

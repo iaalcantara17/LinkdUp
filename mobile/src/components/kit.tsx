@@ -4,7 +4,7 @@ import {
     TextInput, TextInputProps, TextStyle, View, ViewStyle,
 } from 'react-native';
 import Reanimated, { FadeIn } from 'react-native-reanimated';
-import { ArrowLeft } from './icons';
+import { ArrowLeft, X } from './icons';
 import { useTheme } from '../context/ThemeContext';
 import { control, duration, MotionName, motion, press, radii, radius, space, stagger, typeScale, typography } from '../theme';
 
@@ -102,20 +102,20 @@ export function Tap({ style, activeOpacity = press.opacity, accessibilityRole = 
     );
 }
 
-export function ScreenHeader({ title, subtitle, onBack, right }: { title: string; subtitle?: string | null; onBack?: () => void; right?: ReactNode }) {
+export function ScreenHeader({ title, subtitle, onBack, close, right }: { title: ReactNode; subtitle?: string | null; onBack?: () => void; close?: boolean; right?: ReactNode }) {
     const { roles } = useTheme();
     const styles = useKitStyles();
     return (
         <View style={styles.header}>
             {onBack ? (
-                <Tap onPress={onBack} accessibilityLabel="Back" style={styles.headerSide} hitSlop={space.s1}>
-                    <ArrowLeft size={24} color={roles.text} />
+                <Tap onPress={onBack} accessibilityLabel={close ? 'Close' : 'Back'} style={styles.headerSide} hitSlop={space.s1}>
+                    {close ? <X size={24} color={roles.text} /> : <ArrowLeft size={24} color={roles.text} />}
                 </Tap>
             ) : (
                 <View style={styles.headerSide} />
             )}
-            <View style={{ flex: 1 }}>
-                <Text style={styles.headerTitle} accessibilityRole="header" numberOfLines={1}>{title}</Text>
+            <View style={typeof title === 'string' ? { flex: 1 } : { flex: 1, alignItems: 'center' }}>
+                {typeof title === 'string' ? <Text style={styles.headerTitle} accessibilityRole="header" numberOfLines={1}>{title}</Text> : title}
                 {subtitle ? <Text style={styles.headerSub} numberOfLines={1}>{subtitle}</Text> : null}
             </View>
             <View style={[styles.headerSide, { alignItems: 'flex-end' }]}>{right}</View>
@@ -148,13 +148,14 @@ export function TextField({ left, right, containerStyle, style, ...input }: Text
     );
 }
 
-export function Chip({ label, selected, onPress, icon, role = 'tab', style }: { label: string; selected: boolean; onPress: () => void; icon?: (color: string) => ReactNode; role?: 'tab' | 'button'; style?: StyleProp<ViewStyle> }) {
+export function Chip({ label, selected, onPress, icon, role = 'tab', style }: { label: string; selected: boolean; onPress: () => void; icon?: (color: string) => ReactNode; role?: 'tab' | 'button' | 'radio'; style?: StyleProp<ViewStyle> }) {
     const { roles } = useTheme();
     const styles = useKitStyles();
     return (
         <Tap
             accessibilityRole={role}
-            accessibilityState={{ selected }}
+            accessibilityState={role === 'radio' ? { checked: selected } : { selected }}
+            aria-checked={role === 'radio' ? selected : undefined}
             onPress={onPress}
             style={[styles.chip, selected && styles.chipOn, style]}
         >
@@ -235,7 +236,7 @@ function useKitStyles() {
                     paddingTop: space.s2,
                     minHeight: control.md,
                 },
-                headerSide: { width: 44, height: 44, justifyContent: 'center' },
+                headerSide: { minWidth: 44, height: 44, justifyContent: 'center' },
                 headerTitle: { ...typography.h3, color: r.text, textAlign: 'center' },
                 headerSub: { ...typeScale.caption, color: r.textMuted, textAlign: 'center', marginTop: space.s1 },
                 card: { backgroundColor: c.glass, borderRadius: radii.xl, borderWidth: 1, borderColor: c.glassBorder },

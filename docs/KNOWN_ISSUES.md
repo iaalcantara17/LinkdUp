@@ -1,7 +1,5 @@
 # Known Issues
 
-- **Report is not built.** Report in the profile menu only says reporting isn't available yet. Block is the only safety action.
-- **Deleting a collection is hard to find.** It works, but the only controls in Saved are a long press on a collection tab or a small trash icon that shows on the selected tab.
 - **Google Calendar is limited to test users.** The Google OAuth app is in Testing mode, so only accounts added as test users in the Google Cloud console can connect. Everyone else should use **Download .ics** on the confirmation screen, which works in any calendar app with no connection.
 - **Native iOS and Android are untested.** The app is built and tested on the web. The native builds have not been run on devices.
 - **The API sleeps when idle.** The server runs on Render's free tier and sleeps after a period without traffic. The first request after that can take up to a minute while it wakes up.

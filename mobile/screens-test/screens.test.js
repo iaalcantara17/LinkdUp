@@ -18,6 +18,12 @@ import OnboardingScreen from '../src/screens/OnboardingScreen';
 import DemoBanner from '../src/components/DemoBanner';
 import { ColdStartNote } from '../src/components/LoadState';
 import CommentSheet from '../src/components/CommentSheet';
+import UserProfileSheet from '../src/components/UserProfileSheet';
+import SavedScreen from '../src/screens/SavedScreen';
+import BlockedUsersScreen from '../src/screens/BlockedUsersScreen';
+import MyPostsScreen from '../src/screens/MyPostsScreen';
+import CreatePostScreen from '../src/screens/CreatePostScreen';
+import CrewMapFullscreenScreen from '../src/screens/CrewMapFullscreenScreen';
 import { supabase } from '../src/services/supabase';
 import * as dialogs from '../src/components/dialogs';
 import { color } from '../src/theme';
@@ -493,6 +499,152 @@ describe('FollowList', () => {
             menu.mockRestore();
         }
     });
+});
+
+describe('Report', () => {
+    const Sheet = () => <UserProfileSheet userId="bob" visible onClose={() => {}} />;
+    const bob = { id: 'bob', display_name: 'Bob Builder', username: 'bob', bio: 'Builds things', follower_count: 3, following_count: 4 };
+
+    async function openReport(overrides = {}) {
+        await show(Sheet, { getPublicUser: bob, getFriendStatus: { status: 'none' }, reportUser: { ok: true }, ...overrides });
+        fireEvent.click(button('More options for Bob Builder'));
+        await settle();
+        const menu = dialogs.getSnapshot().dialog;
+        expect(menu.buttons.map((b) => b.label)).toEqual(['Block', 'Report', 'Cancel']);
+        act(() => dialogs.respond(1));
+        await settle();
+        return screen.getByRole('dialog', { name: 'Report @bob?' });
+    }
+
+    function clearDialogs() {
+        while (dialogs.getSnapshot().dialog) dialogs.dismiss();
+        for (const t of dialogs.getSnapshot().toasts) dialogs.dismissToast(t.id);
+    }
+
+    beforeEach(clearDialogs);
+    afterEach(clearDialogs);
+
+    test('Report opens a dialog with the four reasons, an optional note and Send report disabled until a reason is picked', async () => {
+        const dialog = await openReport();
+        within(dialog).getByText("Pick a reason. They won't know you reported them.");
+        const reasons = within(dialog).getAllByRole('radio').map((r) => r.textContent);
+        expect(reasons).toEqual(['Spam', 'Harassment', 'Inappropriate', 'Something else']);
+        within(dialog).getByPlaceholderText('Add details (optional)');
+        const send = within(dialog).getByRole('button', { name: 'Send report' });
+        expect(send.getAttribute('aria-disabled')).toBe('true');
+        fireEvent.click(send);
+        await settle();
+        expect(api.reportUser).not.toHaveBeenCalled();
+        expect(screen.queryByText("Reporting isn't available yet", { exact: false })).toBeNull();
+    });
+
+    test('sending a report passes the reason and note, closes the dialog and thanks the person', async () => {
+        const dialog = await openReport();
+        fireEvent.click(within(dialog).getByRole('radio', { name: 'Harassment' }));
+        expect(within(dialog).getByRole('radio', { name: 'Harassment' }).getAttribute('aria-checked')).toBe('true');
+        fireEvent.change(within(dialog).getByPlaceholderText('Add details (optional)'), { target: { value: 'Keeps messaging me' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Send report' }));
+        await settle();
+        expect(api.reportUser).toHaveBeenCalledWith('bob', 'harassment', 'Keeps messaging me');
+        expect(screen.queryByRole('dialog', { name: 'Report @bob?' })).toBeNull();
+        expect(dialogs.getSnapshot().toasts.map((t) => t.message)).toContain("Thanks, we'll take a look.");
+        screen.getByText('Builds things');
+    });
+
+    test('Something else sends other and a failed send keeps the dialog and note open with an error', async () => {
+        const dialog = await openReport({ reportUser: failed });
+        fireEvent.click(within(dialog).getByRole('radio', { name: 'Something else' }));
+        fireEvent.change(within(dialog).getByPlaceholderText('Add details (optional)'), { target: { value: 'Fake account' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Send report' }));
+        await settle();
+        expect(api.reportUser).toHaveBeenCalledWith('bob', 'other', 'Fake account');
+        const still = screen.getByRole('dialog', { name: 'Report @bob?' });
+        within(still).getByText("Couldn't send report");
+        within(still).getByText(NETWORK);
+        expect(within(still).getByPlaceholderText('Add details (optional)').value).toBe('Fake account');
+        expect(dialogs.getSnapshot().toasts).toEqual([]);
+    });
+
+    test('Cancel closes the dialog without sending', async () => {
+        const dialog = await openReport();
+        fireEvent.click(within(dialog).getByRole('radio', { name: 'Spam' }));
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await settle();
+        expect(screen.queryByRole('dialog', { name: 'Report @bob?' })).toBeNull();
+        expect(api.reportUser).not.toHaveBeenCalled();
+    });
+});
+
+describe('Saved', () => {
+    const saved = {
+        getCollections: [{ id: 'c1', name: 'Brunch' }],
+        getSavedPosts: { posts: [{ id: 'f1', image_url: 'https://img.test/1.jpg', venue_name: 'Blue Bottle Cafe', like_count: 0, comment_count: 0, bookmarked_at: '2026-10-01T00:00:00Z', collection_id: 'c1' }] },
+        deleteCollection: { ok: true },
+    };
+
+    beforeEach(() => {
+        while (dialogs.getSnapshot().dialog) dialogs.dismiss();
+    });
+
+    test('All Saved has no collection menu', async () => {
+        await show(SavedScreen, saved, {});
+        expect(screen.queryByRole('button', { name: /^Options for/ })).toBeNull();
+    });
+
+    test('the selected collection menu offers Delete collection through the shared confirm', async () => {
+        await show(SavedScreen, saved, {});
+        fireEvent.click(screen.getByText('Brunch'));
+        await settle();
+        fireEvent.click(button('Options for Brunch'));
+        await settle();
+        const menu = dialogs.getSnapshot().dialog;
+        expect(menu.title).toBe('Brunch');
+        expect(menu.buttons).toEqual([{ label: 'Delete collection', style: 'destructive' }, { label: 'Cancel', style: 'cancel' }]);
+        act(() => dialogs.respond(0));
+        await settle();
+        const ask = dialogs.getSnapshot().dialog;
+        expect(ask.title).toBe('Delete "Brunch"?');
+        expect(ask.message).toBe('Its posts stay saved and move to All Saved.');
+        act(() => dialogs.respond(1));
+        await settle();
+        expect(api.deleteCollection).toHaveBeenCalledWith('c1');
+        expect(screen.queryByText('Brunch')).toBeNull();
+        expect(screen.queryByRole('button', { name: /^Options for/ })).toBeNull();
+        screen.getByText('Blue Bottle Cafe');
+    });
+
+    test('long press on a collection tab still asks to delete it', async () => {
+        await show(SavedScreen, saved, {});
+        const tab = screen.getByText('Brunch');
+        fireEvent.mouseDown(tab);
+        await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+        fireEvent.mouseUp(tab);
+        await settle();
+        expect(dialogs.getSnapshot().dialog.title).toBe('Delete "Brunch"?');
+        act(() => dialogs.respond(0));
+        await settle();
+        expect(api.deleteCollection).not.toHaveBeenCalled();
+    });
+});
+
+describe('Screen headers', () => {
+    const cases = [
+        ['BlockedUsers', BlockedUsersScreen, {}, 'Blocked Users', 'Back'],
+        ['FollowList', FollowListScreen, { userId: 'alice', initialTab: 'followers', username: 'alice' }, '@alice', 'Back'],
+        ['MyPosts', MyPostsScreen, {}, 'My Posts', 'Back'],
+        ['Saved', SavedScreen, {}, 'Saved', 'Back'],
+        ['CrewMapFullscreen', CrewMapFullscreenScreen, { partyId: 'p1' }, 'Friday Crew', 'Back'],
+        ['CreatePost', CreatePostScreen, {}, 'New Post', 'Close'],
+    ];
+    for (const [name, Screen, params, title, label] of cases) {
+        test(`${name} keeps its ${title} title and its ${label} button goes back`, async () => {
+            await show(Screen, { getBlockedUsers: [], getFollowers: [], getMyFeedPosts: [], getCollections: [], getSavedPosts: { posts: [] } }, params);
+            screen.getByRole('heading', { name: title });
+            global.__navigation.goBack.mockClear();
+            fireEvent.click(button(label));
+            expect(global.__navigation.goBack).toHaveBeenCalledTimes(1);
+        });
+    }
 });
 
 describe('Walkthrough', () => {

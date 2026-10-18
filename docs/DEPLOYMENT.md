@@ -108,6 +108,32 @@ Notes:
 - Only the demo account sees demo data. For everyone else the server hides the demo user and its accepted friends from the feed, friend search, followers and following lists, and Discover parties.
 - To turn demo mode off, delete `DEMO_USER_ID` on Render.
 
-## 8. Railway (retired)
+## 8. Reports
+
+**Report** in another person's profile menu saves a row in `public.reports` through `POST /api/reports`. Run `server/src/db/migrations/036_reports.sql` once in the Supabase SQL editor first; its last query should show `reports | true`. The table has row level security on and no policies, so the app's keys can't read it. Only the server (service role) writes to it, and only the SQL editor or the Table editor can read it.
+
+Each person can file one report per person per UTC day; repeats that day are dropped quietly. The server also limits reports to 10 an hour per account and 60 an hour per IP. The demo account can't report. If an account is deleted, its reports stay, with that side set to null.
+
+To check reports, save this once as a query: **Supabase → SQL Editor → New query**, paste it, click **Run**, then **Save** it as `Reports, last 30 days`. Open it from the saved queries list whenever you want to look.
+
+```sql
+select r.created_at,
+       r.reason,
+       r.details,
+       reported.username as reported_username,
+       reported.email    as reported_email,
+       reporter.username as reporter_username,
+       count(*) over (partition by r.reported_user_id) as reports_on_this_person,
+       r.reported_user_id
+from public.reports r
+left join public.users reported on reported.id = r.reported_user_id
+left join public.users reporter on reporter.id = r.reporter_id
+where r.created_at > now() - interval '30 days'
+order by r.created_at desc;
+```
+
+Nothing happens to a reported account on its own. To act on one, contact the person, or remove the account in **Authentication → Users**.
+
+## 9. Railway (retired)
 
 The old Railway backend is gone. `server/railway.json` was deleted. Ignore Railway steps in older planning docs.

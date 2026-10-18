@@ -66,3 +66,17 @@ test('party flow, Friends, Discover and Profile use the kit Tap instead of bare 
     const found = screens.filter((f) => /\bTouchableOpacity\b|\bTouchableHighlight\b/.test(read(f)));
     assert.deepEqual(found, []);
 });
+
+const headerScreens = ['Swipe', 'CrewMapFullscreen', 'BlockedUsers', 'FollowList', 'MyPosts', 'Saved', 'CreatePost'];
+
+test('Swipe, CrewMapFullscreen, BlockedUsers, FollowList, MyPosts, Saved and CreatePost use the kit ScreenHeader instead of their own back buttons', () => {
+    for (const s of headerScreens) {
+        const src = read(`src/screens/${s}Screen.tsx`);
+        assert.match(src, /<ScreenHeader\b/, s);
+        assert.doesNotMatch(src, /\bbackBtn\b|<(ArrowLeft|ChevronLeft)\b/, s);
+    }
+});
+
+test('CreatePost keeps a close button in its ScreenHeader', () => {
+    assert.match(read('src/screens/CreatePostScreen.tsx'), /<ScreenHeader[^>]*\bclose\b/);
+});
