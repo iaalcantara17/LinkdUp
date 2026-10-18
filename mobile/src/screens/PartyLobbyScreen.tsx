@@ -48,6 +48,7 @@ export default function PartyLobbyScreen() {
     const [lobbyTab, setLobbyTab] = useState<'party' | 'invite'>('party');
     const [friendsList, setFriendsList] = useState<any[]>([]);
     const [myLocation, setMyLocation] = useState<MyLocation | null>(null);
+    const [popularSpots, setPopularSpots] = useState<any[] | null>(null);
 
     const refresh = useCallback(async () => {
         let partyError: unknown = null;
@@ -97,7 +98,9 @@ export default function PartyLobbyScreen() {
             nav.replace('Swipe', { partyId });
         } catch (e: any) {
             const msg = String(e?.message);
-            if (msg.includes('no_member_locations')) {
+            if (e?.data?.fallback && Array.isArray(e.data.venues)) {
+                setPopularSpots(e.data.venues);
+            } else if (msg.includes('no_member_locations')) {
                 showError(
                     'Add a location first',
                     'No one in this party has a location yet. Turn on live location or pick a place under Your location, then start again.'
@@ -290,6 +293,18 @@ export default function PartyLobbyScreen() {
                             </>
                         ) : (
                             <Text style={styles.waiting}>Waiting for the host to start...</Text>
+                        )}
+                        {popularSpots && popularSpots.length > 0 && (
+                            <View style={{ marginTop: 24 }}>
+                                <Text style={[styles.crewLabel, { marginBottom: 4 }]}>Popular spots</Text>
+                                <Text style={styles.mapPrivacyNote} accessibilityLiveRegion="polite">Live lookups are paused today.</Text>
+                                {popularSpots.map((v: any) => (
+                                    <View key={v.google_place_id} style={styles.friendRow}>
+                                        <Text style={styles.friendName}>{v.name}</Text>
+                                        <Text style={styles.friendMeta}>{[v.category, v.address].filter(Boolean).join(' · ')}</Text>
+                                    </View>
+                                ))}
+                            </View>
                         )}
                         </>
                         )}

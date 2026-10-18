@@ -194,6 +194,23 @@ describe('PartyLobby', () => {
         expect(api.startParty).toHaveBeenCalledWith('p1');
     });
 
+    test('a start that hits the venue limit shows Popular spots in the lobby instead of an error and stays in the lobby', async () => {
+        const limited = Object.assign(new Error('Venue lookups are paused for today, try again tomorrow'), {
+            data: { error: 'venue_limit_reached', fallback: true, venues: fx.popularSpots },
+        });
+        await show(PartyLobbyScreen, { startParty: limited });
+        global.__navigation.replace.mockClear();
+        fireEvent.click(button('Start swiping'));
+        await settle();
+        screen.getByText('Popular spots');
+        screen.getByText('Live lookups are paused today.');
+        screen.getByText('Harbor Light Cafe (demo)');
+        screen.getByText('Copper Kettle (demo)');
+        expect(dialogs.getSnapshot().dialog).toBeFalsy();
+        expect(global.__navigation.replace).not.toHaveBeenCalledWith('Swipe', { partyId: 'p1' });
+        expect(api.vote).not.toHaveBeenCalled();
+    });
+
     test('a guest waits for the host and has no Start swiping button', async () => {
         await show(PartyLobbyScreen, { getParty: { ...lobbyParty, party: { ...fx.party, host_user_id: 'bob' } } });
         screen.getByText('Waiting for the host to start...');
@@ -287,6 +304,24 @@ describe('Discover', () => {
         await screen.findByText('Finding nearby spots…');
         screen.getByText('Looking for parties…');
         screen.getByText('Using: Live location');
+    });
+
+    test('fallback venues show as Popular spots with a plain paused line and no Load more', async () => {
+        at(39.5);
+        await show(DiscoverScreen, { discoverVenues: fx.popularSpots });
+        await screen.findByText('Popular spots');
+        screen.getByText('Live lookups are paused today.');
+        expect(screen.queryByText('Trending near you')).toBeNull();
+        expect(screen.getAllByText('Harbor Light Cafe (demo)').length).toBeGreaterThan(0);
+        expect(screen.queryByText(/Load\s+more/)).toBeNull();
+    });
+
+    test('live venues keep the Trending near you heading without the paused line', async () => {
+        at(39.7);
+        await show(DiscoverScreen);
+        await screen.findByText('Trending near you');
+        expect(screen.queryByText('Popular spots')).toBeNull();
+        expect(screen.queryByText('Live lookups are paused today.')).toBeNull();
     });
 
     test('a paused venue quota shows the paused message', async () => {
@@ -550,6 +585,14 @@ describe('Cold start note', () => {
             await request;
         });
         expect(screen.queryByText(WAKING)).toBeNull();
+    });
+
+    test('a venue limit error keeps the server body so the lobby can show the fallback spots', async () => {
+        const body = { error: 'venue_limit_reached', fallback: true, venues: fx.popularSpots };
+        global.fetch = jest.fn(async () => ({ ok: false, status: 503, text: async () => JSON.stringify(body) }));
+        const err = await actual.api.startParty('p1').catch((e) => e);
+        expect(err.message).toBe('Venue lookups are paused for today, try again tomorrow');
+        expect(err.data).toEqual(body);
     });
 
     test('the waking up note does not animate, so reduced motion is respected', () => {

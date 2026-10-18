@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
-import { HttpError, venueLimitReached } from '../middleware/error';
+import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
 import { rateLimit } from '../middleware/rateLimit';
 import { midpoint, maxSpreadKm, distanceMiles, LatLng } from '../services/midpoint';
 import { searchNearbyVenues, getVenuesWithRotation } from '../services/places';
@@ -12,6 +12,7 @@ import { generateVenuePitch, FALLBACK_PITCH } from '../services/aiPitch';
 import { evaluateProposal } from '../services/matchEngine';
 import { assertMember, assertHost } from '../services/membership';
 import { isDemoUser } from '../middleware/demo';
+import { fallbackVenues } from '../services/fallbackVenues';
 
 const router = Router();
 
@@ -279,7 +280,14 @@ router.post('/:id/start', requireAuth, async (req: AuthedRequest, res, next) => 
         const spread = maxSpreadKm(points);
         const radiusMeters = Math.min(Math.max(2000, spread * 1000 * 0.15), 25_000);
 
-        const venues = await searchNearbyVenues(center, radiusMeters, 10);
+        let venues;
+        try {
+            venues = await searchNearbyVenues(center, radiusMeters, 10);
+        } catch (e) {
+            if (!isGoogleQuotaError(e)) throw e;
+            console.error('[party:start] venue limit reached, offering popular spots');
+            return res.status(503).json({ error: 'venue_limit_reached', fallback: true, venues: fallbackVenues() });
+        }
         if (venues.length === 0) throw new HttpError(502, 'no_venues_found');
 
         const rows = venues.map((v) => ({ ...v, party_id: partyId }));

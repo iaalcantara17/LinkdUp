@@ -36,7 +36,7 @@ async function request<T>(method: string, path: string, body?: any, quiet = fals
         const msg = data?.error === 'venue_limit_reached'
             ? VENUE_LIMIT_MESSAGE
             : data?.error || data?.message || `HTTP ${res.status}`;
-        throw new Error(msg);
+        throw Object.assign(new Error(msg), { data });
     }
     return data as T;
 }

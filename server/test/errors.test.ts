@@ -72,7 +72,9 @@ for (const [name, err] of [['429', quota(429)], ['403 RESOURCE_EXHAUSTED', quota
         mock.method(axios, 'post', async () => { throw err; });
         const res = await get('/party/p1/start', { method: 'POST' });
         assert.equal(res.status, 503);
-        assert.deepEqual(await res.json(), { error: 'venue_limit_reached' });
+        const body = await res.json();
+        assert.equal(body.error, 'venue_limit_reached');
+        assert.equal(body.fallback, true);
     });
 }
 
@@ -83,13 +85,13 @@ test('a non-venue Google 429 is not reported as venue_limit_reached', async () =
     assert.deepEqual(await res.json(), { error: 'server_error' });
 });
 
-test('discover venues maps quota to venue_limit_reached', async () => {
+test('discover venues answers quota with the popular spots fallback instead of an error', async () => {
     mock.method(console, 'error', () => {});
     mockSupabase(USERS);
     mock.method(axios, 'post', async () => { throw quota(429); });
     const res = await get('/discover/venues?lat=40.7&lng=-74');
-    assert.equal(res.status, 503);
-    assert.deepEqual(await res.json(), { error: 'venue_limit_reached' });
+    assert.equal(res.status, 200);
+    assert.ok((await res.json()).every((v: any) => v.fallback === true));
 });
 
 test('discover load-more maps quota to venue_limit_reached instead of an empty list', async () => {
