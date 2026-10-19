@@ -712,12 +712,9 @@ router.post('/:id/block', requireAuth, async (req: AuthedRequest, res, next) => 
             .upsert({ blocker_id: me, blocked_id: target }, { onConflict: 'blocker_id,blocked_id' });
         if (blockErr) throw new HttpError(500, 'block_failed', blockErr.message);
 
-        await Promise.all([
-            supabaseAdmin.from('user_follows').delete()
-                .or(`and(follower_id.eq.${me},followed_id.eq.${target}),and(follower_id.eq.${target},followed_id.eq.${me})`),
-            supabaseAdmin.from('friendships').delete()
-                .or(`and(requester_id.eq.${me},addressee_id.eq.${target}),and(requester_id.eq.${target},addressee_id.eq.${me})`),
-        ]);
+        const { error: unfollowErr } = await supabaseAdmin.from('user_follows').delete()
+            .or(`and(follower_id.eq.${me},followed_id.eq.${target}),and(follower_id.eq.${target},followed_id.eq.${me})`);
+        if (unfollowErr) throw new HttpError(500, 'block_failed', unfollowErr.message);
 
         res.json({ blocked: true });
     } catch (e) { next(e); }

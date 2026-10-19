@@ -2,6 +2,8 @@ import './env';
 import { test, before, after, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Server } from 'node:http';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { bootApp, client, freshWorld } from './flowApp';
 import type { FakeSupabase } from './fakeSupabase';
 
@@ -62,44 +64,40 @@ test('friends lists never read the old friendships table', async () => {
     assert.ok(!fake.calls.some((c) => c.table === 'friendships'));
 });
 
-test('unfriend removes only my follow and leaves theirs', async () => {
-    assert.equal((await call('DELETE', `/api/friends/${MUTUAL}`, as(ME))).status, 200);
+test('unfollowing a friend removes only my follow, so they move to my follow back list', async () => {
+    assert.equal((await call('DELETE', `/api/user/${MUTUAL}/follow`, as(ME))).status, 200);
     assert.equal(follows(ME, MUTUAL), false);
     assert.equal(follows(MUTUAL, ME), true);
     assert.deepEqual((await call('GET', '/api/friends', as(ME))).json, []);
     assert.deepEqual((await call('GET', '/api/friends', as(MUTUAL))).json, []);
+    assert.deepEqual(ids((await call('GET', '/api/friends/follow-back', as(ME))).json), [MUTUAL, FOLLOWS_ME].sort());
+    assert.deepEqual((await call('GET', '/api/friends/follow-back', as(MUTUAL))).json, []);
 });
 
-test('the requests list is people who follow me that I do not follow back', async () => {
-    const res = await call('GET', '/api/friends/pending', as(ME));
+test('follow back lists people who follow me that I do not follow, as plain people', async () => {
+    const res = await call('GET', '/api/friends/follow-back', as(ME));
     assert.equal(res.status, 200);
-    assert.deepEqual(res.json.map((r: any) => r.user.id), [FOLLOWS_ME]);
-    assert.equal(res.json[0].friendship_id, FOLLOWS_ME);
-    assert.equal(res.json[0].user.display_name, 'Pat Followsme');
+    assert.deepEqual(res.json.map((u: any) => u.id), [FOLLOWS_ME]);
+    assert.equal(res.json[0].display_name, 'Pat Followsme');
+    assert.equal(res.json[0].followed_at, '2026-10-01T00:00:00Z');
+    assert.equal(res.json[0].friendship_id, undefined);
 });
 
-test('the requests list empties once I follow back', async () => {
+test('follow back empties once I follow back', async () => {
     await call('POST', `/api/user/${FOLLOWS_ME}/follow`, as(ME));
-    assert.deepEqual((await call('GET', '/api/friends/pending', as(ME))).json, []);
+    assert.deepEqual((await call('GET', '/api/friends/follow-back', as(ME))).json, []);
 });
 
-test('status reports friends, one-way each way, and none, from follows', async () => {
-    const status = async (id: string) => (await call('GET', `/api/friends/status/${id}`, as(ME))).json;
-    assert.deepEqual(await status(MUTUAL), { friendship_id: MUTUAL, status: 'accepted', direction: 'outgoing', i_follow: true, follows_me: true });
-    assert.deepEqual(await status(I_FOLLOW), { friendship_id: I_FOLLOW, status: 'pending', direction: 'outgoing', i_follow: true, follows_me: false });
-    assert.deepEqual(await status(FOLLOWS_ME), { friendship_id: FOLLOWS_ME, status: 'pending', direction: 'incoming', i_follow: false, follows_me: true });
-    assert.deepEqual(await status(STRANGER), { status: 'none', i_follow: false, follows_me: false });
-});
-
-test('search marks each person with how we follow each other', async () => {
+test('search marks each person with how we follow each other and nothing about requests', async () => {
     const res = await call('GET', '/api/friends/search?q=Pat', as(ME));
     assert.equal(res.status, 200);
     const by = Object.fromEntries(res.json.map((u: any) => [u.id, u]));
     assert.deepEqual(Object.keys(by).sort(), [MUTUAL, I_FOLLOW, FOLLOWS_ME, STRANGER].sort());
-    assert.equal(by[MUTUAL].friendship.status, 'accepted');
+    assert.deepEqual([by[MUTUAL].i_follow, by[MUTUAL].follows_me], [true, true]);
     assert.deepEqual([by[I_FOLLOW].i_follow, by[I_FOLLOW].follows_me], [true, false]);
-    assert.equal(by[FOLLOWS_ME].friendship.direction, 'incoming');
-    assert.equal(by[STRANGER].friendship, null);
+    assert.deepEqual([by[FOLLOWS_ME].i_follow, by[FOLLOWS_ME].follows_me], [false, true]);
+    assert.deepEqual([by[STRANGER].i_follow, by[STRANGER].follows_me], [false, false]);
+    for (const u of res.json) assert.equal('friendship' in u, false);
 });
 
 test('a public profile says whether I follow them and whether they follow me', async () => {
@@ -115,60 +113,32 @@ test('blocking removes follows both ways, ends the friendship and stops followin
     assert.equal(follows(MUTUAL, ME), false);
     assert.deepEqual((await call('GET', '/api/friends', as(ME))).json, []);
     assert.equal((await call('POST', `/api/user/${ME}/follow`, as(MUTUAL))).status, 403);
-    assert.deepEqual((await call('GET', '/api/friends/pending', as(ME))).json.map((r: any) => r.user.id), [FOLLOWS_ME]);
+    assert.deepEqual((await call('GET', '/api/friends/follow-back', as(ME))).json.map((u: any) => u.id), [FOLLOWS_ME]);
 });
 
-test('bridge: sending a friend request from an old tab just follows them, with no request row', async () => {
-    const res = await call('POST', '/api/friends/request', as(ME), { user_id: STRANGER });
-    assert.equal(res.status, 201);
-    assert.equal(follows(ME, STRANGER), true);
-    assert.equal(fake.db.friendships.length, 0);
-    assert.equal((await call('POST', '/api/friends/request', as(ME), { user_id: STRANGER })).status, 201);
-    assert.equal(fake.db.user_follows.filter((f) => f.follower_id === ME && f.followed_id === STRANGER).length, 1);
-});
-
-test('bridge: a request to yourself or across a block is refused and follows nobody', async () => {
-    assert.equal((await call('POST', '/api/friends/request', as(ME), { user_id: ME })).status, 400);
-    fake.db.user_blocks.push({ blocker_id: STRANGER, blocked_id: ME });
-    assert.equal((await call('POST', '/api/friends/request', as(ME), { user_id: STRANGER })).status, 403);
-    assert.equal(follows(ME, STRANGER), false);
-});
-
-test('bridge: accepting from the requests list follows them back and makes you friends', async () => {
-    const [request] = (await call('GET', '/api/friends/pending', as(ME))).json;
-    assert.equal((await call('POST', `/api/friends/${request.friendship_id}/accept`, as(ME))).status, 200);
-    assert.deepEqual(ids((await call('GET', '/api/friends', as(ME))).json), [MUTUAL, FOLLOWS_ME].sort());
-});
-
-test('bridge: accepting an old request id from a tab opened before the switch follows the requester back', async () => {
-    const OLD = '10000000-0000-4000-8000-0000000000f2';
-    fake.db.friendships.push({ id: OLD, requester_id: STRANGER, addressee_id: ME, status: 'pending' });
-    fake.db.user_follows.push({ follower_id: STRANGER, followed_id: ME });
-    assert.equal((await call('POST', `/api/friends/${OLD}/accept`, as(ME))).status, 200);
-    assert.equal(follows(ME, STRANGER), true);
-    assert.ok(ids((await call('GET', '/api/friends', as(ME))).json).includes(STRANGER));
-});
-
-test("bridge: nobody can accept an old request that was sent to someone else", async () => {
-    const OLD = '10000000-0000-4000-8000-0000000000f3';
-    fake.db.friendships.push({ id: OLD, requester_id: STRANGER, addressee_id: MUTUAL, status: 'pending' });
-    assert.equal((await call('POST', `/api/friends/${OLD}/accept`, as(ME))).status, 403);
-    assert.equal(follows(ME, STRANGER), false);
-});
-
-test('bridge: decline changes nothing, and bad ids are rejected', async () => {
+test('the old friend request routes are gone and change nothing', async () => {
     const before = JSON.stringify(fake.db.user_follows);
-    assert.equal((await call('POST', `/api/friends/${FOLLOWS_ME}/decline`, as(ME))).status, 200);
-    assert.equal(JSON.stringify(fake.db.user_follows), before);
-    assert.equal((await call('POST', '/api/friends/x),id.not.is.null/accept', as(ME))).status, 400);
-    assert.equal((await call('POST', '/api/friends/not-a-uuid/decline', as(ME))).status, 400);
-    const unfriend = await call('DELETE', `/api/friends/${encodeURIComponent('x),id.not.is.null,and(follower_id.eq.x')}`, as(ME));
-    assert.equal(unfriend.status, 400);
+    for (const [method, path, body] of [
+        ['GET', '/api/friends/pending'],
+        ['GET', '/api/friends/outgoing'],
+        ['GET', `/api/friends/status/${MUTUAL}`],
+        ['POST', '/api/friends/request', { user_id: STRANGER }],
+        ['POST', `/api/friends/${FOLLOWS_ME}/accept`],
+        ['POST', `/api/friends/${FOLLOWS_ME}/decline`],
+        ['DELETE', `/api/friends/${MUTUAL}`],
+    ] as const) {
+        assert.equal((await call(method, path, as(ME), body)).status, 404, `${method} ${path}`);
+    }
     assert.equal(JSON.stringify(fake.db.user_follows), before);
 });
 
-test('the unused outgoing requests route is gone', async () => {
-    assert.equal((await call('GET', '/api/friends/outgoing', as(ME))).status, 404);
+test('no server code reads the old friendships table or the bridge', () => {
+    const src = join(__dirname, '..', 'src');
+    const found = readdirSync(src, { recursive: true })
+        .map(String)
+        .filter((f) => /\.(ts|sql)$/.test(f) && !f.replace(/\\/g, '/').startsWith('db/migrations/'))
+        .filter((f) => /\bfriendships\b|friendRequestBridge|legacyFriendship/.test(readFileSync(join(src, f), 'utf8')));
+    assert.deepEqual(found, []);
 });
 
 test('Discover marks a party as having friends inside only when a mutual follow is in it', async () => {
