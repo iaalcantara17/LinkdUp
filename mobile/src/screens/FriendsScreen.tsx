@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import Animated from 'react-native-reanimated';
 import { UserPlus, UserCheck, UserX, Search, Users, Ban } from '../components/icons';
 import HelpButton from '../components/HelpButton';
+import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
 import { confirm, confirmBlock, errorText, showError } from '../components/dialogs';
 import { typeScale } from '../theme';
@@ -56,6 +57,7 @@ export default function FriendsScreen() {
     const [searching, setSearching] = useState(false);
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
     const loadFriends = useCallback(async () => {
         setLoadingFriends(true);
@@ -207,6 +209,8 @@ export default function FriendsScreen() {
                                             <ListRow
                                                 left={<Avatar user={f} colors={colors} />}
                                                 title={f.display_name}
+                                                onPress={() => setProfileUserId(f.id)}
+                                                pressLabel={`View ${f.display_name}'s profile`}
                                                 right={
                                                     <View style={styles.actions}>
                                                         <IconButton label={`Remove ${f.display_name}`} onPress={() => handleRemoveFriend(f.id, f.display_name)}>
@@ -322,6 +326,15 @@ export default function FriendsScreen() {
                     )}
                 </ScrollView>
             </SafeAreaView>
+            <UserProfileSheet
+                userId={profileUserId}
+                visible={!!profileUserId}
+                onClose={() => {
+                    setProfileUserId(null);
+                    loadFriends();
+                    loadPending();
+                }}
+            />
         </View>
     );
 }

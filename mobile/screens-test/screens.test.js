@@ -80,6 +80,7 @@ async function settle() {
 }
 
 const button = (name) => screen.getByRole('button', { name });
+const bobProfile = { id: 'bob', display_name: 'Bob Builder', username: 'bob', bio: 'Builds things', follower_count: 3, following_count: 4 };
 const NETWORK = "We couldn't reach the server. Check your connection and try again.";
 
 function expectLoadError(title) {
@@ -154,6 +155,32 @@ describe('Friends', () => {
         screen.getByText('Bob Builder');
         button('Remove Bob Builder');
         button('Block Bob Builder');
+    });
+
+    test("tapping a friend's name opens their profile sheet with Follow, Block and Report", async () => {
+        await show(FriendsScreen, { getPublicUser: bobProfile, getFriendStatus: { status: 'accepted' } });
+        const open = button("View Bob Builder's profile");
+        expect(within(open).queryByRole('button')).toBeNull();
+        fireEvent.click(open);
+        await settle();
+        expect(api.getPublicUser).toHaveBeenCalledWith('bob');
+        fireEvent.click(button('More options for Bob Builder'));
+        await settle();
+        expect(dialogs.getSnapshot().dialog.buttons.map((b) => b.label)).toEqual(['Block', 'Report', 'Cancel']);
+        act(() => dialogs.dismiss());
+    });
+
+    test('remove and block stay their own buttons beside the profile button', async () => {
+        await show(FriendsScreen, { getPublicUser: bobProfile });
+        const open = button("View Bob Builder's profile");
+        for (const name of ['Remove Bob Builder', 'Block Bob Builder']) {
+            expect(open.contains(button(name))).toBe(false);
+        }
+        fireEvent.click(button('Remove Bob Builder'));
+        await settle();
+        expect(api.getPublicUser).not.toHaveBeenCalled();
+        expect(dialogs.getSnapshot().dialog.title).toBe('Remove Bob Builder?');
+        act(() => dialogs.dismiss());
     });
 
     test('a failed friends load shows an error with Try again instead of the empty state, and retrying loads friends', async () => {
