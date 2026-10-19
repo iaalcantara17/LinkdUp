@@ -9,6 +9,7 @@ import { geocodeCity } from '../services/places';
 import { deleteCalendarEventForUser } from '../services/googleCalendar';
 import { SELF_PROFILE_SELECT, computeAge, profileDbError, toSelfProfile } from '../services/userProfile';
 import { MEMBER_LOCATION_COLUMNS, myLocationView } from '../services/memberLocation';
+import { follow, followFlags, unfollow } from '../services/follows';
 
 const router = Router();
 
@@ -25,15 +26,6 @@ function validateUsername(u: string): { valid: boolean; reason?: string } {
     if (!/^[a-z]/.test(u))        return { valid: false, reason: 'starts_with_number' };
     if (RESERVED_USERNAMES.includes(u)) return { valid: false, reason: 'reserved' };
     return { valid: true };
-}
-
-async function isEitherBlocked(a: string, b: string): Promise<boolean> {
-    const { data } = await supabaseAdmin
-        .from('user_blocks')
-        .select('blocker_id')
-        .or(`and(blocker_id.eq.${a},blocked_id.eq.${b}),and(blocker_id.eq.${b},blocked_id.eq.${a})`)
-        .limit(1);
-    return (data ?? []).length > 0;
 }
 
 router.get('/me', requireAuth, async (req: AuthedRequest, res, next) => {
@@ -588,10 +580,11 @@ router.get('/:id/public', requireAuth, async (req: AuthedRequest, res, next) => 
             school = s?.name ?? null;
         }
 
-        const [followerRes, followingRes, blockedByMeRes] = await Promise.all([
+        const [followerRes, followingRes, blockedByMeRes, flags] = await Promise.all([
             supabaseAdmin.from('user_follows').select('follower_id', { count: 'exact', head: true }).eq('followed_id', targetId),
             supabaseAdmin.from('user_follows').select('followed_id', { count: 'exact', head: true }).eq('follower_id', targetId),
             supabaseAdmin.from('user_blocks').select('blocker_id').eq('blocker_id', me).eq('blocked_id', targetId).maybeSingle(),
+            followFlags(me, [targetId]),
         ]);
 
         res.json({
@@ -608,6 +601,7 @@ router.get('/:id/public', requireAuth, async (req: AuthedRequest, res, next) => 
             follower_count: followerRes.count ?? 0,
             following_count: followingRes.count ?? 0,
             is_blocked_by_me: blockedByMeRes.data != null,
+            ...flags(targetId),
         });
     } catch (e) { next(e); }
 });
@@ -744,31 +738,14 @@ router.delete('/:id/block', requireAuth, async (req: AuthedRequest, res, next) =
 
 router.post('/:id/follow', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
-        const me = req.user!.id;
-        const target = req.params.id;
-        if (me === target) throw new HttpError(400, 'cannot_follow_self');
-
-        const blocked = await isEitherBlocked(me, target);
-        if (blocked) throw new HttpError(403, 'blocked');
-
-        const { error } = await supabaseAdmin
-            .from('user_follows')
-            .upsert({ follower_id: me, followed_id: target }, { onConflict: 'follower_id,followed_id' });
-        if (error) throw new HttpError(500, 'follow_failed', error.message);
-
+        await follow(req.user!.id, req.params.id);
         res.json({ ok: true });
     } catch (e) { next(e); }
 });
 
 router.delete('/:id/follow', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
-        const { error } = await supabaseAdmin
-            .from('user_follows')
-            .delete()
-            .eq('follower_id', req.user!.id)
-            .eq('followed_id', req.params.id);
-        if (error) throw new HttpError(500, 'unfollow_failed', error.message);
-
+        await unfollow(req.user!.id, req.params.id);
         res.json({ ok: true });
     } catch (e) { next(e); }
 });

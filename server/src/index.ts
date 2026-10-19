@@ -17,6 +17,7 @@ import calendarRoutes from './routes/calendar';
 import discoverRoutes from './routes/discover';
 import feedRoutes from './routes/feed';
 import friendsRoutes from './routes/friends';
+import friendRequestBridge from './routes/friendRequestBridge';
 import photoRoutes from './routes/photo';
 import healthRoutes from './routes/health';
 import reportsRoutes from './routes/reports';
@@ -59,6 +60,7 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/discover', discoverRoutes);
 app.use('/api/discover', feedRoutes);
 app.use('/api/friends', friendsRoutes);
+app.use('/api/friends', friendRequestBridge);
 app.use('/api/photo', photoRoutes);
 app.use('/api/reports', reportsRoutes);
 

@@ -16,6 +16,9 @@ const KEYS: Record<string, string[]> = {
     proposal_responses: ['party_id', 'voting_round', 'proposal_rank', 'user_id'],
     party_dates: ['id'],
     date_votes: ['id'],
+    user_follows: ['follower_id', 'followed_id'],
+    user_blocks: ['blocker_id', 'blocked_id'],
+    friendships: ['id'],
 };
 
 const UNIQUE: Record<string, string[][]> = {
@@ -44,6 +47,9 @@ const DEFAULTS: Record<string, (now: string) => Row> = {
     proposal_responses: (now: string) => ({ responded_at: now }),
     party_dates: (now: string) => ({ id: randomUUID(), proposed_by: null, created_at: now }),
     date_votes: (now: string) => ({ id: randomUUID(), available: true, voted_at: now }),
+    user_follows: (now: string) => ({ followed_at: now }),
+    user_blocks: (now: string) => ({ blocked_at: now }),
+    friendships: (now: string) => ({ id: randomUUID(), requested_at: now, responded_at: null }),
 };
 
 export type FakeDb = Record<string, Row[]>;
@@ -111,8 +117,16 @@ function matches(row: Row, col: string, expr: string): boolean {
         case 'lte': return cell != null && compare(cell, value) <= 0;
         case 'is': return value === 'null' ? cell == null : String(cell) === value;
         case 'in': return splitTop(value.slice(1, -1)).map(unquote).includes(String(cell));
+        case 'ilike': return cell != null && new RegExp(`^${value.split('%').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`, 'i').test(String(cell));
         default: throw new Error(`fakeSupabase: unsupported filter ${col}=${expr}`);
     }
+}
+
+function condition(row: Row, cond: string): boolean {
+    if (cond.startsWith('and(')) return splitTop(cond.slice(4, -1)).every((c) => condition(row, c));
+    if (cond.startsWith('or(')) return splitTop(cond.slice(3, -1)).some((c) => condition(row, c));
+    const dot = cond.indexOf('.');
+    return matches(row, cond.slice(0, dot), cond.slice(dot + 1));
 }
 
 const RESERVED = new Set(['select', 'order', 'limit', 'offset', 'on_conflict', 'columns']);
@@ -121,8 +135,7 @@ function filterRows(rows: Row[], params: URLSearchParams): Row[] {
     let out = rows;
     for (const key of new Set(params.keys())) {
         if (RESERVED.has(key)) continue;
-        if (key === 'or') throw new Error('fakeSupabase: or filters are not supported');
-        for (const expr of params.getAll(key)) out = out.filter((r) => matches(r, key, expr));
+        for (const expr of params.getAll(key)) out = out.filter((r) => (key === 'or' ? condition(r, `or${expr}`) : matches(r, key, expr)));
     }
     return out;
 }

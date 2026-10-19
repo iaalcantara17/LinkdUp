@@ -47,14 +47,12 @@ on conflict (id) do update set
     location_permission_status = 'maybe_later',
     updated_at = now();
 
-insert into public.friendships (id, requester_id, addressee_id, status, requested_at, responded_at)
-select ('de300000-0000-4000-8000-00000010000' || n)::uuid, pg_temp.demo_id('me'), pg_temp.demo_id(k), 'accepted', now() - interval '30 days', now() - interval '29 days'
-from (values (1, 'maya'), (2, 'theo'), (3, 'priya'), (4, 'jordan'), (5, 'sam')) f(n, k)
-on conflict (requester_id, addressee_id) do update set status = 'accepted';
-
-insert into public.user_follows (follower_id, followed_id)
-select pg_temp.demo_id(a), pg_temp.demo_id(b)
-from (values ('me', 'maya'), ('me', 'theo'), ('maya', 'me'), ('priya', 'me'), ('jordan', 'me')) f(a, b)
+insert into public.user_follows (follower_id, followed_id, followed_at)
+select pg_temp.demo_id(a), pg_temp.demo_id(b), now() - interval '29 days'
+from (values
+    ('me', 'maya'), ('maya', 'me'), ('me', 'theo'), ('theo', 'me'), ('me', 'priya'), ('priya', 'me'),
+    ('me', 'jordan'), ('jordan', 'me'), ('me', 'sam'), ('sam', 'me')
+) f(a, b)
 on conflict do nothing;
 
 insert into public.parties (id, code, name, host_user_id, status, is_public, midpoint_lat, midpoint_lng, current_card_index, voting_round, created_at, updated_at)
