@@ -153,6 +153,18 @@ Render deploys every commit to `main`, so the order matters:
    - `mutual_follow_pairs` is at least `accepted_pairs`. It's higher by however many pairs already followed each other without being friends, because those now count as friends.
    - `skipped_for_block` is how many friendships were skipped because of a block. It is usually `0`.
    - `follows_added` is the number of new follow rows.
+
+   Then check who the demo account follows. Everyone it follows is hidden from other users, so this must list only the five demo friends (`demo_jordan`, `demo_maya`, `demo_priya`, `demo_sam`, `demo_theo`):
+
+   ```sql
+   select u.username from public.user_follows f
+   join public.users d on d.id = f.follower_id
+   join public.users u on u.id = f.followed_id
+   where d.username = 'demo_guest'
+   order by 1;
+   ```
+
+   If a real person shows up, delete that one row before merging: `delete from public.user_follows where follower_id = (select id from public.users where username = 'demo_guest') and followed_id = (select id from public.users where username = '<their username>');`
 2. Merge, and wait for Render to finish deploying.
 3. Run 037 again right away. It picks up requests sent or accepted on the old server between steps 1 and 2. `follows_added` may go up a little; the other checks should look the same.
 
