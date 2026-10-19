@@ -10,6 +10,7 @@ import { fuzzedLocation, MEMBER_LOCATION_COLUMNS } from '../services/memberLocat
 import { config } from '../config';
 import { isDemoUser, hiddenDemoUserIds } from '../middleware/demo';
 import { fallbackVenues, isFallbackVenueName } from '../services/fallbackVenues';
+import { friendIds } from '../services/follows';
 
 const router = Router();
 
@@ -111,15 +112,7 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
         const callerLoc: LatLng = { latitude: lat, longitude: lng };
         const me = req.user!.id;
 
-        const { data: friendRows } = await supabaseAdmin
-            .from('friendships')
-            .select('requester_id, addressee_id')
-            .eq('status', 'accepted')
-            .or(`requester_id.eq.${me},addressee_id.eq.${me}`);
-        const friendIds = new Set<string>();
-        for (const f of friendRows ?? []) {
-            friendIds.add(f.requester_id === me ? f.addressee_id : f.requester_id);
-        }
+        const friends = await friendIds(me);
 
         const { data: myMemberships } = await supabaseAdmin
             .from('party_members')
@@ -180,8 +173,8 @@ router.get('/parties', requireAuth, async (req: AuthedRequest, res, next) => {
             if (closestMiles <= NEARBY_PARTY_RADIUS_MILES) {
                 const host = userMap.get(party.host_user_id);
                 const friendsInside =
-                    friendIds.has(party.host_user_id) ||
-                    memberIds.some((uid: string) => friendIds.has(uid));
+                    friends.has(party.host_user_id) ||
+                    memberIds.some((uid: string) => friends.has(uid));
                 result.push({
                     id: party.id,
                     name: party.name,

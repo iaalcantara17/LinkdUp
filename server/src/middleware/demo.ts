@@ -27,14 +27,11 @@ export async function hiddenDemoUserIds(viewerId: string): Promise<Set<string>> 
     const demo = demoUserId();
     if (!demo || isDemoUser(viewerId)) return new Set();
     const { data, error } = await supabaseAdmin
-        .from('friendships')
-        .select('requester_id, addressee_id')
-        .eq('status', 'accepted')
-        .or(`requester_id.eq.${demo},addressee_id.eq.${demo}`);
+        .from('user_follows')
+        .select('followed_id')
+        .eq('follower_id', demo);
     if (error) throw new HttpError(500, 'demo_lookup_failed', error.message);
-    const ids = new Set([demo]);
-    for (const f of data ?? []) ids.add(f.requester_id === demo ? f.addressee_id : f.requester_id);
-    return ids;
+    return new Set([demo, ...(data ?? []).map((f: any) => f.followed_id)]);
 }
 
 export function demoReadOnly(req: AuthedRequest, res: Response, next: NextFunction) {

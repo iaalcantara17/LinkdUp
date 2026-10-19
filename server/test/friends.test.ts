@@ -58,11 +58,11 @@ test('search made only of filter syntax runs no query', async () => {
 
 const INJECT = encodeURIComponent('x),id.not.is.null,and(requester_id.eq.x');
 
-test('unfriend rejects a non-uuid id without touching friendships', async () => {
+test('unfriend rejects a non-uuid id without touching follows or friendships', async () => {
     const calls = mockSupabase(USERS);
     const res = await realFetch(`${friends.base}/api/friends/${INJECT}`, { method: 'DELETE', headers: auth('tok-alice') });
     assert.equal(res.status, 400);
-    assert.ok(!calls.some((c) => c.table === 'friendships'));
+    assert.ok(!calls.some((c) => ['user_follows', 'friendships'].includes(c.table)));
 });
 
 test('friend status rejects a non-uuid id', async () => {

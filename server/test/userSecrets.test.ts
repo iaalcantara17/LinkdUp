@@ -46,7 +46,7 @@ const SELF_KEYS = [
 
 const PUBLIC_KEYS = [
     'id', 'display_name', 'username', 'avatar_url', 'avatar_color', 'school', 'graduation_year', 'pronouns',
-    'age', 'bio', 'follower_count', 'following_count', 'is_blocked_by_me',
+    'age', 'bio', 'follower_count', 'following_count', 'is_blocked_by_me', 'i_follow', 'follows_me',
 ].sort();
 
 let userSrv: Server, authSrv: Server;

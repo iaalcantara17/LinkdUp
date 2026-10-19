@@ -18,13 +18,16 @@ const USERS = { 'tok-real': REAL, 'tok-demo': DEMO };
 const near = { location_mode: 'custom', custom_latitude: 40.74, custom_longitude: -74.03, custom_label: 'Hoboken', live_latitude: null, live_longitude: null, live_at: null };
 const world: Record<string, any[]> = {
     users: [DEMO, FRIEND, REAL, OTHER].map((id) => ({ id, display_name: `Sam ${id.slice(0, 2)}`, username: `sam_${id.slice(0, 2)}`, avatar_url: null, avatar_color: '#6C3EF4' })),
-    friendships: [{ id: 'f1', requester_id: DEMO, addressee_id: FRIEND, status: 'accepted' }],
     feed_posts: [
         { id: 'demo-post', creator_id: FRIEND, image_url: '/demo/post.jpg', caption: 'Demo post', venue_name: 'Demo', created_at: '2026-10-01T00:00:00Z' },
         { id: 'demo-own-post', creator_id: DEMO, image_url: '/demo/post.jpg', caption: 'Demo post', venue_name: 'Demo', created_at: '2026-10-02T00:00:00Z' },
         { id: 'real-post', creator_id: OTHER, image_url: 'https://x/p.jpg', caption: 'Real post', venue_name: 'Real', created_at: '2026-10-03T00:00:00Z' },
     ],
     user_follows: [
+        { follower_id: DEMO, followed_id: FRIEND, followed_at: '2026-09-01T00:00:00Z' },
+        { follower_id: FRIEND, followed_id: DEMO, followed_at: '2026-09-01T00:00:00Z' },
+        { follower_id: FRIEND, followed_id: REAL, followed_at: '2026-09-02T00:00:00Z' },
+        { follower_id: OTHER, followed_id: REAL, followed_at: '2026-09-03T00:00:00Z' },
         { follower_id: FRIEND, followed_id: STRANGER, followed_at: '2026-10-01T00:00:00Z' },
         { follower_id: OTHER, followed_id: STRANGER, followed_at: '2026-10-02T00:00:00Z' },
         { follower_id: STRANGER, followed_id: DEMO, followed_at: '2026-10-03T00:00:00Z' },
@@ -117,6 +120,21 @@ test('followers and following lists still show demo users to the demo user', asy
     assert.deepEqual(followers.map((u: any) => u.id).sort(), [FRIEND, OTHER].sort());
     const following = await get(user, `/api/user/${STRANGER}/following`, 'tok-demo');
     assert.deepEqual(following.map((u: any) => u.id).sort(), [DEMO, OTHER].sort());
+});
+
+test('someone who follows the demo account still shows up for a normal user', async () => {
+    const followers = await get(user, `/api/user/${OTHER}/followers`, 'tok-real');
+    assert.deepEqual(followers.map((u: any) => u.id), [STRANGER]);
+});
+
+test('the requests list never shows a demo friend to a normal user', async () => {
+    const pending = await get(friends, '/api/friends/pending', 'tok-real');
+    assert.deepEqual(pending.map((r: any) => r.user?.id ?? r.friendship_id), [OTHER]);
+});
+
+test('the demo user still has their demo friends', async () => {
+    const list = await get(friends, '/api/friends', 'tok-demo');
+    assert.deepEqual(list.map((u: any) => u.id), [FRIEND]);
 });
 
 test('Discover parties never show demo parties to a normal user', async () => {
