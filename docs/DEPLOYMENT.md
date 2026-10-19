@@ -175,7 +175,36 @@ delete from public.user_follows uf using public.follow_backfill_037 b
 where uf.follower_id = b.follower_id and uf.followed_id = b.followed_id;
 ```
 
-Follows people made themselves are kept. `friendships` was never changed, so the old server works as before. Leave `follow_backfill_037` in place until the table cleanup in slice 3.
+Follows people made themselves are kept. `friendships` was never changed, so the old server works as before. Leave `follow_backfill_037` in place; it is the only record of which follows 037 added.
+
+### Retiring the old table (migration 038)
+
+Once the app runs only on follows, nothing reads `friendships`. `server/src/db/migrations/038_rename_friendships_to_legacy.sql` renames it to `public.friendships_legacy` and keeps every row. It does not drop anything.
+
+What it does, in one transaction:
+
+- Renames `public.friendships` to `public.friendships_legacy`, but only if the old name exists and the new one doesn't. Running it again changes nothing.
+- Turns row level security on for `friendships_legacy`. It was already on with no policies (migration 032), so only the SQL editor and the server's service key can read it.
+- Asks the API to reload its schema, so the old name disappears from it.
+
+Order (run it **after** both new deploys, never before):
+
+1. Merge. Wait until Render shows the new server live **and** Vercel shows the new web build live.
+2. In the Supabase SQL editor, run 038. The last result should show `legacy_table_exists` true, `old_name_gone` true, `rls_enabled` true, `policies` 0, and `rows_kept` equal to the number of rows `friendships` had.
+3. Open the app and check Friends, Follow back, Search, and a profile's Follow button.
+
+After 038, migration 037 can't be run again, because it reads `friendships`. That's expected.
+
+Rollback: if you need to go back to a server from before the follow switch, run this first, then redeploy that server:
+
+```sql
+begin;
+alter table public.friendships_legacy rename to friendships;
+commit;
+notify pgrst, 'reload schema';
+```
+
+The current server doesn't need `friendships`, so rolling back only the app doesn't need this.
 
 ## 10. Railway (retired)
 
