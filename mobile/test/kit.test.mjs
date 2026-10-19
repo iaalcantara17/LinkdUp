@@ -77,6 +77,10 @@ test('Swipe, CrewMapFullscreen, BlockedUsers, FollowList, MyPosts, Saved and Cre
     }
 });
 
+test('a pressable ListRow meets the 44 point touch target', () => {
+    assert.match(read('src/components/kit.tsx'), /rowPress:\s*\{[^}]*minHeight:\s*44\b/);
+});
+
 test('CreatePost keeps a close button in its ScreenHeader', () => {
     assert.match(read('src/screens/CreatePostScreen.tsx'), /<ScreenHeader[^>]*\bclose\b/);
 });

@@ -165,15 +165,24 @@ export function Chip({ label, selected, onPress, icon, role = 'tab', style }: { 
     );
 }
 
-export function ListRow({ left, title, subtitle, right, style }: { left?: ReactNode; title: string; subtitle?: ReactNode; right?: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function ListRow({ left, title, subtitle, right, style, onPress, pressLabel }: { left?: ReactNode; title: string; subtitle?: ReactNode; right?: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; pressLabel?: string }) {
     const styles = useKitStyles();
-    return (
-        <View style={[styles.row, style]}>
+    const body = (
+        <>
             {left}
             <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle} numberOfLines={1}>{title}</Text>
                 {typeof subtitle === 'string' ? <Text style={styles.rowSub}>{subtitle}</Text> : subtitle}
             </View>
+        </>
+    );
+    return (
+        <View style={[styles.row, style]}>
+            {onPress ? (
+                <Tap onPress={onPress} accessibilityLabel={pressLabel ?? title} style={styles.rowPress}>
+                    {body}
+                </Tap>
+            ) : body}
             {right}
         </View>
     );
@@ -283,6 +292,7 @@ function useKitStyles() {
                     borderColor: c.glassBorder,
                     backgroundColor: c.glass,
                 },
+                rowPress: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.s3, minHeight: 44 },
                 rowTitle: { ...typeScale.body, fontFamily: 'Inter_600SemiBold', color: r.text },
                 rowSub: { ...typeScale.caption, color: r.textFaint },
                 iconButton: { width: 44, height: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },

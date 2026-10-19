@@ -16,6 +16,7 @@ import { Plus, MoreVertical, Users, ChevronRight } from '../components/icons';
 import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import AnchoredHint from '../components/AnchoredHint';
+import UserProfileSheet from '../components/UserProfileSheet';
 import { api, MyLocation } from '../services/api';
 import { latestOnly } from '../hooks/latestOnly';
 import { listView } from '../hooks/listView';
@@ -188,7 +189,7 @@ function OnlineFriendBubble({ friend, onPress, index, colors }: { friend: any; o
 
     return (
         <Animated.View entering={FadeIn.delay(stagger(index, false)).duration(motion.base)} style={{ alignItems: 'center', width: 64 }}>
-            <Tap onPress={onPress} activeOpacity={0.8} style={{ alignItems: 'center' }}>
+            <Tap onPress={onPress} activeOpacity={0.8} accessibilityLabel={`View ${name}'s profile`} style={{ alignItems: 'center' }}>
                 <View style={{ position: 'relative', width: 64, height: 64 }}>
                     {friend.avatar_url ? (
                         <Image source={{ uri: friend.avatar_url }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: colors.glassBorder }} />
@@ -509,6 +510,14 @@ export default function HomeScreen() {
                 </Pressable>
                 <DialogHost />
             </Modal>
+            <UserProfileSheet
+                userId={profileUserId}
+                visible={!!profileUserId}
+                onClose={() => {
+                    setProfileUserId(null);
+                    load();
+                }}
+            />
         </View>
     );
 }

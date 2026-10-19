@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import Animated from 'react-native-reanimated';
 import { UserPlus, UserCheck, UserX, Search, Users, Ban } from '../components/icons';
 import HelpButton from '../components/HelpButton';
+import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
 import { confirm, confirmBlock, errorText, showError } from '../components/dialogs';
 import { typeScale } from '../theme';
@@ -56,6 +57,7 @@ export default function FriendsScreen() {
     const [searching, setSearching] = useState(false);
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
     const loadFriends = useCallback(async () => {
         setLoadingFriends(true);
@@ -207,6 +209,8 @@ export default function FriendsScreen() {
                                             <ListRow
                                                 left={<Avatar user={f} colors={colors} />}
                                                 title={f.display_name}
+                                                onPress={() => setProfileUserId(f.id)}
+                                                pressLabel={`View ${f.display_name}'s profile`}
                                                 right={
                                                     <View style={styles.actions}>
                                                         <IconButton label={`Remove ${f.display_name}`} onPress={() => handleRemoveFriend(f.id, f.display_name)}>
@@ -245,6 +249,8 @@ export default function FriendsScreen() {
                                                 left={<Avatar user={r.user ?? {}} colors={colors} />}
                                                 title={r.user?.display_name ?? '?'}
                                                 subtitle="Wants to be friends"
+                                                onPress={r.user?.id ? () => setProfileUserId(r.user.id) : undefined}
+                                                pressLabel={`View ${r.user?.display_name ?? 'this person'}'s profile`}
                                                 right={
                                                     <View style={styles.actions}>
                                                         <IconButton tone="danger" label={`Decline ${r.user?.display_name ?? 'request'}`} onPress={() => handleDecline(r.friendship_id)}>
@@ -287,6 +293,8 @@ export default function FriendsScreen() {
                                                 <ListRow
                                                     left={<Avatar user={u} colors={colors} />}
                                                     title={u.display_name}
+                                                    onPress={() => setProfileUserId(u.id)}
+                                                    pressLabel={`View ${u.display_name}'s profile`}
                                                     subtitle={
                                                         <>
                                                             {u.username ? <Text style={styles.userSub}>@{u.username}</Text> : null}
@@ -322,6 +330,15 @@ export default function FriendsScreen() {
                     )}
                 </ScrollView>
             </SafeAreaView>
+            <UserProfileSheet
+                userId={profileUserId}
+                visible={!!profileUserId}
+                onClose={() => {
+                    setProfileUserId(null);
+                    loadFriends();
+                    loadPending();
+                }}
+            />
         </View>
     );
 }
