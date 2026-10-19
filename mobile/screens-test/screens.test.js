@@ -129,6 +129,14 @@ describe('Home', () => {
         screen.getByText('Friday Crew');
     });
 
+    test('tapping an Online Alumni bubble opens that friend’s profile sheet', async () => {
+        await show(HomeScreen, { getPublicUser: bobProfile, getFriendStatus: { status: 'accepted' } });
+        fireEvent.click(button("View Bob Builder's profile"));
+        await settle();
+        expect(api.getPublicUser).toHaveBeenCalledWith('bob');
+        button('More options for Bob Builder');
+    });
+
     test('Join a party, Friends and Help are named buttons', async () => {
         await show(HomeScreen);
         button(/Join a party/);
