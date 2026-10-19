@@ -178,6 +178,35 @@ describe('Friends', () => {
         act(() => dialogs.dismiss());
     });
 
+    test("tapping a request opens the requester's profile sheet, and accept and decline stay their own buttons", async () => {
+        const carol = { id: 'carol', display_name: 'Carol Chen', username: 'carol', avatar_color: '#F59E0B', avatar_url: null };
+        await show(FriendsScreen, { getPendingRequests: [{ friendship_id: 'f1', requested_at: '2026-10-18T10:00:00Z', user: carol }], getPublicUser: { ...carol, follower_count: 0, following_count: 0 } });
+        fireEvent.click(screen.getByText('Requests (1)'));
+        await settle();
+        const open = button("View Carol Chen's profile");
+        for (const name of ['Accept Carol Chen', 'Decline Carol Chen']) expect(open.contains(button(name))).toBe(false);
+        fireEvent.click(open);
+        await settle();
+        expect(api.getPublicUser).toHaveBeenCalledWith('carol');
+        button('More options for Carol Chen');
+    });
+
+    test("tapping a search result opens that person's profile sheet, and the request button stays its own", async () => {
+        const dave = { id: 'dave', display_name: 'Dave Diaz', username: 'dave', avatar_color: '#0EA5E9', avatar_url: null, friendship: null };
+        await show(FriendsScreen, { searchFriends: [dave], getPublicUser: { ...dave, follower_count: 0, following_count: 0 } });
+        fireEvent.click(screen.getByText('Search'));
+        await settle();
+        fireEvent.change(screen.getByPlaceholderText('Search by name or @username'), { target: { value: 'Dave' } });
+        await act(() => new Promise((r) => setTimeout(r, 450)));
+        await settle();
+        const open = button("View Dave Diaz's profile");
+        expect(open.contains(button('Send friend request to Dave Diaz'))).toBe(false);
+        fireEvent.click(open);
+        await settle();
+        expect(api.getPublicUser).toHaveBeenCalledWith('dave');
+        button('More options for Dave Diaz');
+    });
+
     test('remove and block stay their own buttons beside the profile button', async () => {
         await show(FriendsScreen, { getPublicUser: bobProfile });
         const open = button("View Bob Builder's profile");

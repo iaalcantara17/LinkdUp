@@ -249,6 +249,8 @@ export default function FriendsScreen() {
                                                 left={<Avatar user={r.user ?? {}} colors={colors} />}
                                                 title={r.user?.display_name ?? '?'}
                                                 subtitle="Wants to be friends"
+                                                onPress={r.user?.id ? () => setProfileUserId(r.user.id) : undefined}
+                                                pressLabel={`View ${r.user?.display_name ?? 'this person'}'s profile`}
                                                 right={
                                                     <View style={styles.actions}>
                                                         <IconButton tone="danger" label={`Decline ${r.user?.display_name ?? 'request'}`} onPress={() => handleDecline(r.friendship_id)}>
@@ -291,6 +293,8 @@ export default function FriendsScreen() {
                                                 <ListRow
                                                     left={<Avatar user={u} colors={colors} />}
                                                     title={u.display_name}
+                                                    onPress={() => setProfileUserId(u.id)}
+                                                    pressLabel={`View ${u.display_name}'s profile`}
                                                     subtitle={
                                                         <>
                                                             {u.username ? <Text style={styles.userSub}>@{u.username}</Text> : null}
