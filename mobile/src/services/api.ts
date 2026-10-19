@@ -336,12 +336,6 @@ export const api = {
         request<{ ok: boolean }>('POST', `/api/party/${partyId}/proposal/respond`, { accepted }),
 
     getFriends: () => request<any[]>('GET', '/api/friends'),
-    getPendingRequests: () => request<any[]>('GET', '/api/friends/pending'),
-    getOutgoingRequests: () => request<any[]>('GET', '/api/friends/outgoing'),
-    sendFriendRequest: (userId: string) => request<{ ok: boolean; friendship_id: string }>('POST', '/api/friends/request', { user_id: userId }),
-    acceptFriendRequest: (friendshipId: string) => request<{ ok: boolean }>('POST', `/api/friends/${friendshipId}/accept`),
-    declineFriendRequest: (friendshipId: string) => request<{ ok: boolean }>('POST', `/api/friends/${friendshipId}/decline`),
-    removeFriend: (userId: string) => request<{ ok: boolean }>('DELETE', `/api/friends/${userId}`),
+    getFollowBack: () => request<any[]>('GET', '/api/friends/follow-back'),
     searchFriends: (q: string) => request<any[]>('GET', `/api/friends/search?q=${encodeURIComponent(q)}`),
-    getFriendStatus: (userId: string) => request<{ status: string; friendship_id?: string; direction?: string }>('GET', `/api/friends/status/${userId}`),
 };

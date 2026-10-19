@@ -75,7 +75,7 @@ function apiData(path, theme) {
     if (path in table) return table[path];
     if (/follow-counts$/.test(path)) return { followers: 1, following: 2 };
     if (/^\/api\/schools\//.test(path)) return { id: 's1', name: 'Stevens Institute', city: 'Hoboken', state: 'NJ' };
-    return /\/(pending|outgoing|votes|my-votes|likes|parties|blocked|collections|followers|following)$/.test(path) ? [] : { ok: true };
+    return /\/(follow-back|votes|my-votes|likes|parties|blocked|collections|followers|following)$/.test(path) ? [] : { ok: true };
 }
 
 function session() {

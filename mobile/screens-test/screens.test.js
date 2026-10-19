@@ -40,7 +40,7 @@ const loaded = {
     me: fx.profile,
     myParties: fx.myParties,
     getFriends: fx.friends,
-    getPendingRequests: [],
+    getFollowBack: [],
     getParty: lobbyParty,
     getMembers: fx.members,
     getLocations: fx.locations,
@@ -130,11 +130,22 @@ describe('Home', () => {
     });
 
     test('tapping an Online Alumni bubble opens that friend’s profile sheet', async () => {
-        await show(HomeScreen, { getPublicUser: bobProfile, getFriendStatus: { status: 'accepted' } });
+        await show(HomeScreen, { getPublicUser: bobProfile });
         fireEvent.click(button("View Bob Builder's profile"));
         await settle();
         expect(api.getPublicUser).toHaveBeenCalledWith('bob');
         button('More options for Bob Builder');
+    });
+
+    test('the Friends card counts people to follow back', async () => {
+        await show(HomeScreen, { getFollowBack: [{ id: 'carol', display_name: 'Carol Chen' }] });
+        screen.getByText('1 person to follow back');
+        expect(api.getPendingRequests).not.toHaveBeenCalled();
+    });
+
+    test('the Friends card invites you to find people when no one is waiting', async () => {
+        await show(HomeScreen);
+        screen.getByText('Find and follow friends');
     });
 
     test('Join a party, Friends and Help are named buttons', async () => {
@@ -146,27 +157,62 @@ describe('Home', () => {
 });
 
 describe('Friends', () => {
-    test('loading shows the tabs and no empty state', async () => {
+    const carol = { id: 'carol', display_name: 'Carol Chen', username: 'carol', avatar_color: '#F59E0B', avatar_url: null, followed_at: '2026-10-18T10:00:00Z' };
+    const person = (id, name, flags) => ({ id, display_name: name, username: id, avatar_color: '#0EA5E9', avatar_url: null, ...flags });
+
+    async function search(results, overrides = {}) {
+        await show(FriendsScreen, { searchFriends: results, ...overrides });
+        fireEvent.click(screen.getByText('Search'));
+        await settle();
+        fireEvent.change(screen.getByPlaceholderText('Search by name or @username'), { target: { value: 'Pat' } });
+        await act(() => new Promise((r) => setTimeout(r, 450)));
+        await settle();
+    }
+
+    async function openFollowBack(overrides = {}) {
+        await show(FriendsScreen, { getFollowBack: [carol], ...overrides });
+        fireEvent.click(screen.getByText('Follow back (1)'));
+        await settle();
+    }
+
+    test('loading shows the Friends, Follow back and Search tabs and no empty state', async () => {
         await show(FriendsScreen, { getFriends: never });
-        screen.getByText('Requests');
+        for (const tab of ['Friends', 'Follow back', 'Search']) screen.getByRole('tab', { name: tab });
+        expect(screen.queryByText(/Requests/)).toBeNull();
         expect(screen.queryByText('No friends yet')).toBeNull();
     });
 
-    test('empty invites the member to find friends', async () => {
+    test('empty invites the member to find and follow people', async () => {
         await show(FriendsScreen, { getFriends: [] });
         screen.getByText('No friends yet');
-        screen.getByText('Find Friends');
+        screen.getByText("Follow people you know. When they follow you back, they'll show up here.");
+        button('Find Friends');
     });
 
-    test('loaded lists friends with labeled remove and block buttons', async () => {
+    test('loaded lists friends with labeled unfollow and block buttons', async () => {
         await show(FriendsScreen);
         screen.getByText('Bob Builder');
-        button('Remove Bob Builder');
+        button('Unfollow Bob Builder');
         button('Block Bob Builder');
+        expect(screen.queryByRole('button', { name: 'Remove Bob Builder' })).toBeNull();
+    });
+
+    test('unfollowing a friend asks first, then unfollows and drops them from the list', async () => {
+        await show(FriendsScreen, { unfollowUser: { ok: true } });
+        fireEvent.click(button('Unfollow Bob Builder'));
+        await settle();
+        const dialog = dialogs.getSnapshot().dialog;
+        expect(dialog.title).toBe('Unfollow Bob Builder?');
+        expect(dialog.message).toBe("You won't be friends anymore.");
+        expect(dialog.buttons.map((b) => b.label)).toEqual(['Cancel', 'Unfollow']);
+        act(() => dialogs.respond(1));
+        await settle();
+        expect(api.unfollowUser).toHaveBeenCalledWith('bob');
+        expect(screen.queryByText('Bob Builder')).toBeNull();
     });
 
     test("tapping a friend's name opens their profile sheet with Follow, Block and Report", async () => {
-        await show(FriendsScreen, { getPublicUser: bobProfile, getFriendStatus: { status: 'accepted' } });
+        await show(FriendsScreen, { getPublicUser: { ...bobProfile, i_follow: true, follows_me: true } });
         const open = button("View Bob Builder's profile");
         expect(within(open).queryByRole('button')).toBeNull();
         fireEvent.click(open);
@@ -178,46 +224,86 @@ describe('Friends', () => {
         act(() => dialogs.dismiss());
     });
 
-    test("tapping a request opens the requester's profile sheet, and accept and decline stay their own buttons", async () => {
-        const carol = { id: 'carol', display_name: 'Carol Chen', username: 'carol', avatar_color: '#F59E0B', avatar_url: null };
-        await show(FriendsScreen, { getPendingRequests: [{ friendship_id: 'f1', requested_at: '2026-10-18T10:00:00Z', user: carol }], getPublicUser: { ...carol, follower_count: 0, following_count: 0 } });
-        fireEvent.click(screen.getByText('Requests (1)'));
+    test('unfollow and block stay their own buttons beside the profile button', async () => {
+        await show(FriendsScreen, { getPublicUser: bobProfile });
+        const open = button("View Bob Builder's profile");
+        for (const name of ['Unfollow Bob Builder', 'Block Bob Builder']) expect(open.contains(button(name))).toBe(false);
+        fireEvent.click(button('Unfollow Bob Builder'));
         await settle();
+        expect(api.getPublicUser).not.toHaveBeenCalled();
+        act(() => dialogs.dismiss());
+    });
+
+    test('Follow back lists people who follow you, and following one back makes them a friend', async () => {
+        await openFollowBack({ followUser: { ok: true } });
+        screen.getByText('Follows you');
+        fireEvent.click(button('Follow back Carol Chen'));
+        await settle();
+        expect(api.followUser).toHaveBeenCalledWith('carol');
+        expect(screen.queryByText('Carol Chen')).toBeNull();
+        expect(api.getFriends.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    test("tapping someone in Follow back opens their profile sheet, and Follow back stays its own button", async () => {
+        await openFollowBack({ getPublicUser: { ...carol, follower_count: 0, following_count: 0, follows_me: true } });
         const open = button("View Carol Chen's profile");
-        for (const name of ['Accept Carol Chen', 'Decline Carol Chen']) expect(open.contains(button(name))).toBe(false);
+        expect(open.contains(button('Follow back Carol Chen'))).toBe(false);
         fireEvent.click(open);
         await settle();
         expect(api.getPublicUser).toHaveBeenCalledWith('carol');
         button('More options for Carol Chen');
     });
 
-    test("tapping a search result opens that person's profile sheet, and the request button stays its own", async () => {
-        const dave = { id: 'dave', display_name: 'Dave Diaz', username: 'dave', avatar_color: '#0EA5E9', avatar_url: null, friendship: null };
-        await show(FriendsScreen, { searchFriends: [dave], getPublicUser: { ...dave, follower_count: 0, following_count: 0 } });
-        fireEvent.click(screen.getByText('Search'));
+    test('an empty Follow back tab says so plainly with nothing to dismiss', async () => {
+        await show(FriendsScreen, { getFollowBack: [] });
+        fireEvent.click(screen.getByText('Follow back'));
         await settle();
-        fireEvent.change(screen.getByPlaceholderText('Search by name or @username'), { target: { value: 'Dave' } });
-        await act(() => new Promise((r) => setTimeout(r, 450)));
+        screen.getByText('No one to follow back');
+        screen.getByText("When someone follows you, they'll show up here.");
+        expect(screen.queryByRole('button', { name: /Find Friends|Dismiss|Decline/ })).toBeNull();
+    });
+
+    test('a failed Follow back load shows an error instead of the empty state', async () => {
+        await show(FriendsScreen, { getFollowBack: failed });
+        fireEvent.click(screen.getByText('Follow back'));
         await settle();
+        expect(screen.queryByText('No one to follow back')).toBeNull();
+        await retryLoads(expectLoadError("We couldn't load people to follow back"), { getFollowBack: [] });
+        screen.getByText('No one to follow back');
+    });
+
+    test('search shows Follow, Follow back, Following and Friends for each person', async () => {
+        await search([
+            person('dave', 'Dave Diaz', { i_follow: false, follows_me: false }),
+            person('erin', 'Erin Eng', { i_follow: false, follows_me: true }),
+            person('finn', 'Finn Fox', { i_follow: true, follows_me: false }),
+            person('gail', 'Gail Gu', { i_follow: true, follows_me: true }),
+        ]);
+        button('Follow Dave Diaz');
+        button('Follow back Erin Eng');
+        screen.getByText('Follows you');
+        screen.getByText('Following');
+        screen.getByText('Friends ✓');
+        expect(screen.queryByRole('button', { name: /Finn Fox$|Gail Gu$/ })).toBeNull();
+    });
+
+    test('following someone from search marks them as Following', async () => {
+        await search([person('dave', 'Dave Diaz', { i_follow: false, follows_me: false })], { followUser: { ok: true } });
+        fireEvent.click(button('Follow Dave Diaz'));
+        await settle();
+        expect(api.followUser).toHaveBeenCalledWith('dave');
+        screen.getByText('Following');
+        expect(screen.queryByRole('button', { name: 'Follow Dave Diaz' })).toBeNull();
+    });
+
+    test("tapping a search result opens that person's profile sheet, and Follow stays its own button", async () => {
+        await search([person('dave', 'Dave Diaz', { i_follow: false, follows_me: false })], { getPublicUser: { id: 'dave', display_name: 'Dave Diaz', username: 'dave', follower_count: 0, following_count: 0 } });
         const open = button("View Dave Diaz's profile");
-        expect(open.contains(button('Send friend request to Dave Diaz'))).toBe(false);
+        expect(open.contains(button('Follow Dave Diaz'))).toBe(false);
         fireEvent.click(open);
         await settle();
         expect(api.getPublicUser).toHaveBeenCalledWith('dave');
         button('More options for Dave Diaz');
-    });
-
-    test('remove and block stay their own buttons beside the profile button', async () => {
-        await show(FriendsScreen, { getPublicUser: bobProfile });
-        const open = button("View Bob Builder's profile");
-        for (const name of ['Remove Bob Builder', 'Block Bob Builder']) {
-            expect(open.contains(button(name))).toBe(false);
-        }
-        fireEvent.click(button('Remove Bob Builder'));
-        await settle();
-        expect(api.getPublicUser).not.toHaveBeenCalled();
-        expect(dialogs.getSnapshot().dialog.title).toBe('Remove Bob Builder?');
-        act(() => dialogs.dismiss());
     });
 
     test('a failed friends load shows an error with Try again instead of the empty state, and retrying loads friends', async () => {
@@ -227,19 +313,71 @@ describe('Friends', () => {
         screen.getByText('Bob Builder');
     });
 
-    test('a failed requests load shows an error on the Requests tab instead of the empty state', async () => {
-        await show(FriendsScreen, { getPendingRequests: failed });
-        fireEvent.click(screen.getByText('Requests'));
-        await settle();
-        expect(screen.queryByText('No pending requests')).toBeNull();
-        await retryLoads(expectLoadError("We couldn't load your friend requests"));
-        screen.getByText('No pending requests');
-    });
-
-    test('Find Friends is a button and Requests is a tab', async () => {
+    test('Find Friends is a button and Follow back is a tab', async () => {
         await show(FriendsScreen, { getFriends: [] });
         button('Find Friends');
-        screen.getByRole('tab', { name: 'Requests' });
+        screen.getByRole('tab', { name: 'Follow back' });
+    });
+});
+
+describe('Profile sheet follow button', () => {
+    const Sheet = () => <UserProfileSheet userId="bob" visible onClose={() => {}} />;
+    const open = (flags, overrides = {}) => show(Sheet, { getPublicUser: { ...bobProfile, ...flags }, followUser: { ok: true }, unfollowUser: { ok: true }, ...overrides });
+
+    test('someone you do not follow shows Follow, and following them shows Following', async () => {
+        await open({ i_follow: false, follows_me: false });
+        fireEvent.click(button('Follow'));
+        await settle();
+        expect(api.followUser).toHaveBeenCalledWith('bob');
+        button('Following');
+        expect(screen.getAllByText('4')).toHaveLength(2);
+    });
+
+    test('someone who follows you shows Follow back, and following back makes you Friends', async () => {
+        await open({ i_follow: false, follows_me: true });
+        fireEvent.click(button('Follow back'));
+        await settle();
+        expect(api.followUser).toHaveBeenCalledWith('bob');
+        button('Friends');
+    });
+
+    test('Following asks before unfollowing, then shows Follow again', async () => {
+        await open({ i_follow: true, follows_me: false });
+        fireEvent.click(button('Following'));
+        await settle();
+        expect(dialogs.getSnapshot().dialog.title).toBe('Unfollow Bob Builder?');
+        act(() => dialogs.respond(1));
+        await settle();
+        expect(api.unfollowUser).toHaveBeenCalledWith('bob');
+        button('Follow');
+    });
+
+    test('Friends asks before unfollowing, says you will no longer be friends, then shows Follow back', async () => {
+        await open({ i_follow: true, follows_me: true });
+        fireEvent.click(button('Friends'));
+        await settle();
+        const dialog = dialogs.getSnapshot().dialog;
+        expect(dialog.title).toBe('Unfollow Bob Builder?');
+        expect(dialog.message).toBe("You won't be friends anymore.");
+        act(() => dialogs.respond(1));
+        await settle();
+        expect(api.unfollowUser).toHaveBeenCalledWith('bob');
+        button('Follow back');
+    });
+
+    test('cancelling the unfollow keeps you friends', async () => {
+        await open({ i_follow: true, follows_me: true });
+        fireEvent.click(button('Friends'));
+        await settle();
+        act(() => dialogs.respond(0));
+        await settle();
+        expect(api.unfollowUser).not.toHaveBeenCalled();
+        button('Friends');
+    });
+
+    test('your own profile shows no follow button', async () => {
+        await show(() => <UserProfileSheet userId="alice" visible onClose={() => {}} />, { getPublicUser: { ...fx.profile, follower_count: 1, following_count: 2 } });
+        expect(screen.queryByRole('button', { name: /^(Follow|Following|Follow back|Friends)$/ })).toBeNull();
     });
 });
 
@@ -548,7 +686,7 @@ describe('FollowList', () => {
                 getFollowers: [{ id: 'bob', display_name: 'Bob Builder', username: 'bob', avatar_color: '#22C55E', avatar_url: null }],
                 getPublicUser: { id: 'bob', display_name: 'Bob Builder', username: 'bob', bio: 'Builds things', follower_count: 3, following_count: 4 },
                 getFriends: [],
-                getPendingRequests: [],
+                getFollowBack: [],
             }, { userId: 'alice', initialTab: 'followers', username: 'alice' });
             const row = screen.getByText('@bob');
             fireEvent.mouseDown(row);
@@ -570,7 +708,7 @@ describe('Report', () => {
     const bob = { id: 'bob', display_name: 'Bob Builder', username: 'bob', bio: 'Builds things', follower_count: 3, following_count: 4 };
 
     async function openReport(overrides = {}) {
-        await show(Sheet, { getPublicUser: bob, getFriendStatus: { status: 'none' }, reportUser: { ok: true }, ...overrides });
+        await show(Sheet, { getPublicUser: bob, reportUser: { ok: true }, ...overrides });
         fireEvent.click(button('More options for Bob Builder'));
         await settle();
         const menu = dialogs.getSnapshot().dialog;
@@ -731,7 +869,7 @@ describe('slow loads', () => {
     const SLOW = 'Taking longer than usual. The server may be waking up, which can take up to a minute.';
     const cases = [
         ['Home', HomeScreen, { myParties: never }],
-        ['Friends', FriendsScreen, { getFriends: never, getPendingRequests: never }],
+        ['Friends', FriendsScreen, { getFriends: never, getFollowBack: never }],
         ['PartyLobby', PartyLobbyScreen, { getParty: never, getMembers: never }],
         ['Swipe', SwipeScreen, { getLocations: never }],
         ['Discover', DiscoverScreen, { discoverVenues: never, discoverParties: never }],
