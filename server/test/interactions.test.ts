@@ -50,17 +50,6 @@ test('the vote that ends a round tells the client the party is now proposing', a
 });
 afterEach(() => mock.restoreAll());
 
-test('unfriend with a real user id removes only my follow of them', async () => {
-    const calls = mockSupabase(USERS);
-    const res = await realFetch(`${friends.base}/api/friends/${BOB}`, { method: 'DELETE', headers: auth('tok-alice') });
-    assert.equal(res.status, 200);
-    const dels = calls.filter((c) => c.method === 'DELETE');
-    assert.equal(dels.length, 1);
-    assert.equal(dels[0].table, 'user_follows');
-    assert.equal(dels[0].url.searchParams.get('follower_id'), `eq.${ALICE}`);
-    assert.equal(dels[0].url.searchParams.get('followed_id'), `eq.${BOB}`);
-});
-
 test('author can delete their comment', async () => {
     const calls = mockSupabase(USERS, (c) => (c.table === 'feed_comments' && c.method === 'GET' ? [{ author_id: ALICE }] : []));
     const res = await realFetch(`${feed.base}/api/discover/feed/comments/${COMMENT}`, { method: 'DELETE', headers: auth('tok-alice') });

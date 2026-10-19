@@ -370,7 +370,7 @@ All server tests use the existing `node:test` setup with `supabaseMock` (`npm te
 |---|---|---|---|---|
 | 1 | **Tappable rows and the Home sheet fix** | Section 4. Works on the current model, no server change. Tests 11 and 13. | Low: UI only | S (~half a day) |
 | 2 | **Server on follows, plus step A** | `services/friends.ts` helper, `GET /api/friends`, `/follow-back`, demo hiding, Discover, block, `i_follow`/`follows_me` on public profile and search, seed update, step A migration (and the optional index). **Bridge:** `/request` also upserts a follow from me to them, and `/:id/accept` also upserts a follow from the addressee to the requester, so the current app keeps working. Tests 1-8. | **High:** demo hiding and backfill correctness | M (~1-1.5 days) |
-| 3 | **Mobile switch and cleanup, plus step B** | FriendsScreen tabs and Follow back, profile sheet button states, Home badge and copy, help text, `api.ts` cleanup, remove old routes and bridges, update `shots.mjs` stubs and `DEPLOYMENT.md:108`, then step B rename after deploy. Tests 9, 10, 12, 14. | Medium: old clients get 404s | M (~1 day) |
+| 3 | **Mobile switch and cleanup, plus step B** | FriendsScreen tabs and Follow back, profile sheet button states, Home badge and copy, help text, `api.ts` cleanup, delete `server/src/routes/friendRequestBridge.ts` and its mount in `server/src/index.ts`, drop the `friendship` compatibility field from status and search, update `shots.mjs` stubs, then step B rename after deploy. Tests 9, 10, 12, 14. | Medium: old clients get 404s | M (~1 day) |
 
 Order: 1 can ship today. Run step A, then deploy 2. Deploy 3, then run step B.
 
