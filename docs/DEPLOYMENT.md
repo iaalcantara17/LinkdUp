@@ -134,6 +134,37 @@ order by r.created_at desc;
 
 Nothing happens to a reported account on its own. To act on one, contact the person, or remove the account in **Authentication → Users**.
 
-## 9. Railway (retired)
+## 9. Friends from follows (migration 037)
+
+Friends are now two people who follow each other. `server/src/db/migrations/037_follows_from_friendships.sql` copies the old friend list into follows. It only adds rows. It never deletes, renames or changes `friendships`.
+
+What it does, in one transaction:
+
+- Each **accepted** friendship becomes two follows, one each way.
+- Each **pending** request becomes one follow, from the person who sent it to the person who got it. They now show up in the other person's Requests list as someone to follow back.
+- Pairs where either person blocked the other get no follow.
+- Follows that already exist are left alone, so it's safe to run more than once.
+- Every follow it adds is also written to `public.follow_backfill_037` (RLS on, no policies), so a rollback can remove exactly those rows.
+
+Render deploys every commit to `main`, so the order matters:
+
+1. **Before merging**, run 037 in the Supabase SQL editor. Check the last result:
+   - `friendships_missing_a_follow` is `0`.
+   - `mutual_follow_pairs` is at least `accepted_pairs`. It's higher by however many pairs already followed each other without being friends, because those now count as friends.
+   - `skipped_for_block` is how many friendships were skipped because of a block. It is usually `0`.
+   - `follows_added` is the number of new follow rows.
+2. Merge, and wait for Render to finish deploying.
+3. Run 037 again right away. It picks up requests sent or accepted on the old server between steps 1 and 2. `follows_added` may go up a little; the other checks should look the same.
+
+Rollback: redeploy the previous server first, then run:
+
+```sql
+delete from public.user_follows uf using public.follow_backfill_037 b
+where uf.follower_id = b.follower_id and uf.followed_id = b.followed_id;
+```
+
+Follows people made themselves are kept. `friendships` was never changed, so the old server works as before. Leave `follow_backfill_037` in place until the table cleanup in slice 3.
+
+## 10. Railway (retired)
 
 The old Railway backend is gone. `server/railway.json` was deleted. Ignore Railway steps in older planning docs.
