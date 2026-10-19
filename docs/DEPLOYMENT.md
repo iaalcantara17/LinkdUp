@@ -141,7 +141,7 @@ Friends are now two people who follow each other. `server/src/db/migrations/037_
 What it does, in one transaction:
 
 - Each **accepted** friendship becomes two follows, one each way.
-- Each **pending** request becomes one follow, from the person who sent it to the person who got it. They now show up in the other person's Requests list as someone to follow back.
+- Each **pending** request becomes one follow, from the person who sent it to the person who got it. They now show up in the other person's Follow back list.
 - Pairs where either person blocked the other get no follow.
 - Follows that already exist are left alone, so it's safe to run more than once.
 - Every follow it adds is also written to `public.follow_backfill_037` (RLS on, no policies), so a rollback can remove exactly those rows.
