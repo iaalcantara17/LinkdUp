@@ -1,14 +1,10 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { supabaseAdmin } from '../db';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { hiddenDemoUserIds } from '../middleware/demo';
-import { HttpError } from '../middleware/error';
-import { followFlags, followingIds, friendIds, legacyFriendship } from '../services/follows';
+import { followFlags, followingIds, friendIds } from '../services/follows';
 
 const router = Router();
-
-router.param('user_id', (_req, _res, next, id) => next(z.string().uuid().safeParse(id).success ? undefined : new HttpError(400, 'invalid_id')));
 
 router.get('/', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
@@ -30,7 +26,7 @@ router.get('/', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-router.get('/pending', requireAuth, async (req: AuthedRequest, res, next) => {
+router.get('/follow-back', requireAuth, async (req: AuthedRequest, res, next) => {
     try {
         const me = req.user!.id;
         const [{ data, error }, following, hidden] = await Promise.all([
@@ -56,11 +52,9 @@ router.get('/pending', requireAuth, async (req: AuthedRequest, res, next) => {
             : { data: [] as any[] };
 
         const userMap = Object.fromEntries((users ?? []).map((u: any) => [u.id, u]));
-        res.json(rows.map((f: any) => ({
-            friendship_id: f.follower_id,
-            requested_at: f.followed_at,
-            user: userMap[f.follower_id] ?? null,
-        })));
+        res.json(rows
+            .filter((f: any) => userMap[f.follower_id])
+            .map((f: any) => ({ ...userMap[f.follower_id], followed_at: f.followed_at })));
     } catch (e) { next(e); }
 });
 
@@ -91,22 +85,7 @@ router.get('/search', requireAuth, async (req: AuthedRequest, res, next) => {
         if (users.length === 0) return res.json([]);
 
         const flags = await followFlags(me, users.map((u: any) => u.id));
-        res.json(users.map((u: any) => ({
-            ...u,
-            ...flags(u.id),
-            friendship: legacyFriendship(u.id, flags(u.id)),
-        })));
-    } catch (e) { next(e); }
-});
-
-router.get('/status/:user_id', requireAuth, async (req: AuthedRequest, res, next) => {
-    try {
-        const me = req.user!.id;
-        const other = req.params.user_id;
-        if (other === me) return res.json({ status: 'self' });
-
-        const f = (await followFlags(me, [other]))(other);
-        res.json({ ...(legacyFriendship(other, f) ?? { status: 'none' }), ...f });
+        res.json(users.map((u: any) => ({ ...u, ...flags(u.id) })));
     } catch (e) { next(e); }
 });
 

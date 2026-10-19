@@ -127,9 +127,9 @@ test('someone who follows the demo account still shows up for a normal user', as
     assert.deepEqual(followers.map((u: any) => u.id), [STRANGER]);
 });
 
-test('the requests list never shows a demo friend to a normal user', async () => {
-    const pending = await get(friends, '/api/friends/pending', 'tok-real');
-    assert.deepEqual(pending.map((r: any) => r.user?.id ?? r.friendship_id), [OTHER]);
+test('the follow back list never shows a demo friend to a normal user', async () => {
+    const followBack = await get(friends, '/api/friends/follow-back', 'tok-real');
+    assert.deepEqual(followBack.map((u: any) => u.id), [OTHER]);
 });
 
 test('the demo user still has their demo friends', async () => {

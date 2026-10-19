@@ -38,13 +38,6 @@ export async function followFlags(me: string, ids: string[]): Promise<(id: strin
     return (id) => ({ i_follow: iFollow.has(id), follows_me: followsMe.has(id) });
 }
 
-export function legacyFriendship(id: string, f: FollowFlags) {
-    if (f.i_follow && f.follows_me) return { friendship_id: id, status: 'accepted', direction: 'outgoing' as const };
-    if (f.follows_me) return { friendship_id: id, status: 'pending', direction: 'incoming' as const };
-    if (f.i_follow) return { friendship_id: id, status: 'pending', direction: 'outgoing' as const };
-    return null;
-}
-
 export async function isEitherBlocked(a: string, b: string): Promise<boolean> {
     const { data } = await supabaseAdmin
         .from('user_blocks')

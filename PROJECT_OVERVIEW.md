@@ -217,8 +217,8 @@ Venues saved by a user from the Discover / Explore tab. Independent of the party
 
 ---
 
-### `friendships`
-Directional friend requests with status transitions: `pending → accepted` (or deleted on decline/remove).
+### `friendships_legacy` (was `friendships`)
+The old friend request table. Migration 037 copied it into `user_follows` and migration 038 renamed it. Nothing in the app reads it; it is kept only as a record.
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | |
@@ -289,7 +289,7 @@ Posts created by users, each tagged with a venue.
 ---
 
 ### `user_follows`
-Asymmetric follow relationship (separate from friendships).
+One-way follows. Two people who follow each other are friends.
 | Column | Type |
 |---|---|
 | follower_id | uuid FK → users (composite PK) |
@@ -475,15 +475,11 @@ All routes return JSON. Errors return `{ error: string, message?: string }`. Aut
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/api/friends` | Yes | Accepted friends, with `is_online` computed from `last_seen_at` within 5 minutes. |
-| GET | `/api/friends/pending` | Yes | Incoming friend requests (I am addressee). |
-| GET | `/api/friends/outgoing` | Yes | Outgoing friend requests (I am requester). |
-| POST | `/api/friends/request` | Yes | Body: `{ user_id }`. Creates friendship row with status `pending`. |
-| POST | `/api/friends/:id/accept` | Yes (addressee) | Sets status to `accepted`. |
-| POST | `/api/friends/:id/decline` | Yes (addressee) | Deletes the friendship row. |
-| DELETE | `/api/friends/:user_id` | Yes | Removes an accepted friendship from either side. |
-| GET | `/api/friends/search?q=` | Yes | Search by display_name/email/username (prefix `@` to search username only). Returns users with their friendship status. |
-| GET | `/api/friends/status/:user_id` | Yes | Lightweight status check: `{ status, friendship_id?, direction? }`. |
+| GET | `/api/friends` | Yes | Friends (people you follow who follow you back), with `is_online` computed from `last_seen_at` within 5 minutes. |
+| GET | `/api/friends/follow-back` | Yes | People who follow you that you don't follow, newest first, from your 100 most recent followers. |
+| GET | `/api/friends/search?q=` | Yes | Search by display_name/email/username (prefix `@` to search username only). Each result has `i_follow` and `follows_me`. |
+
+Follow and unfollow are `POST` and `DELETE` on `/api/user/:id/follow`. `GET /api/user/:id/public` also returns `i_follow` and `follows_me`.
 
 ---
 
@@ -593,7 +589,7 @@ All tabs pull from `useFocusEffect`. Theme-unaware (static dark `colors` import,
 ---
 
 ### `FriendsScreen`
-Three sub-tabs: Friends (accepted), Requests (incoming + outgoing), Search. Search supports display_name/email/username with `@`-prefix for username-only. Shows friendship status badge per result (send request, pending, accepted). Debounced search with 400ms delay. Theme-aware.
+Three sub-tabs: Friends (mutual follows, with Unfollow and Block), Follow back (people who follow you, with a Follow back button), Search. Search supports display_name/email/username with `@`-prefix for username-only, and shows Follow, Follow back, Following or Friends per result. Tapping a person opens their profile sheet. Debounced search with 400ms delay. Theme-aware.
 
 ---
 
@@ -643,7 +639,7 @@ Modal bottom sheet showing comments for a post. Fetches from `GET /api/discover/
 Modal bottom sheet for choosing which bookmark collection to save a post to. Shows existing collections. Has "New collection" inline creation. Theme-aware.
 
 ### `UserProfileSheet`
-Modal bottom sheet showing a user's public profile (avatar, username, school, pronouns, age, bio). Shows friendship status and relevant action button (Add Friend, Pending, Accept, Friends, Unfollow for follows). Fetches profile via `GET /api/user/:id/public` and status via `GET /api/friends/status/:user_id`. Used in SwipeScreen, MatchScreen, HomeScreen, FeedView.
+Modal bottom sheet showing a user's public profile (avatar, username, school, pronouns, age, bio). Shows one follow button: Follow, Follow back, Following or Friends. Following and Friends ask before unfollowing. Block and Report are in the menu. Fetches the profile and follow state via `GET /api/user/:id/public`. Used in SwipeScreen, MatchScreen, HomeScreen, FriendsScreen, FollowListScreen, PartyLobbyScreen, DateTimeSetupScreen.
 
 ### `GradientButton`
 Primary CTA button with a purple-to-cyan gradient background. Supports `variant="white"` for OAuth button. Accepts `leftIcon` and `rightIcon`. Disabled + loading states with spinner.
@@ -966,11 +962,11 @@ Note: migration 014 does not exist (skipped in numbering).
 
 ### Friends
 - Search by name, email, or `@username`
-- Send/cancel friend request
-- Accept/decline incoming requests
-- Remove accepted friendship
+- One-tap follow; friends are people who follow each other
+- Follow back list of people who follow you
+- Unfollow removes only your follow
 - Online status indicator (within 5 min)
-- Pending request badge on HomeScreen Friends card
+- Follow back count badge on HomeScreen Friends card
 
 ### Walkthrough
 - 6-slide animated onboarding shown once on first sign-in

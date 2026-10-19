@@ -58,13 +58,6 @@ test('search made only of filter syntax runs no query', async () => {
 
 const INJECT = encodeURIComponent('x),id.not.is.null,and(requester_id.eq.x');
 
-test('friend status rejects a non-uuid id', async () => {
-    const calls = mockSupabase(USERS);
-    const res = await realFetch(`${friends.base}/api/friends/status/${INJECT}`, { headers: auth('tok-alice') });
-    assert.equal(res.status, 400);
-    assert.ok(!calls.some((c) => c.table === 'friendships'));
-});
-
 test('block rejects a non-uuid id without touching follows or friendships', async () => {
     const calls = mockSupabase(USERS);
     const res = await realFetch(`${user.base}/api/user/${INJECT}/block`, { method: 'POST', headers: auth('tok-alice') });

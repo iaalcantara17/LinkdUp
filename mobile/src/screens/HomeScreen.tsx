@@ -31,7 +31,7 @@ import { useTheme } from '../context/ThemeContext';
 const HOME_HELP: { title: string; description: string }[] = [
     { title: 'Your parties', description: 'Rejoin any party you\'ve created or accepted.' },
     { title: 'Create a party', description: 'Tap the + button to start a new meetup.' },
-    { title: 'Find friends', description: 'Open the Friends card to search, request, and accept friends.' },
+    { title: 'Find friends', description: 'Open the Friends card to find people, follow them, and follow back.' },
 ];
 
 interface MemberAvatar {
@@ -245,7 +245,7 @@ export default function HomeScreen() {
     const [me, setMe] = useState<any>(null);
     const [menuParty, setMenuParty] = useState<PartyRow | null>(null);
     const [displayParty, setDisplayParty] = useState<PartyRow | null>(null);
-    const [pendingCount, setPendingCount] = useState(0);
+    const [followBackCount, setFollowBackCount] = useState(0);
     const [profileUserId, setProfileUserId] = useState<string | null>(null);
     const walkthroughCheckedRef = useRef(false);
     const friendsCardRef = useRef<View>(null);
@@ -255,10 +255,10 @@ export default function HomeScreen() {
         const isLatest = latestLoad();
         let partiesError: unknown = null;
         try {
-            const [myProfile, myParties, pendingReqs, friends] = await Promise.all([
+            const [myProfile, myParties, followBack, friends] = await Promise.all([
                 api.me().catch(() => null),
                 api.myParties().catch((e) => { partiesError = e; return null; }),
-                api.getPendingRequests().catch(() => []),
+                api.getFollowBack().catch(() => []),
                 api.getFriends().catch(() => []),
             ]);
             if (!isLatest()) return;
@@ -280,7 +280,7 @@ export default function HomeScreen() {
                 setParties(myParties ?? []);
                 setPartiesLoaded(true);
             }
-            setPendingCount((pendingReqs ?? []).length);
+            setFollowBackCount((followBack ?? []).length);
             setOnlineFriends((friends ?? []).filter((f: any) => f.is_online).slice(0, 5));
         } catch {}
     }, [syncFromProfile, latestLoad]);
@@ -408,15 +408,15 @@ export default function HomeScreen() {
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.friendsCardTitle}>Friends</Text>
                                     <Text style={styles.friendsCardSubtitle}>
-                                        {pendingCount > 0
-                                            ? `${pendingCount} pending ${pendingCount === 1 ? 'request' : 'requests'}`
-                                            : 'Find and add friends'}
+                                        {followBackCount > 0
+                                            ? `${followBackCount} ${followBackCount === 1 ? 'person' : 'people'} to follow back`
+                                            : 'Find and follow friends'}
                                     </Text>
                                 </View>
-                                {pendingCount > 0 && (
+                                {followBackCount > 0 && (
                                     <View style={styles.friendsCardBadge}>
                                         <Text style={styles.friendsCardBadgeText}>
-                                            {pendingCount > 9 ? '9+' : pendingCount}
+                                            {followBackCount > 9 ? '9+' : followBackCount}
                                         </Text>
                                     </View>
                                 )}
@@ -468,8 +468,8 @@ export default function HomeScreen() {
 
             <AnchoredHint
                 screenKey="home_friends_card"
-                title="Add friends to the party"
-                body="Tap here anytime to send friend requests, see who's pending, and find people from your school."
+                title="Find your friends"
+                body="Tap here anytime to find people from your school, follow them, and follow back anyone who follows you."
                 targetRef={friendsCardRef}
                 placement="bottom"
             />

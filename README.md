@@ -24,7 +24,8 @@ Group meetups without the group chat: everyone shares a location, the group swip
 - Locked-step swiping: everyone votes on the same card before the deck moves on
 - Date proposals and voting, with the host locking the final date
 - Add to Google Calendar, or download an .ics file for any calendar app
-- Discover tab, social feed with photos, likes and comments, friends, saved collections, blocking
+- Discover tab, social feed with photos, likes and comments, saved collections, blocking
+- One-tap follows: two people who follow each other are friends, and a Follow back list shows who follows you
 - Dark and light themes
 - Read-only demo account
 

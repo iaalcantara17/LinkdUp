@@ -5,12 +5,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { X, GraduationCap, UserPlus, UserCheck, Clock, MoreHorizontal } from './icons';
+import { X, GraduationCap, UserPlus, UserCheck, MoreHorizontal } from './icons';
 import AvatarBubble from './AvatarBubble';
 import { api } from '../services/api';
 import DialogHost from './DialogHost';
 import ReportDialog from './ReportDialog';
-import { confirmBlock, errorText, showError, showMenu } from './dialogs';
+import { confirm, confirmBlock, errorText, showError, showMenu } from './dialogs';
 import { radii } from '../theme';
 import type { AppColors, ColorRoles } from '../theme';
 import { useTheme } from '../context/ThemeContext';
@@ -29,6 +29,8 @@ interface PublicUser {
     follower_count?: number;
     following_count?: number;
     is_blocked_by_me?: boolean;
+    i_follow?: boolean;
+    follows_me?: boolean;
 }
 
 interface Props {
@@ -36,8 +38,6 @@ interface Props {
     visible: boolean;
     onClose: () => void;
 }
-
-type FriendUi = 'loading' | 'self' | 'none' | 'pending_out' | 'pending_in' | 'accepted';
 
 export default function UserProfileSheet({ userId, visible, onClose }: Props) {
     const { colors, roles } = useTheme();
@@ -48,9 +48,8 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
     const [loading, setLoading] = useState(false);
     const [blockedByThem, setBlockedByThem] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [friendUi, setFriendUi] = useState<FriendUi>('loading');
-    const [friendshipId, setFriendshipId] = useState<string | null>(null);
-    const [friendBusy, setFriendBusy] = useState(false);
+    const [selfState, setSelfState] = useState<'unknown' | 'self' | 'other'>('unknown');
+    const [followBusy, setFollowBusy] = useState(false);
     const [myId, setMyId] = useState<string | null>(null);
     const [blockBusy, setBlockBusy] = useState(false);
     const [reporting, setReporting] = useState(false);
@@ -62,8 +61,7 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
         setError(null);
         setBlockedByThem(false);
         setLoading(true);
-        setFriendUi('loading');
-        setFriendshipId(null);
+        setSelfState('unknown');
         setMyId(null);
         setReporting(false);
 
@@ -81,32 +79,52 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
 
         api.me()
             .then((me) => {
-                if (cancelled || !userId) return;
+                if (cancelled) return;
                 setMyId(me?.id ?? null);
-                if (me?.id === userId) {
-                    setFriendUi('self');
-                    return;
-                }
-                return api.getFriendStatus(userId).then((s: any) => {
-                    if (cancelled) return;
-                    if (s.status === 'self') setFriendUi('self');
-                    else if (s.status === 'accepted') {
-                        setFriendUi('accepted');
-                        setFriendshipId(s.friendship_id ?? null);
-                    } else if (s.status === 'pending') {
-                        setFriendshipId(s.friendship_id ?? null);
-                        setFriendUi(s.direction === 'outgoing' ? 'pending_out' : 'pending_in');
-                    } else {
-                        setFriendUi('none');
-                    }
-                });
+                setSelfState(me?.id === userId ? 'self' : 'other');
             })
-            .catch(() => { if (!cancelled) setFriendUi('none'); });
+            .catch(() => { if (!cancelled) setSelfState('other'); });
 
         return () => { cancelled = true; };
     }, [userId, visible]);
 
-    const isSelf = friendUi === 'self';
+    const isSelf = selfState === 'self';
+
+    const setFollowing = (on: boolean) =>
+        setProfile((p) => p && { ...p, i_follow: on, follower_count: Math.max(0, (p.follower_count ?? 0) + (on ? 1 : -1)) });
+
+    const handleFollow = async () => {
+        if (!userId) return;
+        setFollowBusy(true);
+        try {
+            await api.followUser(userId);
+            setFollowing(true);
+        } catch (e: any) {
+            showError("Couldn't follow", errorText(e, 'Try again in a moment.'));
+        } finally {
+            setFollowBusy(false);
+        }
+    };
+
+    const handleUnfollow = async () => {
+        if (!userId || !profile) return;
+        const ok = await confirm({
+            title: `Unfollow ${profile.display_name}?`,
+            message: profile.follows_me ? "You won't be friends anymore." : 'You can follow them again anytime.',
+            confirmLabel: 'Unfollow',
+            destructive: true,
+        });
+        if (!ok) return;
+        setFollowBusy(true);
+        try {
+            await api.unfollowUser(userId);
+            setFollowing(false);
+        } catch (e: any) {
+            showError("Couldn't unfollow", errorText(e, 'Try again in a moment.'));
+        } finally {
+            setFollowBusy(false);
+        }
+    };
 
     const handleBlock = async () => {
         if (!userId || !profile) return;
@@ -251,60 +269,41 @@ export default function UserProfileSheet({ userId, visible, onClose }: Props) {
                                     </View>
                                 ) : null}
 
-                                {friendUi !== 'self' && friendUi !== 'loading' && (
+                                {selfState === 'other' && (
                                     <View style={{ marginTop: 20, alignSelf: 'stretch' }}>
-                                        {friendUi === 'none' && (
+                                        {!profile.i_follow ? (
                                             <TouchableOpacity
                                                 style={styles.friendBtn}
-                                                disabled={friendBusy}
-                                                onPress={async () => {
-                                                    if (!userId) return;
-                                                    setFriendBusy(true);
-                                                    try {
-                                                        await api.sendFriendRequest(userId);
-                                                        setFriendUi('pending_out');
-                                                    } catch (e: any) {
-                                                        showError("Couldn't send friend request", errorText(e, 'Try again in a moment.'));
-                                                    } finally {
-                                                        setFriendBusy(false);
-                                                    }
-                                                }}
+                                                disabled={followBusy}
+                                                onPress={handleFollow}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={profile.follows_me ? 'Follow back' : 'Follow'}
                                             >
                                                 <UserPlus size={18} color={roles.onPrimary} />
-                                                <Text style={styles.friendBtnText}>Add friend</Text>
+                                                <Text style={styles.friendBtnText}>{profile.follows_me ? 'Follow back' : 'Follow'}</Text>
                                             </TouchableOpacity>
-                                        )}
-                                        {friendUi === 'pending_out' && (
-                                            <View style={styles.friendPending}>
-                                                <Clock size={16} color={colors.text60} />
-                                                <Text style={styles.friendPendingText}>Request pending</Text>
-                                            </View>
-                                        )}
-                                        {friendUi === 'pending_in' && friendshipId && (
+                                        ) : profile.follows_me ? (
                                             <TouchableOpacity
-                                                style={styles.friendBtn}
-                                                disabled={friendBusy}
-                                                onPress={async () => {
-                                                    setFriendBusy(true);
-                                                    try {
-                                                        await api.acceptFriendRequest(friendshipId);
-                                                        setFriendUi('accepted');
-                                                    } catch (e: any) {
-                                                        showError("Couldn't accept request", errorText(e, 'Try again in a moment.'));
-                                                    } finally {
-                                                        setFriendBusy(false);
-                                                    }
-                                                }}
+                                                style={styles.friendOk}
+                                                disabled={followBusy}
+                                                onPress={handleUnfollow}
+                                                accessibilityRole="button"
+                                                accessibilityLabel="Friends"
                                             >
-                                                <UserCheck size={18} color={roles.onPrimary} />
-                                                <Text style={styles.friendBtnText}>Accept request</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                        {friendUi === 'accepted' && (
-                                            <View style={styles.friendOk}>
                                                 <UserCheck size={16} color={colors.success} />
                                                 <Text style={styles.friendOkText}>Friends</Text>
-                                            </View>
+                                            </TouchableOpacity>
+                                        ) : (
+                                            <TouchableOpacity
+                                                style={styles.friendPending}
+                                                disabled={followBusy}
+                                                onPress={handleUnfollow}
+                                                accessibilityRole="button"
+                                                accessibilityLabel="Following"
+                                            >
+                                                <UserCheck size={16} color={colors.text60} />
+                                                <Text style={styles.friendPendingText}>Following</Text>
+                                            </TouchableOpacity>
                                         )}
                                     </View>
                                 )}
@@ -486,6 +485,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             backgroundColor: c.primary,
             borderRadius: radii.md,
             paddingVertical: 12,
+            minHeight: 44,
         },
         friendBtnText: { color: r.onPrimary, fontFamily: 'Inter_700Bold', fontSize: 15 },
         friendPending: {
@@ -497,6 +497,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             borderRadius: radii.md,
             borderWidth: 1,
             borderColor: c.glassBorder,
+            minHeight: 44,
         },
         friendPendingText: { color: c.text60, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
         friendOk: {
@@ -505,6 +506,7 @@ function makeStyles(c: AppColors, r: ColorRoles) {
             justifyContent: 'center',
             gap: 8,
             paddingVertical: 12,
+            minHeight: 44,
         },
         friendOkText: { color: c.success, fontFamily: 'Inter_700Bold', fontSize: 15 },
     });

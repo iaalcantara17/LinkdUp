@@ -21,7 +21,7 @@ test('a finished load with nothing in it shows the empty state', () => {
 test('list screens start in loading and render through listView', () => {
     const files = {
         'screens/HomeScreen.tsx': /listView\(activeParties, !partiesLoaded\)/,
-        'screens/FriendsScreen.tsx': /listView\(friends, loadingFriends\)[\s\S]*listView\(pending, loadingPending\)/,
+        'screens/FriendsScreen.tsx': /listView\(friends, loadingFriends\)[\s\S]*listView\(followBack, loadingFollowBack\)/,
         'screens/DiscoverScreen.tsx': /listView\(visibleVenues, loadingVenues\)[\s\S]*listView\(parties, loadingParties\)/,
         'screens/HangoutsScreen.tsx': /listView\(hangouts, !loaded\)/,
         'screens/BlockedUsersScreen.tsx': /listView\(items, loading\)/,

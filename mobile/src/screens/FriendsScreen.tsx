@@ -8,7 +8,7 @@ import GradientButton from '../components/GradientButton';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Animated from 'react-native-reanimated';
-import { UserPlus, UserCheck, UserX, Search, Users, Ban } from '../components/icons';
+import { UserPlus, UserX, Search, Users, Ban } from '../components/icons';
 import HelpButton from '../components/HelpButton';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { api } from '../services/api';
@@ -20,12 +20,12 @@ import { listView } from '../hooks/listView';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 
 const FRIENDS_HELP: { title: string; description: string }[] = [
-    { title: 'Friends tab', description: 'See everyone you\'ve accepted.' },
-    { title: 'Requests tab', description: 'Accept or decline friend requests.' },
-    { title: 'Search', description: 'Find people by name or email to send a request.' },
+    { title: 'Friends tab', description: 'People you follow who follow you back.' },
+    { title: 'Follow back tab', description: "People who follow you that you don't follow yet." },
+    { title: 'Search', description: 'Find people by name or @username and follow them.' },
 ];
 
-type FriendTab = 'friends' | 'requests' | 'search';
+type FriendTab = 'friends' | 'followBack' | 'search';
 
 function Avatar({ user, colors }: { user: any; colors: AppColors }) {
     const { roles } = useTheme();
@@ -49,9 +49,9 @@ export default function FriendsScreen() {
     const [friends, setFriends] = useState<any[]>([]);
     const [loadingFriends, setLoadingFriends] = useState(true);
     const [friendsError, setFriendsError] = useState<unknown>(null);
-    const [pending, setPending] = useState<any[]>([]);
-    const [loadingPending, setLoadingPending] = useState(true);
-    const [pendingError, setPendingError] = useState<unknown>(null);
+    const [followBack, setFollowBack] = useState<any[]>([]);
+    const [loadingFollowBack, setLoadingFollowBack] = useState(true);
+    const [followBackError, setFollowBackError] = useState<unknown>(null);
     const [searchQ, setSearchQ] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searching, setSearching] = useState(false);
@@ -71,28 +71,28 @@ export default function FriendsScreen() {
         finally { setLoadingFriends(false); }
     }, []);
 
-    const loadPending = useCallback(async () => {
-        setLoadingPending(true);
+    const loadFollowBack = useCallback(async () => {
+        setLoadingFollowBack(true);
         try {
-            const data = await api.getPendingRequests();
-            setPending(data ?? []);
-            setPendingError(null);
+            const data = await api.getFollowBack();
+            setFollowBack(data ?? []);
+            setFollowBackError(null);
         } catch (e) {
-            setPendingError(e);
+            setFollowBackError(e);
         }
-        finally { setLoadingPending(false); }
+        finally { setLoadingFollowBack(false); }
     }, []);
 
     useEffect(() => {
         loadFriends();
-        loadPending();
-    }, [loadFriends, loadPending]);
+        loadFollowBack();
+    }, [loadFriends, loadFollowBack]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await Promise.allSettled([loadFriends(), loadPending()]);
+        await Promise.allSettled([loadFriends(), loadFollowBack()]);
         setRefreshing(false);
-    }, [loadFriends, loadPending]);
+    }, [loadFriends, loadFollowBack]);
 
     useEffect(() => {
         if (searchTimeout.current) clearTimeout(searchTimeout.current);
@@ -107,33 +107,26 @@ export default function FriendsScreen() {
         }, 400);
     }, [searchQ]);
 
-    const handleAccept = async (friendshipId: string) => {
+    const handleFollowBack = async (userId: string) => {
         try {
-            await api.acceptFriendRequest(friendshipId);
-            setPending((prev) => prev.filter((r) => r.friendship_id !== friendshipId));
+            await api.followUser(userId);
+            setFollowBack((prev) => prev.filter((u) => u.id !== userId));
             await loadFriends();
-        } catch (e: any) { showError("Couldn't accept request", errorText(e, 'Try again in a moment.')); }
+        } catch (e: any) { showError("Couldn't follow back", errorText(e, 'Try again in a moment.')); }
     };
 
-    const handleDecline = async (friendshipId: string) => {
-        try {
-            await api.declineFriendRequest(friendshipId);
-            setPending((prev) => prev.filter((r) => r.friendship_id !== friendshipId));
-        } catch (e: any) { showError("Couldn't decline request", errorText(e, 'Try again in a moment.')); }
-    };
-
-    const handleRemoveFriend = async (userId: string, name: string) => {
+    const handleUnfollow = async (userId: string, name: string) => {
         const ok = await confirm({
-            title: `Remove ${name}?`,
-            message: "They'll be removed from your friends.",
-            confirmLabel: 'Remove',
+            title: `Unfollow ${name}?`,
+            message: "You won't be friends anymore.",
+            confirmLabel: 'Unfollow',
             destructive: true,
         });
         if (!ok) return;
         try {
-            await api.removeFriend(userId);
+            await api.unfollowUser(userId);
             setFriends((prev) => prev.filter((f) => f.id !== userId));
-        } catch (e: any) { showError("Couldn't remove friend", errorText(e, 'Try again in a moment.')); }
+        } catch (e: any) { showError("Couldn't unfollow", errorText(e, 'Try again in a moment.')); }
     };
 
     const handleBlock = async (f: any) => {
@@ -144,20 +137,15 @@ export default function FriendsScreen() {
         } catch (e: any) { showError("Couldn't block this person", errorText(e, 'Try again in a moment.')); }
     };
 
-    const handleSendRequest = async (userId: string) => {
+    const handleFollow = async (userId: string) => {
         try {
-            await api.sendFriendRequest(userId);
-            setSearchResults((prev) =>
-                prev.map((u) => u.id === userId
-                    ? { ...u, friendship: { status: 'pending', direction: 'outgoing' } }
-                    : u
-                )
-            );
-        } catch (e: any) { showError("Couldn't send friend request", errorText(e, 'Try again in a moment.')); }
+            await api.followUser(userId);
+            setSearchResults((prev) => prev.map((u) => (u.id === userId ? { ...u, i_follow: true } : u)));
+        } catch (e: any) { showError("Couldn't follow", errorText(e, 'Try again in a moment.')); }
     };
 
     const friendsView = listView(friends, loadingFriends);
-    const pendingView = listView(pending, loadingPending);
+    const followBackView = listView(followBack, loadingFollowBack);
 
     const enter = useEntering();
     const loadingRows = (label: string) => (
@@ -167,16 +155,19 @@ export default function FriendsScreen() {
         </>
     );
 
+    const tabLabel = (tab: FriendTab) =>
+        tab === 'friends' ? 'Friends' : tab === 'followBack' ? `Follow back${followBack.length > 0 ? ` (${followBack.length})` : ''}` : 'Search';
+
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <ScreenHeader title="Friends" onBack={() => nav.goBack()} right={<HelpButton items={FRIENDS_HELP} />} />
 
                 <View style={styles.tabBar}>
-                    {(['friends', 'requests', 'search'] as FriendTab[]).map((tab) => (
+                    {(['friends', 'followBack', 'search'] as FriendTab[]).map((tab) => (
                         <Chip
                             key={tab}
-                            label={tab === 'friends' ? 'Friends' : tab === 'requests' ? `Requests${pending.length > 0 ? ` (${pending.length})` : ''}` : 'Search'}
+                            label={tabLabel(tab)}
                             selected={activeTab === tab}
                             onPress={() => setActiveTab(tab)}
                             style={{ flex: 1 }}
@@ -199,7 +190,7 @@ export default function FriendsScreen() {
                                 <EmptyState
                                     emoji="👋"
                                     title="No friends yet"
-                                    body="Search for people you know and send a friend request."
+                                    body="Follow people you know. When they follow you back, they'll show up here."
                                     action={<GradientButton title="Find Friends" size="md" onPress={() => setActiveTab('search')} />}
                                 />
                             ) : (
@@ -213,7 +204,7 @@ export default function FriendsScreen() {
                                                 pressLabel={`View ${f.display_name}'s profile`}
                                                 right={
                                                     <View style={styles.actions}>
-                                                        <IconButton label={`Remove ${f.display_name}`} onPress={() => handleRemoveFriend(f.id, f.display_name)}>
+                                                        <IconButton label={`Unfollow ${f.display_name}`} onPress={() => handleUnfollow(f.id, f.display_name)}>
                                                             <UserX size={18} color={colors.text40} />
                                                         </IconButton>
                                                         <IconButton label={`Block ${f.display_name}`} onPress={() => handleBlock(f)}>
@@ -229,37 +220,32 @@ export default function FriendsScreen() {
                         </>
                     )}
 
-                    {activeTab === 'requests' && (
+                    {activeTab === 'followBack' && (
                         <>
-                            {pendingError && pending.length === 0 && !loadingPending ? (
-                                <LoadError title="We couldn't load your friend requests" error={pendingError} onRetry={loadPending} />
-                            ) : pendingView === 'loading' ? (
-                                loadingRows('Loading friend requests')
-                            ) : pendingView === 'empty' ? (
+                            {followBackError && followBack.length === 0 && !loadingFollowBack ? (
+                                <LoadError title="We couldn't load people to follow back" error={followBackError} onRetry={loadFollowBack} />
+                            ) : followBackView === 'loading' ? (
+                                loadingRows('Loading people to follow back')
+                            ) : followBackView === 'empty' ? (
                                 <EmptyState
                                     emoji="📭"
-                                    title="No pending requests"
-                                    body="When someone sends you a friend request it'll show here."
+                                    title="No one to follow back"
+                                    body="When someone follows you, they'll show up here."
                                 />
                             ) : (
                                 <View style={{ gap: 12 }}>
-                                    {pending.map((r, i) => (
-                                        <Animated.View key={r.friendship_id} entering={enter(i)}>
+                                    {followBack.map((u, i) => (
+                                        <Animated.View key={u.id} entering={enter(i)}>
                                             <ListRow
-                                                left={<Avatar user={r.user ?? {}} colors={colors} />}
-                                                title={r.user?.display_name ?? '?'}
-                                                subtitle="Wants to be friends"
-                                                onPress={r.user?.id ? () => setProfileUserId(r.user.id) : undefined}
-                                                pressLabel={`View ${r.user?.display_name ?? 'this person'}'s profile`}
+                                                left={<Avatar user={u} colors={colors} />}
+                                                title={u.display_name}
+                                                subtitle="Follows you"
+                                                onPress={() => setProfileUserId(u.id)}
+                                                pressLabel={`View ${u.display_name}'s profile`}
                                                 right={
-                                                    <View style={styles.actions}>
-                                                        <IconButton tone="danger" label={`Decline ${r.user?.display_name ?? 'request'}`} onPress={() => handleDecline(r.friendship_id)}>
-                                                            <UserX size={18} color={colors.danger} />
-                                                        </IconButton>
-                                                        <IconButton tone="primary" label={`Accept ${r.user?.display_name ?? 'request'}`} onPress={() => handleAccept(r.friendship_id)}>
-                                                            <UserCheck size={18} color={colors.primary} />
-                                                        </IconButton>
-                                                    </View>
+                                                    <IconButton tone="primary" label={`Follow back ${u.display_name}`} onPress={() => handleFollowBack(u.id)}>
+                                                        <UserPlus size={18} color={colors.primary} />
+                                                    </IconButton>
                                                 }
                                             />
                                         </Animated.View>
@@ -285,9 +271,7 @@ export default function FriendsScreen() {
                             {searchResults.length > 0 && (
                                 <View style={{ gap: 12, marginTop: 12 }}>
                                     {searchResults.map((u, i) => {
-                                        const fs = u.friendship;
-                                        const isFriend = fs?.status === 'accepted';
-                                        const isPending = fs?.status === 'pending';
+                                        const isFriend = u.i_follow && u.follows_me;
                                         return (
                                             <Animated.View key={u.id} entering={enter(i, 'fast')}>
                                                 <ListRow
@@ -298,13 +282,22 @@ export default function FriendsScreen() {
                                                     subtitle={
                                                         <>
                                                             {u.username ? <Text style={styles.userSub}>@{u.username}</Text> : null}
-                                                            {isFriend && <Text style={[styles.userSub, { color: colors.success }]}>Friends ✓</Text>}
-                                                            {isPending && <Text style={styles.userSub}>Request sent</Text>}
+                                                            {isFriend ? (
+                                                                <Text style={[styles.userSub, { color: colors.success }]}>Friends ✓</Text>
+                                                            ) : u.i_follow ? (
+                                                                <Text style={styles.userSub}>Following</Text>
+                                                            ) : u.follows_me ? (
+                                                                <Text style={styles.userSub}>Follows you</Text>
+                                                            ) : null}
                                                         </>
                                                     }
                                                     right={
-                                                        !isFriend && !isPending ? (
-                                                            <IconButton tone="primary" label={`Send friend request to ${u.display_name}`} onPress={() => handleSendRequest(u.id)}>
+                                                        !u.i_follow ? (
+                                                            <IconButton
+                                                                tone="primary"
+                                                                label={`${u.follows_me ? 'Follow back' : 'Follow'} ${u.display_name}`}
+                                                                onPress={() => handleFollow(u.id)}
+                                                            >
                                                                 <UserPlus size={18} color={colors.primary} />
                                                             </IconButton>
                                                         ) : null
@@ -336,7 +329,7 @@ export default function FriendsScreen() {
                 onClose={() => {
                     setProfileUserId(null);
                     loadFriends();
-                    loadPending();
+                    loadFollowBack();
                 }}
             />
         </View>
