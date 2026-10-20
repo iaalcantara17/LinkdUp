@@ -16,6 +16,25 @@ export function turnLabel({ solo, locked, flash, waitingNames }: {
     return `Voted ✓ - waiting for ${waitingNames.length > 0 ? waitingNames.join(', ') : 'everyone'}…`;
 }
 
+export function swipeDecision(dx: number, width: number): 'like' | 'nope' | null {
+    'worklet';
+    const threshold = width * 0.25;
+    if (dx > threshold) return 'like';
+    if (dx < -threshold) return 'nope';
+    return null;
+}
+
+export function stampOpacity(dx: number, width: number): { like: number; nope: number } {
+    'worklet';
+    const t = Math.min(Math.abs(dx) / (width * 0.25), 1);
+    return { like: dx > 0 ? t : 0, nope: dx < 0 ? t : 0 };
+}
+
+export function cardTilt(dx: number, width: number): number {
+    'worklet';
+    return Math.max(-10, Math.min(10, (dx / width) * 10));
+}
+
 export function sortDeck<T extends { id: string; rating?: number | null; is_priority?: boolean | null; created_at?: string | null }>(items: T[]): T[] {
     return [...items].sort((a, b) => {
         const aRound = a.created_at ?? '';

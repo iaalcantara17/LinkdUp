@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Share, Platform } from 'react-native';
 import { Chip, ScreenHeader, Tap } from '../components/kit';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Maximize2 } from '../components/icons';
+import { Maximize2, Share2 } from '../components/icons';
 import GradientButton from '../components/GradientButton';
+import JoinQr from '../components/JoinQr';
+import { joinUrl } from '../services/joinLink';
 import GlassCard from '../components/GlassCard';
 import AvatarBubble from '../components/AvatarBubble';
 import UserProfileSheet from '../components/UserProfileSheet';
@@ -21,7 +23,7 @@ const LOBBY_HELP: { title: string; description: string }[] = [
     { title: 'Locked-step voting', description: 'Swipe together — 10 spots, then pick the winner.' },
 ];
 import { api, MyLocation } from '../services/api';
-import { errorText, showError } from '../components/dialogs';
+import { errorText, showError, toast } from '../components/dialogs';
 import LocationSourceCard from '../components/LocationSourceCard';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
 import { startGate } from '../services/locationChoice';
@@ -131,9 +133,44 @@ export default function PartyLobbyScreen() {
         }
     };
 
+    const code: string | undefined = party?.code;
+    const link = code ? joinUrl(code, Platform.OS === 'web' && typeof location !== 'undefined' ? location.origin : undefined) : '';
+    const inviteText = `Join my LinkdUp party! Code: ${code}`;
+
+    const copy = async (text: string) => {
+        const clip = Platform.OS === 'web' && typeof navigator !== 'undefined' ? (navigator as any).clipboard : undefined;
+        if (!clip?.writeText) {
+            Share.share({ message: text }).catch(() => {});
+            return;
+        }
+        try {
+            await clip.writeText(text);
+            toast('Code copied');
+        } catch {
+            toast(`Code: ${code}`, 'info');
+        }
+    };
+
+    const handleCopy = () => {
+        if (code) copy(code);
+    };
+
     const handleShare = async () => {
-        if (!party?.code) return;
-        await Share.share({ message: `Join my LinkdUp party! Code: ${party.code}` });
+        if (!code) return;
+        if (Platform.OS !== 'web') {
+            Share.share({ message: `${inviteText} ${link}` }).catch(() => {});
+            return;
+        }
+        const share = typeof navigator !== 'undefined' ? (navigator as any).share : undefined;
+        if (share) {
+            try {
+                await share.call(navigator, { title: 'Join my LinkdUp party', text: inviteText, url: link });
+                return;
+            } catch (e: any) {
+                if (e?.name === 'AbortError') return;
+            }
+        }
+        copy(`${inviteText} ${link}`);
     };
 
     return (
@@ -172,8 +209,8 @@ export default function PartyLobbyScreen() {
                                 </Text>
                                 <GlassCard style={{ marginBottom: 16, alignItems: 'center' }}>
                                     <Text style={styles.codeLabel}>CODE</Text>
-                                    <Tap onPress={handleShare} accessibilityLabel={`Share join code ${party?.code ?? ''}`} activeOpacity={0.8}>
-                                        <Text style={styles.code}>{party?.code ?? '------'}</Text>
+                                    <Tap onPress={handleCopy} accessibilityLabel={`Copy join code ${code ?? ''}`} activeOpacity={0.8}>
+                                        <Text style={styles.code}>{code ?? '------'}</Text>
                                     </Tap>
                                 </GlassCard>
                                 <Text style={styles.crewLabel}>Your friends</Text>
@@ -195,10 +232,24 @@ export default function PartyLobbyScreen() {
                         <View ref={codeCardRef}>
                         <GlassCard style={{ marginVertical: 24, alignItems: 'center' }}>
                             <Text style={styles.codeLabel}>JOIN CODE</Text>
-                            <Tap onPress={handleShare} accessibilityLabel={`Share join code ${party?.code ?? ''}`} activeOpacity={0.8}>
-                                <Text style={styles.code}>{party?.code ?? '------'}</Text>
+                            <Tap onPress={handleCopy} accessibilityLabel={`Copy join code ${code ?? ''}`} activeOpacity={0.8}>
+                                <Text style={styles.code}>{code ?? '------'}</Text>
                             </Tap>
-                            <Text style={styles.tapHint}>tap to share</Text>
+                            <Text style={styles.tapHint}>tap to copy</Text>
+                            {code ? (
+                                <View style={styles.qr}>
+                                    <JoinQr value={link} label={`QR code to join with ${code}`} />
+                                    <Text style={styles.tapHint}>Friends can scan to join</Text>
+                                </View>
+                            ) : null}
+                            <GradientButton
+                                title="Share"
+                                variant="ghost"
+                                onPress={handleShare}
+                                disabled={!code}
+                                leftIcon={<Share2 size={18} color={colors.textPrimary} />}
+                                style={styles.shareBtn}
+                            />
                         </GlassCard>
                         </View>
 
@@ -337,6 +388,8 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         codeLabel: { color: c.text60, fontSize: 11, letterSpacing: 1, marginBottom: 8, fontFamily: 'Inter_700Bold' },
         code: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 48, letterSpacing: 8 },
         tapHint: { color: c.text40, fontSize: 11, marginTop: 8, fontFamily: 'Inter_400Regular' },
+        qr: { alignItems: 'center', marginTop: 16 },
+        shareBtn: { alignSelf: 'stretch', marginTop: 16 },
         crewLabel: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 16 },
         crew: { flexDirection: 'row', flexWrap: 'wrap' },
         crewName: { color: c.textPrimary, fontSize: 12, marginTop: 4, fontFamily: 'Inter_500Medium' },

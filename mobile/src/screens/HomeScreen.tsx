@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, ScrollView, Pressable,
     Modal, Image, RefreshControl,
 } from 'react-native';
-import { EmptyState, SkeletonList, Tap } from '../components/kit';
+import { ListRow, SkeletonList, Tap, useEntering } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,13 +12,14 @@ import Animated, {
     withDelay, withSpring, withTiming,
     useSharedValue, useAnimatedStyle,
 } from 'react-native-reanimated';
-import { Plus, MoreVertical, Users, ChevronRight } from '../components/icons';
+import { Plus, MoreVertical, Users, ChevronRight, Compass, Send } from '../components/icons';
 import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpButton';
 import AnchoredHint from '../components/AnchoredHint';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { api, MyLocation } from '../services/api';
 import { latestOnly } from '../hooks/latestOnly';
+import { takeJoin, webSession } from '../services/joinLink';
 import { listView } from '../hooks/listView';
 import { locationSourceLabel } from '../services/locationChoice';
 import DialogHost from '../components/DialogHost';
@@ -33,6 +34,12 @@ const HOME_HELP: { title: string; description: string }[] = [
     { title: 'Create a party', description: 'Tap the + button to start a new meetup.' },
     { title: 'Find friends', description: 'Open the Friends card to find people, follow them, and follow back.' },
 ];
+
+const STARTERS = [
+    { screen: 'CreateParty', title: 'Create a party', subtitle: 'Pick a spot with your friends', Icon: Plus },
+    { screen: 'JoinParty', title: 'Join with a code', subtitle: 'Got a code from a friend? Start here', Icon: Send },
+    { screen: 'Discover', title: 'Try Discover', subtitle: 'See popular spots near you', Icon: Compass },
+] as const;
 
 interface MemberAvatar {
     avatar_url: string | null;
@@ -250,6 +257,7 @@ export default function HomeScreen() {
     const walkthroughCheckedRef = useRef(false);
     const friendsCardRef = useRef<View>(null);
     const [latestLoad] = useState(() => latestOnly());
+    const enter = useEntering();
 
     const load = useCallback(async () => {
         const isLatest = latestLoad();
@@ -286,6 +294,11 @@ export default function HomeScreen() {
     }, [syncFromProfile, latestLoad]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
+
+    useEffect(() => {
+        const code = takeJoin(webSession());
+        if (code) nav.navigate('JoinParty', { code });
+    }, []);
 
     const retryLoad = useCallback(() => {
         setLoadError(null);
@@ -436,7 +449,23 @@ export default function HomeScreen() {
                                 <SlowLoadNote loading />
                             </>
                         ) : partiesView === 'empty' ? (
-                            <EmptyState card title="No parties yet" body="Tap the + button below to create your first party, or join one with a code." />
+                            <View style={{ gap: 12 }}>
+                                {STARTERS.map((s, i) => (
+                                    <Animated.View key={s.screen} entering={enter(i)}>
+                                        <ListRow
+                                            title={s.title}
+                                            subtitle={s.subtitle}
+                                            onPress={() => nav.navigate(s.screen)}
+                                            left={
+                                                <View style={styles.friendsCardIcon}>
+                                                    <s.Icon size={22} color={roles.primaryText} />
+                                                </View>
+                                            }
+                                            right={<ChevronRight size={20} color={colors.text40} />}
+                                        />
+                                    </Animated.View>
+                                ))}
+                            </View>
                         ) : (
                             activeParties.map((party, i) => {
                                 const target = routeForParty(party);
@@ -453,13 +482,15 @@ export default function HomeScreen() {
                             })
                         )}
 
-                        <Tap
-                            style={{ padding: 16, alignItems: 'center', marginTop: 8 }}
-                            onPress={() => nav.navigate('JoinParty')}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={{ color: colors.text60, fontSize: 14, fontFamily: 'Inter_500Medium' }}>Have a code? Join a party →</Text>
-                        </Tap>
+                        {partiesView !== 'empty' && (
+                            <Tap
+                                style={{ padding: 16, alignItems: 'center', marginTop: 8 }}
+                                onPress={() => nav.navigate('JoinParty')}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={{ color: colors.text60, fontSize: 14, fontFamily: 'Inter_500Medium' }}>Have a code? Join a party →</Text>
+                            </Tap>
+                        )}
                     </View>
                 </ScrollView>
             </SafeAreaView>

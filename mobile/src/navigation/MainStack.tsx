@@ -36,7 +36,7 @@ export type MainStackParamList = {
     Friends: undefined;
     LocationPermission: undefined;
     CreateParty: undefined;
-    JoinParty: undefined;
+    JoinParty: { code?: string } | undefined;
     PartyLobby: { partyId: string };
     Swipe: { partyId: string };
     Proposal: { partyId: string; locationId: string };

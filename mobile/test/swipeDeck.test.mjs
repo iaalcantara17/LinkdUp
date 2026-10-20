@@ -41,9 +41,45 @@ test('the client deck uses the same round-first order as the server', async () =
     assert.deepEqual(deck.map((v) => v.id), ['p', 'b', 'a', 'c']);
 });
 
+test('a drag past a quarter of the card width decides the vote', async () => {
+    const { swipeDecision } = await import('../src/services/swipeDeck.ts');
+    assert.equal(swipeDecision(101, 400), 'like');
+    assert.equal(swipeDecision(-101, 400), 'nope');
+    assert.equal(swipeDecision(100, 400), null);
+    assert.equal(swipeDecision(-100, 400), null);
+    assert.equal(swipeDecision(0, 400), null);
+});
+
+test('the LIKE and NOPE stamps fade in with drag distance and cap at the threshold', async () => {
+    const { stampOpacity } = await import('../src/services/swipeDeck.ts');
+    assert.deepEqual(stampOpacity(0, 400), { like: 0, nope: 0 });
+    assert.deepEqual(stampOpacity(50, 400), { like: 0.5, nope: 0 });
+    assert.deepEqual(stampOpacity(300, 400), { like: 1, nope: 0 });
+    assert.deepEqual(stampOpacity(-50, 400), { like: 0, nope: 0.5 });
+    assert.deepEqual(stampOpacity(-900, 400), { like: 0, nope: 1 });
+});
+
+test('the card tilts slightly with the drag', async () => {
+    const { cardTilt } = await import('../src/services/swipeDeck.ts');
+    assert.equal(cardTilt(0, 400), 0);
+    assert.equal(cardTilt(200, 400), 5);
+    assert.equal(cardTilt(400, 400), 10);
+    assert.equal(cardTilt(-2000, 400), -10);
+});
+
+test('swipe motion is timed within 100 to 300 ms and drag is off when reduced motion is set', () => {
+    assert.doesNotMatch(src, /withSpring/);
+    assert.match(src, /const reduced = useReducedMotion\(\)/);
+    assert.match(src, /Gesture\.Pan\(\)\s*\.enabled\(!reduced\)/);
+    assert.match(src, /swipeDecision\(e\.translationX, width\)/);
+    const swipeOff = src.slice(src.indexOf('const swipeOff'), src.indexOf('const buttonsLocked'));
+    assert.match(swipeOff, /if \(reduced\) \{\s*advance\(liked\);/);
+    for (const m of src.matchAll(/duration: (\w+(\.\w+)?)/g)) assert.match(m[1], /^motion\.(instant|fast|base)$/, `duration ${m[1]}`);
+});
+
 test('a failed vote brings the card back and a solo vote resyncs without realtime', () => {
     const advance = src.slice(src.indexOf('const advance = async'), src.indexOf('const swipeOff'));
-    assert.match(advance, /catch \(err: any\) \{[\s\S]*translateX\.value = withSpring\(0\)/);
+    assert.match(advance, /catch \(err: any\) \{[\s\S]*translateX\.value = withTiming\(0, \{ duration: motion\.fast \}\)/);
     assert.match(advance, /if \(crewRef\.current\.length === 1\) load\(\)/);
     assert.doesNotMatch(src, /votingRoundRef/);
     assert.doesNotMatch(src, /setCrew\(\[\{ user_id: 'you'/);
