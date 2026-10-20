@@ -72,3 +72,31 @@ test('server source has no legacy Places API calls', () => {
     );
     assert.deepEqual(hits, []);
 });
+
+const DAY = 24 * 60 * 60_000;
+
+test('nearby searches stop at a daily ceiling below the Google cap and read as a quota error', async () => {
+    const { NEARBY_CALLS_PER_DAY } = await import('../src/services/places');
+    const { isGoogleQuotaError } = await import('../src/middleware/error');
+    mock.timers.reset();
+    mock.timers.enable({ apis: ['Date'], now: Date.now() + 10 * DAY });
+    try {
+        const post = mock.method(axios, 'post', async () => ({ data: { places: [newPlace] } }));
+        assert.ok(NEARBY_CALLS_PER_DAY < 300);
+        const cell = (i: number) => ({ latitude: 10 + (i % 100) * 0.01, longitude: 10 + Math.floor(i / 100) * 0.01 });
+        for (let i = 0; i < NEARBY_CALLS_PER_DAY; i++) await searchNearbyVenues(cell(i));
+        assert.equal(post.mock.callCount(), NEARBY_CALLS_PER_DAY);
+        const err = await searchNearbyVenues(cell(NEARBY_CALLS_PER_DAY)).then(() => null, (e) => e);
+        assert.equal(err?.code, 'venue_limit_reached');
+        assert.equal(isGoogleQuotaError(err), true);
+        assert.equal(post.mock.callCount(), NEARBY_CALLS_PER_DAY);
+        assert.equal((await searchNearbyVenues(cell(NEARBY_CALLS_PER_DAY - 1))).length, 1);
+        const rotated = await getVenuesWithRotation({ center: { latitude: -20, longitude: -20 } });
+        assert.equal(rotated.limited, true);
+        mock.timers.tick(DAY);
+        await searchNearbyVenues(cell(NEARBY_CALLS_PER_DAY + 1));
+        assert.equal(post.mock.callCount(), NEARBY_CALLS_PER_DAY + 1);
+    } finally {
+        mock.timers.reset();
+    }
+});

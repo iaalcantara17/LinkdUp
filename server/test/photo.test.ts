@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import express from 'express';
-import photoRoutes, { CACHE_TOTAL_BYTES, MAX_WIDTH, RATE_LIMIT } from '../src/routes/photo';
+import photoRoutes, { CACHE_TOTAL_BYTES, MAX_WIDTH, PHOTO_FETCHES_PER_DAY, PHOTO_FETCHES_PER_MINUTE, RATE_LIMIT, WIDTHS } from '../src/routes/photo';
 
 const KEY = process.env.GOOGLE_MAPS_API_KEY!;
 const realFetch = globalThis.fetch;
@@ -193,6 +193,72 @@ test('memory-cached photos expire after one hour', async () => {
     mock.timers.tick(2 * 60_000);
     await (await get(qs)).arrayBuffer();
     assert.ok(calls.length > first);
+});
+
+test('widths snap to fixed sizes so changing w reuses the cache', async () => {
+    const calls = mockGoogle();
+    const name = encodeURIComponent(newName());
+    assert.equal((await get(`name=${name}&w=401`)).status, 200);
+    assert.match(calls[0].url, /maxWidthPx=800(&|$)/);
+    const afterFirst = calls.length;
+    for (const w of ['799', '450', '800']) assert.equal((await get(`name=${name}&w=${w}`)).status, 200);
+    assert.equal((await get(`name=${name}`)).status, 200);
+    assert.equal(calls.length, afterFirst);
+    await (await get(`name=${name}&w=1`)).arrayBuffer();
+    assert.match(calls.at(-2)!.url, /maxWidthPx=400(&|$)/);
+    assert.deepEqual([...WIDTHS], [400, 800, 1200, 1600]);
+});
+
+const DAY = 24 * 60 * 60_000;
+const metaCalls = (calls: { url: string }[]) => calls.filter((c) => c.url.startsWith('https://places.googleapis.com/')).length;
+
+test('uncached fetches stop at the per-minute ceiling with a short-cached 429, and cached photos still load', async () => {
+    mock.timers.reset();
+    mock.timers.enable({ apis: ['Date'], now: Date.now() + 5 * DAY });
+    try {
+        const calls = mockGoogle();
+        const cached = `name=${encodeURIComponent(newName())}`;
+        assert.equal((await get(cached)).status, 200);
+        for (let i = 1; i < PHOTO_FETCHES_PER_MINUTE; i++) assert.equal((await get(`name=${encodeURIComponent(newName())}`)).status, 200);
+        const before = calls.length;
+        const limited = await get(`name=${encodeURIComponent(newName())}`);
+        assert.equal(limited.status, 429);
+        assert.equal((await limited.json()).error, 'photo_limit_reached');
+        assert.match(limited.headers.get('cache-control') ?? '', /max-age=(\d{1,3})(,|$)/);
+        assert.ok(Number(/max-age=(\d+)/.exec(limited.headers.get('cache-control')!)![1]) <= 300);
+        assert.equal(calls.length, before);
+        const hit = await get(cached);
+        assert.equal(hit.status, 200);
+        assert.deepEqual(Buffer.from(await hit.arrayBuffer()), IMG);
+        mock.timers.tick(61_000);
+        assert.equal((await get(`name=${encodeURIComponent(newName())}`)).status, 200);
+    } finally {
+        mock.timers.reset();
+    }
+});
+
+test('uncached fetches stop at the per-day ceiling below the Google cap until the day window resets', async () => {
+    mock.timers.reset();
+    mock.timers.enable({ apis: ['Date'], now: Date.now() + 10 * DAY });
+    try {
+        const calls = mockGoogle();
+        assert.ok(PHOTO_FETCHES_PER_DAY < 1000);
+        for (let i = 0; i < PHOTO_FETCHES_PER_DAY; i++) {
+            if (i > 0 && i % PHOTO_FETCHES_PER_MINUTE === 0) mock.timers.tick(61_000);
+            const res = await get(`name=${encodeURIComponent(newName())}`);
+            await res.arrayBuffer();
+            assert.equal(res.status, 200, `fetch ${i + 1}`);
+        }
+        mock.timers.tick(61_000);
+        const limited = await get(`name=${encodeURIComponent(newName())}`);
+        assert.equal(limited.status, 429);
+        assert.equal((await limited.json()).error, 'photo_limit_reached');
+        assert.equal(metaCalls(calls), PHOTO_FETCHES_PER_DAY);
+        mock.timers.tick(DAY);
+        assert.equal((await get(`name=${encodeURIComponent(newName())}`)).status, 200);
+    } finally {
+        mock.timers.reset();
+    }
 });
 
 test('per-IP rate limit returns 429', async () => {

@@ -14,6 +14,7 @@ export class HttpError extends Error {
 export const venueLimitReached = () => new HttpError(503, 'venue_limit_reached');
 
 export function isGoogleQuotaError(err: any): boolean {
+    if (err instanceof HttpError && err.code === 'venue_limit_reached') return true;
     const r = err?.response;
     const venueApi = /^https:\/\/(places|maps)\.googleapis\.com\//.test(String(err?.config?.url ?? ''));
     return venueApi && (r?.status === 429 || r?.data?.error?.status === 'RESOURCE_EXHAUSTED');

@@ -41,6 +41,27 @@ const PLACE_FIELDS = [
     'types',
 ];
 const FIELD_MASK = PLACE_FIELDS.map((f) => `places.${f}`).join(',');
+
+export const NEARBY_CALLS_PER_DAY = 250;
+export const TEXT_SEARCH_CALLS_PER_DAY = 250;
+const DAY_MS = 24 * 60 * 60_000;
+
+function dailyCeiling(limit: number) {
+    let count = 0;
+    let resetAt = 0;
+    return () => {
+        const now = Date.now();
+        if (resetAt <= now) {
+            count = 0;
+            resetAt = now + DAY_MS;
+        }
+        if (count >= limit) throw venueLimitReached();
+        count += 1;
+    };
+}
+
+const spendNearby = dailyCeiling(NEARBY_CALLS_PER_DAY);
+export const spendTextSearch = dailyCeiling(TEXT_SEARCH_CALLS_PER_DAY);
 function toCandidate(p: any): PlaceCandidate {
     const photoName = p.photos?.[0]?.name as string | undefined;
     return {
@@ -70,6 +91,7 @@ async function fetchNearby(center: LatLng, radiusMeters: number, includedTypes: 
         rankPreference: 'POPULARITY',
     };
 
+    spendNearby();
     const res = await axios.post(PLACES_NEARBY_URL, body, {
         headers: {
             'Content-Type': 'application/json',
@@ -221,7 +243,7 @@ export async function getVenuesWithRotation(params: VenueRotationParams): Promis
     try {
         fresh = (await nearbyVenues(center, radiusMeters, rotationTypes, rotationSeed)).filter((v) => !excludeIds.has(v.google_place_id));
     } catch (e: any) {
-        if (e instanceof HttpError) throw e;
+        if (e instanceof HttpError && !isGoogleQuotaError(e)) throw e;
         console.error('[venues-rotation] Places API error:', e?.response?.data ?? e?.message);
         if (isGoogleQuotaError(e)) return { venues: [], nextPageToken: null, newSeed: rotationSeed, exhausted: false, limited: true };
         return { venues: [], nextPageToken: null, newSeed: rotationSeed + 1, exhausted: rotationSeed + 1 >= ROTATION_COUNT };

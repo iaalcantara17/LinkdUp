@@ -45,25 +45,34 @@ Nothing changes in the project itself. Run `server/src/db/migrations/031_photo_p
 1. Billing → **Budgets & alerts** → budget for this project, **$5**, alerts at 50%, 90% and 100%.
 2. APIs & Services → each API → **Quotas** → set daily caps so a bug or a scraper can't run up a bill:
    - Places API (New), Nearby Search: **300/day**
+   - Places API (New), Text Search: **300/day**
    - Places API (New), Place Photos: **1,000/day**
    - Geocoding API: **100/day**
-3. Our side already helps: `/api/photo` keeps images in memory for up to 1 hour (24 MB max), sends `Cache-Control` for 7 days, and limits each IP to 120 requests a minute.
+3. Our side already helps:
+   - `/api/photo` snaps widths to 400, 800, 1200 or 1600 px, keeps images in memory for up to 1 hour (24 MB max), sends `Cache-Control` for 7 days, and limits each IP to 120 requests a minute. It stops fetching new photos from Google after 60 a minute or 800 a day. Past that it answers `429 photo_limit_reached`, cached for 60 seconds, and already-cached photos keep loading.
+   - The server makes at most 250 nearby searches and 250 place text searches a day. Past that it answers `venue_limit_reached`, the same as a Google quota error: Discover and party start show the popular spots, and load-more and place search show the "venue limit reached" message.
+   - Each account can make 20 Discover venue requests (`/venues`, `/venues/more`) and 40 place searches a minute.
+   - These counters live in server memory, so they restart when Render sleeps or redeploys. Google's own daily caps above are still the hard limit.
 
 ### What the server caches, and why
 
-To stay within the Google Places terms, the server keeps venue data only briefly in memory:
+What the server keeps, and where:
 
 - **Supabase `google_cache` table** (migration 035, server-only, RLS on with no client access): geocoded cities only, as latitude, longitude and the city name the user typed, kept 24 hours. Older rows are deleted in small batches whenever the server writes a new row.
 - **Server memory only** (lost when Render sleeps): nearby venue lists for 15 minutes (up to 100 searches) and photo bytes for 1 hour. When a list is not in memory the server runs the nearby search again. If Google is over quota at that point, the app shows the "venue limit reached" message.
-- **Never stored in Supabase**: place IDs, venue names, addresses, ratings, prices, photos or photo names, or anyone's exact location.
+- **Stored in Supabase for as long as the party or like exists:**
+  - Each party's swipe cards in `locations`: place ID, name, address, coordinates, rating, rating count, price level, category and the `/api/photo?name=...` link, which contains the Google photo name.
+  - Discover likes in `discover_likes`, with the same fields.
+  - Feed posts store the venue name, address, coordinates and place ID the poster picked.
+- **Exact locations stored in Supabase:** each member's live and custom location in `party_members` (readable only by that member and the server), and each user's last location in `users.latitude` and `users.longitude` (server only). Other people only ever get fuzzed, rounded positions from the API.
 
-Please confirm this still matches Google's rules before launch: [Places API policies](https://developers.google.com/maps/documentation/places/web-service/policies).
+Please confirm the stored venue fields still match Google's rules: [Places API policies](https://developers.google.com/maps/documentation/places/web-service/policies).
 
 ## 6. Free-tier sleep
 
 Render's free web services go to sleep after about 15 minutes with no traffic. The first request after that takes around a minute while it wakes up, so open `/healthz` a minute before a demo. Sleeping also wipes the in-memory photo and venue caches and rate limit counters, which is fine.
 
-Supabase's free plan pauses a project after about a week with no database activity. `GET /api/health/db` runs one tiny query and returns `{"ok":true}` (no login, no data, limited to 10 calls a minute per IP). The **Keep alive** GitHub Action (`.github/workflows/keepalive.yml`) calls `/healthz` and `/api/health/db` every Monday at 13:00 UTC to keep both awake. It retries a few times while Render wakes up and fails the run if either one doesn't return 200 within 90 seconds. Run it by hand from **Actions → Keep alive → Run workflow** before a demo. It needs no secrets.
+Supabase's free plan pauses a project after about a week with no database activity. `GET /api/health/db` runs one tiny query and returns `{"ok":true}` (no login, no data, limited to 10 calls a minute per IP). The **Keep alive** GitHub Action (`.github/workflows/keepalive.yml`) calls `/healthz` and `/api/health/db` every Monday and Thursday at 13:00 UTC to keep both awake, so the longest gap is 4 days. It retries a few times while Render wakes up and fails the run if either one doesn't return 200 within 90 seconds. Run it by hand from **Actions → Keep alive → Run workflow** before a demo. It needs no secrets.
 
 GitHub turns off scheduled workflows after 60 days with no activity in the repo. If that happens, Actions shows a banner on the workflow. Click **Enable workflow**, or push any commit, to turn it back on.
 
@@ -105,7 +114,7 @@ Notes:
 - The demo password stays on Render. It is never sent to the browser or logged. If a visitor changes it through Supabase directly, the next **Try the demo** resets it, but only when the stored UID and email match.
 - `POST /api/auth/demo` is limited to 10 tries per IP every 15 minutes.
 - Demo photos and avatars are static files in `mobile/public/demo/`, served by Vercel. They don't use `/api/photo`.
-- Only the demo account sees demo data. For everyone else the server hides the demo user and everyone the demo user follows from the feed, friends, requests, friend search, followers and following lists, and Discover parties.
+- Only the demo account sees demo data. For everyone else the server hides the demo user and everyone the demo user follows from the feed, friends, Follow back, friend search, followers and following lists, and Discover parties.
 - To turn demo mode off, delete `DEMO_USER_ID` on Render.
 
 ## 8. Reports

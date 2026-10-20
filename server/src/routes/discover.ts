@@ -1,9 +1,10 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import axios from 'axios';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { rateLimit } from '../middleware/rateLimit';
 import { HttpError, isGoogleQuotaError, venueLimitReached } from '../middleware/error';
 import { supabaseAdmin } from '../db';
-import { searchNearbyVenues, getVenuesWithRotation, PlaceCandidate } from '../services/places';
+import { searchNearbyVenues, getVenuesWithRotation, PlaceCandidate, spendTextSearch } from '../services/places';
 import { generateVenuePitch, FALLBACK_PITCH } from '../services/aiPitch';
 import { distanceMiles, LatLng } from '../services/midpoint';
 import { fuzzedLocation, MEMBER_LOCATION_COLUMNS } from '../services/memberLocation';
@@ -13,6 +14,13 @@ import { fallbackVenues, isFallbackVenueName } from '../services/fallbackVenues'
 import { friendIds } from '../services/follows';
 
 const router = Router();
+
+export const DISCOVER_VENUES_LIMIT = 20;
+export const DISCOVER_SEARCH_LIMIT = 40;
+const perUser = (req: Request) => (req as AuthedRequest).user?.id;
+const venuesLimit = rateLimit(DISCOVER_VENUES_LIMIT, 60_000, perUser);
+const moreLimit = rateLimit(DISCOVER_VENUES_LIMIT, 60_000, perUser);
+const searchLimit = rateLimit(DISCOVER_SEARCH_LIMIT, 60_000, perUser);
 
 const NEARBY_PARTY_RADIUS_MILES = 50;
 
@@ -33,7 +41,7 @@ async function storedVenues(userId: string): Promise<PlaceCandidate[]> {
     return [...new Map((data ?? []).map((v: any) => [v.google_place_id, v as PlaceCandidate])).values()].slice(0, 20);
 }
 
-router.get('/venues', requireAuth, async (req: AuthedRequest, res, next) => {
+router.get('/venues', requireAuth, venuesLimit, async (req: AuthedRequest, res, next) => {
     try {
         const lat = parseFloat(req.query.lat as string);
         const lng = parseFloat(req.query.lng as string);
@@ -63,7 +71,7 @@ router.get('/venues', requireAuth, async (req: AuthedRequest, res, next) => {
     }
 });
 
-router.get('/venues/more', requireAuth, async (req: AuthedRequest, res, next) => {
+router.get('/venues/more', requireAuth, moreLimit, async (req: AuthedRequest, res, next) => {
     try {
         const lat = parseFloat(req.query.lat as string);
         const lng = parseFloat(req.query.lng as string);
@@ -274,7 +282,7 @@ router.get('/likes', requireAuth, async (req: AuthedRequest, res, next) => {
     } catch (e) { next(e); }
 });
 
-router.get('/places/search', requireAuth, async (req: AuthedRequest, res, next) => {
+router.get('/places/search', requireAuth, searchLimit, async (req: AuthedRequest, res, next) => {
     try {
         const q = (req.query.q as string | undefined)?.trim();
         if (!q) throw new HttpError(400, 'missing_query');
@@ -289,6 +297,7 @@ router.get('/places/search', requireAuth, async (req: AuthedRequest, res, next) 
             };
         }
 
+        spendTextSearch();
         const response = await axios.post(
             'https://places.googleapis.com/v1/places:searchText',
             body,
@@ -298,6 +307,7 @@ router.get('/places/search', requireAuth, async (req: AuthedRequest, res, next) 
                     'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location',
                     'Content-Type': 'application/json',
                 },
+                timeout: 10_000,
             }
         );
 

@@ -6,9 +6,13 @@ const router = Router();
 const NAME_RE = /^places\/[A-Za-z0-9_-]{1,256}\/photos\/[A-Za-z0-9_-]{1,1024}$/;
 const WIDTH_RE = /^\d{1,5}$/;
 const ALLOWED_PARAMS = new Set(['name', 'w']);
+export const WIDTHS = [400, 800, 1200, 1600] as const;
 export const MAX_WIDTH = 1600;
 const DEFAULT_WIDTH = 800;
 export const RATE_LIMIT = 120;
+export const PHOTO_FETCHES_PER_MINUTE = 60;
+export const PHOTO_FETCHES_PER_DAY = 800;
+const LIMITED_MAX_AGE_S = 60;
 const RATE_WINDOW_MS = 60_000;
 const CACHE_MAX_ENTRIES = 300;
 const CACHE_MAX_BYTES = 2 * 1024 * 1024;
@@ -20,6 +24,23 @@ type Photo = { type: string; body: Buffer };
 const cache = new Map<string, Photo & { expiresAt: number }>();
 let cachedBytes = 0;
 const hits = new Map<string, { count: number; resetAt: number }>();
+const budgets = [
+    { limit: PHOTO_FETCHES_PER_MINUTE, ms: 60_000, count: 0, resetAt: 0 },
+    { limit: PHOTO_FETCHES_PER_DAY, ms: 24 * 60 * 60_000, count: 0, resetAt: 0 },
+];
+
+function spendFetch(): boolean {
+    const now = Date.now();
+    for (const b of budgets) {
+        if (b.resetAt <= now) {
+            b.count = 0;
+            b.resetAt = now + b.ms;
+        }
+        if (b.count >= b.limit) return false;
+    }
+    for (const b of budgets) b.count += 1;
+    return true;
+}
 
 function rateLimited(ip: string): boolean {
     const now = Date.now();
@@ -38,7 +59,7 @@ function parseQuery(query: Record<string, unknown>): { name: string; width: numb
     const { name, w } = query;
     if (w !== undefined && (typeof w !== 'string' || !WIDTH_RE.test(w) || Number(w) < 1)) return null;
     if (typeof name !== 'string' || !NAME_RE.test(name)) return null;
-    return { name, width: w === undefined ? DEFAULT_WIDTH : Math.min(Number(w), MAX_WIDTH) };
+    return { name, width: w === undefined ? DEFAULT_WIDTH : WIDTHS.find((s) => s >= Number(w)) ?? MAX_WIDTH };
 }
 
 async function fetchPhotoUri(name: string, width: number): Promise<{ uri: string }> {
@@ -102,6 +123,11 @@ router.get('/', async (req, res) => {
     sweepExpired();
     let entry: Photo | undefined = cache.get(cacheKey);
     if (!entry) {
+        if (!spendFetch()) {
+            res.set({ 'Cache-Control': `public, max-age=${LIMITED_MAX_AGE_S}`, 'Retry-After': String(LIMITED_MAX_AGE_S) });
+            res.status(429).json({ error: 'photo_limit_reached', message: 'Photos are paused for a moment. Try again soon.' });
+            return;
+        }
         try {
             entry = await fetchFromGoogle(parsed.name, parsed.width);
         } catch (e: any) {

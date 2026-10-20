@@ -55,11 +55,11 @@ The web app talks to Supabase directly for sign-in, realtime subscriptions and p
 
 Key decisions:
 
-- **Photo proxy.** Venue photos load through `GET /api/photo`, so the Google Maps key stays on the server and never reaches the browser. The proxy validates the photo name, rate limits each IP, and caches bytes in memory.
-- **Row level security with a service-role API.** RLS is on for every app table, open and unused policies were dropped, and realtime tables allow members-only reads. The API uses the service role and checks party membership and host ownership itself.
+- **Photo proxy.** Venue photos load through `GET /api/photo`, so the Google Maps key stays on the server and never reaches the browser. The proxy validates the photo name, snaps widths to 400, 800, 1200 or 1600, rate limits each IP, caches bytes in memory, and caps uncached fetches at 60 a minute and 800 a day.
+- **Row level security with a service-role API.** RLS is on for every app table and open and unused policies were dropped. Realtime tables allow members-only reads, except `party_members`, where each person can read only their own row because it holds exact coordinates. The API uses the service role and checks party membership and host ownership itself.
 - **Locked-step voting.** The party tracks the current card and voting round, so all members see the same card and advance together. A proposal step turns the top venue into a Link.
 - **Location privacy.** Coordinates are fuzzed with an offset keyed on a server secret, distances are rounded, and the midpoint is computed from fuzzed points.
-- **Google cost limits.** Daily quotas are set on each Google API, and quota errors become a friendly "venue limit reached" message. Nearby searches are cached in memory for 15 minutes and photos for 1 hour. Geocoded cities are cached for 24 hours in a server-only table.
+- **Google cost limits.** Daily quotas are set on each Google API, and the server stops itself below them: at most 250 nearby searches and 250 place text searches a day, plus per-user limits on the Discover routes. Hitting either limit gives the same friendly "venue limit reached" message as a Google quota error. Nearby searches are cached in memory for 15 minutes and photos for 1 hour. Geocoded cities are cached for 24 hours in a server-only table.
 - **Read-only demo.** One shared demo account. The server refuses its writes with `403 demo_read_only`, serves Discover and swipe cards from stored rows so it spends no Google quota, and hides demo users from everyone else.
 
 ## Tech stack
@@ -100,9 +100,9 @@ Latest local runs on this branch:
 
 | Suite | Command | Result |
 |---|---|---|
-| Server | `cd server && npm test` | 254 passed, 0 failed |
-| Mobile logic | `cd mobile && npm run test:logic` | 193 passed, 0 failed |
-| Mobile screens | `cd mobile && npm run test:screens` | 78 passed, 0 failed |
+| Server | `cd server && npm test` | 319 passed, 0 failed |
+| Mobile logic | `cd mobile && npm run test:logic` | 214 passed, 0 failed |
+| Mobile screens | `cd mobile && npm run test:screens` | 126 passed, 0 failed |
 
 CI runs on every pull request and every push to `main`. For both the server and the mobile app it runs typecheck, tests with coverage (posted to the job summary), and a build.
 
@@ -113,12 +113,12 @@ Security fixes made during the project:
 - Signed, expiring OAuth state for Google Calendar
 - Removed the Maps key from stored photo URLs and moved photos behind the server proxy
 - Location fuzzing keyed on a server secret, with rounded distances
-- Per-IP rate limits on auth, join, school lookup, username check, photos and demo sign-in
+- Per-IP rate limits on auth, join, school lookup, username check, photos and demo sign-in, and per-user limits on Discover venue and place searches
 - Whitelisted friend search characters and rejected non-UUID ids
 - Image-only upload extensions
 - Internal error messages hidden from 500 responses
 - `CORS_ORIGIN` required in production
-- Input validation and write caps before any Google or cache call
+- Input validation before Google calls, daily ceilings below each Google cap, and write caps on the cache table
 
 ## Run locally
 
