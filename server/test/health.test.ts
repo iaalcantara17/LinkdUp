@@ -1,6 +1,7 @@
 import './env';
 import { test, mock, before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import healthRoutes, { HEALTH_DB_LIMIT } from '../src/routes/health';
 import { mockSupabase, serve, realFetch } from './supabaseMock';
@@ -36,4 +37,15 @@ test('db health is rate limited', async () => {
         await last.arrayBuffer();
     }
     assert.equal(last!.status, 429);
+});
+
+test('keep-alive runs at least twice a week so Supabase never nears its 7-day pause', () => {
+    const yml = readFileSync(new URL('../../.github/workflows/keepalive.yml', import.meta.url), 'utf8');
+    const cron = /cron:\s*'([^']+)'/.exec(yml)![1].split(/\s+/);
+    assert.equal(cron.length, 5);
+    const days = cron[4].split(',').map(Number).sort((a, b) => a - b);
+    const gaps = days.map((d, i) => ((days[(i + 1) % days.length] - d + 7) % 7) || 7);
+    assert.ok(days.length >= 2, `runs on ${days.length} day(s) a week`);
+    assert.ok(Math.max(...gaps) <= 4, `longest gap is ${Math.max(...gaps)} days`);
+    assert.match(yml, /workflow_dispatch/);
 });
