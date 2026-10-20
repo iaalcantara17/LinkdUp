@@ -156,6 +156,7 @@ export function Chip({ label, selected, onPress, icon, role = 'tab', style }: { 
             accessibilityRole={role}
             accessibilityState={role === 'radio' ? { checked: selected } : { selected }}
             aria-checked={role === 'radio' ? selected : undefined}
+            aria-selected={role === 'tab' ? selected : undefined}
             onPress={onPress}
             style={[styles.chip, selected && styles.chipOn, style]}
         >

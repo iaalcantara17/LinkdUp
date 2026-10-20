@@ -4,7 +4,7 @@ import { Chip, ScreenHeader, Tap } from '../components/kit';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Maximize2, Share2 } from '../components/icons';
+import { Maximize2, Share2, UserPlus } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import JoinQr from '../components/JoinQr';
 import { joinUrl } from '../services/joinLink';
@@ -207,11 +207,26 @@ export default function PartyLobbyScreen() {
                                 <Text style={styles.inviteHint}>
                                     Share your party code with friends — they can join in LinkdUp with this code.
                                 </Text>
-                                <GlassCard style={{ marginBottom: 16, alignItems: 'center' }}>
-                                    <Text style={styles.codeLabel}>CODE</Text>
+                                <GlassCard style={{ marginBottom: 24, alignItems: 'center' }}>
+                                    <Text style={styles.codeLabel}>JOIN CODE</Text>
                                     <Tap onPress={handleCopy} accessibilityLabel={`Copy join code ${code ?? ''}`} activeOpacity={0.8}>
                                         <Text style={styles.code}>{code ?? '------'}</Text>
                                     </Tap>
+                                    <Text style={styles.tapHint}>tap to copy</Text>
+                                    {code ? (
+                                        <View style={styles.qr}>
+                                            <JoinQr value={link} label={`QR code to join with ${code}`} />
+                                            <Text style={styles.tapHint}>Friends can scan to join</Text>
+                                        </View>
+                                    ) : null}
+                                    <GradientButton
+                                        title="Share"
+                                        variant="ghost"
+                                        onPress={handleShare}
+                                        disabled={!code}
+                                        leftIcon={<Share2 size={18} color={colors.textPrimary} />}
+                                        style={styles.shareBtn}
+                                    />
                                 </GlassCard>
                                 <Text style={styles.crewLabel}>Your friends</Text>
                                 {friendsList.length === 0 ? (
@@ -230,26 +245,21 @@ export default function PartyLobbyScreen() {
                         {lobbyTab === 'party' && (
                         <>
                         <View ref={codeCardRef}>
-                        <GlassCard style={{ marginVertical: 24, alignItems: 'center' }}>
-                            <Text style={styles.codeLabel}>JOIN CODE</Text>
-                            <Tap onPress={handleCopy} accessibilityLabel={`Copy join code ${code ?? ''}`} activeOpacity={0.8}>
-                                <Text style={styles.code}>{code ?? '------'}</Text>
-                            </Tap>
-                            <Text style={styles.tapHint}>tap to copy</Text>
-                            {code ? (
-                                <View style={styles.qr}>
-                                    <JoinQr value={link} label={`QR code to join with ${code}`} />
-                                    <Text style={styles.tapHint}>Friends can scan to join</Text>
-                                </View>
-                            ) : null}
-                            <GradientButton
-                                title="Share"
-                                variant="ghost"
-                                onPress={handleShare}
-                                disabled={!code}
-                                leftIcon={<Share2 size={18} color={colors.textPrimary} />}
-                                style={styles.shareBtn}
-                            />
+                        <GlassCard style={{ marginVertical: 24 }} padding={16}>
+                            <View style={styles.codeRow}>
+                                <Tap onPress={handleCopy} accessibilityLabel={`Copy join code ${code ?? ''}`} activeOpacity={0.8} style={{ flex: 1 }}>
+                                    <Text style={styles.codeLabel}>JOIN CODE</Text>
+                                    <Text style={styles.codeCompact}>{code ?? '------'}</Text>
+                                    <Text style={[styles.tapHint, { marginTop: 4 }]}>tap to copy</Text>
+                                </Tap>
+                                <GradientButton
+                                    title="Invite"
+                                    variant="ghost"
+                                    size="md"
+                                    onPress={() => setLobbyTab('invite')}
+                                    leftIcon={<UserPlus size={18} color={colors.textPrimary} />}
+                                />
+                            </View>
                         </GlassCard>
                         </View>
 
@@ -389,6 +399,8 @@ function makeStyles(c: AppColors, r: ColorRoles) {
         code: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 48, letterSpacing: 8 },
         tapHint: { color: c.text40, fontSize: 11, marginTop: 8, fontFamily: 'Inter_400Regular' },
         qr: { alignItems: 'center', marginTop: 16 },
+        codeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+        codeCompact: { color: c.textPrimary, fontFamily: 'Inter_900Black', fontSize: 28, letterSpacing: 4 },
         shareBtn: { alignSelf: 'stretch', marginTop: 16 },
         crewLabel: { color: c.textPrimary, fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 16 },
         crew: { flexDirection: 'row', flexWrap: 'wrap' },
