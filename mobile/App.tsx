@@ -28,11 +28,12 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') installWebMotion(d
 if (Platform.OS === 'web') inject();
 
 const linking: LinkingOptions<any> = {
-    prefixes: ['linkdup://', 'http://localhost:8081', 'exp://'],
+    prefixes: ['linkdup://', 'https://linkdup.app', 'http://localhost:8081', 'exp://'],
     config: {
         screens: {
             AuthCallback: 'auth-callback',
             CompleteProfile: 'complete-profile',
+            JoinParty: 'join/:code?',
         },
     },
 };

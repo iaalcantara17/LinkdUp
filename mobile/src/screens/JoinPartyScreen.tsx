@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { ScreenHeader, Tap } from '../components/kit';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowRight } from '../components/icons';
 import GradientButton from '../components/GradientButton';
 import { api } from '../services/api';
+import { cleanCode } from '../services/joinLink';
 import { errorText, showError } from '../components/dialogs';
 import { typography, radii, motion } from '../theme';
 import type { AppColors } from '../theme';
@@ -14,10 +15,11 @@ import { useTheme } from '../context/ThemeContext';
 
 export default function JoinPartyScreen() {
     const nav = useNavigation<any>();
+    const route = useRoute<any>();
     const { colors, roles } = useTheme();
     const styles = useMemo(() => makeStyles(colors), [colors]);
 
-    const [code, setCode] = useState('');
+    const [code, setCode] = useState(() => cleanCode(String(route.params?.code ?? '')));
     const [loading, setLoading] = useState(false);
 
     const handleJoin = () => {
@@ -43,7 +45,7 @@ export default function JoinPartyScreen() {
     return (
         <View style={styles.root}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                <ScreenHeader title="Join a Party" onBack={() => nav.goBack()} />
+                <ScreenHeader title="Join a Party" onBack={() => (nav.canGoBack() ? nav.goBack() : nav.replace('Home'))} />
 
                 <Animated.View entering={FadeInDown.duration(motion.base)} style={styles.content}>
                     <Text style={styles.title}>Enter the code</Text>
@@ -52,7 +54,7 @@ export default function JoinPartyScreen() {
                     <TextInput
                         style={styles.codeInput}
                         value={code}
-                        onChangeText={(t) => setCode(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                        onChangeText={(t) => setCode(cleanCode(t))}
                         autoCapitalize="characters"
                         maxLength={6}
                         placeholder="ABCDEF"

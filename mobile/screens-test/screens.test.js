@@ -7,6 +7,7 @@ import * as fx from './fixtures';
 import HomeScreen from '../src/screens/HomeScreen';
 import FriendsScreen from '../src/screens/FriendsScreen';
 import PartyLobbyScreen from '../src/screens/PartyLobbyScreen';
+import JoinPartyScreen from '../src/screens/JoinPartyScreen';
 import SwipeScreen from '../src/screens/SwipeScreen';
 import DiscoverScreen from '../src/screens/DiscoverScreen';
 import ProfileScreen from '../src/screens/ProfileScreen';
@@ -112,6 +113,14 @@ describe('Home', () => {
         await show(HomeScreen, { myParties: [] });
         screen.getByText('No parties yet');
         screen.getByText(/join one with a code/);
+    });
+
+    test('a join link saved before sign-in opens the Join screen once', async () => {
+        sessionStorage.setItem('linkdup_join_code', 'ABC234');
+        global.__navigation.navigate.mockClear();
+        await show(HomeScreen);
+        expect(global.__navigation.navigate).toHaveBeenCalledWith('JoinParty', { code: 'ABC234' });
+        expect(sessionStorage.getItem('linkdup_join_code')).toBeNull();
     });
 
     test('loaded shows the party, its location source and online friends', async () => {
@@ -454,11 +463,83 @@ describe('PartyLobby', () => {
         }
     });
 
-    test('the back arrow and join code share are named buttons and Invite friends is a tab', async () => {
+    test('the back arrow, join code and Share are named buttons and Invite friends is a tab', async () => {
         await show(PartyLobbyScreen);
         button(/back/i);
         screen.getByRole('tab', { name: 'Invite friends' });
-        button(/ABC234|share/i);
+        button('Copy join code ABC234');
+        button('Share');
+    });
+
+    describe('sharing the join code', () => {
+        const nav = global.navigator;
+        const original = { share: nav.share, clipboard: nav.clipboard };
+        let writeText;
+        beforeEach(() => {
+            writeText = jest.fn(async () => {});
+            Object.defineProperty(nav, 'clipboard', { value: { writeText }, configurable: true });
+            Object.defineProperty(nav, 'share', { value: undefined, configurable: true });
+            for (const t of dialogs.getSnapshot().toasts) dialogs.dismissToast(t.id);
+        });
+        afterEach(() => {
+            Object.defineProperty(nav, 'clipboard', { value: original.clipboard, configurable: true });
+            Object.defineProperty(nav, 'share', { value: original.share, configurable: true });
+        });
+        const toasts = () => dialogs.getSnapshot().toasts.map((t) => t.message);
+
+        test('tapping the code copies it and says Code copied', async () => {
+            await show(PartyLobbyScreen);
+            fireEvent.click(button('Copy join code ABC234'));
+            await settle();
+            expect(writeText).toHaveBeenCalledWith('ABC234');
+            expect(toasts()).toContain('Code copied');
+        });
+
+        test('Share uses the Web Share API with the join link when the browser has it', async () => {
+            const share = jest.fn(async () => {});
+            Object.defineProperty(nav, 'share', { value: share, configurable: true });
+            await show(PartyLobbyScreen);
+            fireEvent.click(button('Share'));
+            await settle();
+            expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost/join/ABC234' }));
+            expect(writeText).not.toHaveBeenCalled();
+        });
+
+        test('Share without the Web Share API copies the invite and says Code copied', async () => {
+            await show(PartyLobbyScreen);
+            fireEvent.click(button('Share'));
+            await settle();
+            expect(writeText).toHaveBeenCalledWith(expect.stringContaining('ABC234'));
+            expect(writeText).toHaveBeenCalledWith(expect.stringContaining('http://localhost/join/ABC234'));
+            expect(toasts()).toContain('Code copied');
+        });
+
+        test('cancelling the share sheet does not copy', async () => {
+            const share = jest.fn(async () => { throw Object.assign(new Error('cancel'), { name: 'AbortError' }); });
+            Object.defineProperty(nav, 'share', { value: share, configurable: true });
+            await show(PartyLobbyScreen);
+            fireEvent.click(button('Share'));
+            await settle();
+            expect(writeText).not.toHaveBeenCalled();
+        });
+    });
+
+    test('the lobby shows a QR code of the join link', async () => {
+        await show(PartyLobbyScreen);
+        const qr = screen.getByRole('img', { name: 'QR code to join with ABC234' });
+        expect(qr.querySelector('path')).not.toBeNull();
+    });
+});
+
+describe('JoinParty', () => {
+    test('a join link opens with the code prefilled', async () => {
+        await show(JoinPartyScreen, {}, { code: 'abc234' });
+        expect(screen.getByPlaceholderText('ABCDEF').value).toBe('ABC234');
+    });
+
+    test('without a link the code starts empty', async () => {
+        await show(JoinPartyScreen, {}, undefined);
+        expect(screen.getByPlaceholderText('ABCDEF').value).toBe('');
     });
 });
 

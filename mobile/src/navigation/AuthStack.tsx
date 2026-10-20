@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { rememberJoin, webSession } from '../services/joinLink';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import AuthCallbackScreen from '../screens/AuthCallbackScreen';
@@ -15,6 +17,9 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export default function AuthStack() {
     const { colors } = useTheme();
+    useEffect(() => {
+        if (Platform.OS === 'web' && typeof location !== 'undefined') rememberJoin(location.pathname, webSession());
+    }, []);
     return (
         <Stack.Navigator
             screenOptions={{

@@ -19,6 +19,7 @@ import AnchoredHint from '../components/AnchoredHint';
 import UserProfileSheet from '../components/UserProfileSheet';
 import { api, MyLocation } from '../services/api';
 import { latestOnly } from '../hooks/latestOnly';
+import { takeJoin, webSession } from '../services/joinLink';
 import { listView } from '../hooks/listView';
 import { locationSourceLabel } from '../services/locationChoice';
 import DialogHost from '../components/DialogHost';
@@ -286,6 +287,11 @@ export default function HomeScreen() {
     }, [syncFromProfile, latestLoad]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
+
+    useEffect(() => {
+        const code = takeJoin(webSession());
+        if (code) nav.navigate('JoinParty', { code });
+    }, []);
 
     const retryLoad = useCallback(() => {
         setLoadError(null);
