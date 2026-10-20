@@ -475,12 +475,35 @@ describe('PartyLobby', () => {
         }
     });
 
-    test('the back arrow, join code and Share are named buttons and Invite friends is a tab', async () => {
+    async function showInvite() {
+        await show(PartyLobbyScreen);
+        fireEvent.click(screen.getByRole('tab', { name: 'Invite friends' }));
+        await settle();
+    }
+
+    test('the Party tab keeps a compact join code and an Invite button, without the QR code or Share', async () => {
         await show(PartyLobbyScreen);
         button(/back/i);
         screen.getByRole('tab', { name: 'Invite friends' });
         button('Copy join code ABC234');
+        button('Invite');
+        expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
+        expect(screen.queryByRole('img', { name: 'QR code to join with ABC234' })).toBeNull();
+        expect(screen.queryByText('Friends can scan to join')).toBeNull();
+    });
+
+    test('Invite opens the Invite friends tab with the code, QR code, scan line, Share and friends list', async () => {
+        await show(PartyLobbyScreen);
+        fireEvent.click(button('Invite'));
+        await settle();
+        expect(screen.getByRole('tab', { name: 'Invite friends' }).getAttribute('aria-selected')).toBe('true');
+        expect(screen.getAllByRole('button', { name: 'Copy join code ABC234' })).toHaveLength(1);
+        screen.getByRole('img', { name: 'QR code to join with ABC234' });
+        screen.getByText('Friends can scan to join');
         button('Share');
+        screen.getByText('Your friends');
+        expect(screen.queryByText('CODE')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Invite' })).toBeNull();
     });
 
     describe('sharing the join code', () => {
@@ -499,8 +522,8 @@ describe('PartyLobby', () => {
         });
         const toasts = () => dialogs.getSnapshot().toasts.map((t) => t.message);
 
-        test('tapping the code copies it and says Code copied', async () => {
-            await show(PartyLobbyScreen);
+        test.each([['Party', show.bind(null, PartyLobbyScreen)], ['Invite friends', showInvite]])('tapping the code on the %s tab copies it and says Code copied', async (_, open) => {
+            await open();
             fireEvent.click(button('Copy join code ABC234'));
             await settle();
             expect(writeText).toHaveBeenCalledWith('ABC234');
@@ -510,7 +533,7 @@ describe('PartyLobby', () => {
         test('Share uses the Web Share API with the join link when the browser has it', async () => {
             const share = jest.fn(async () => {});
             Object.defineProperty(nav, 'share', { value: share, configurable: true });
-            await show(PartyLobbyScreen);
+            await showInvite();
             fireEvent.click(button('Share'));
             await settle();
             expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost/join/ABC234' }));
@@ -518,7 +541,7 @@ describe('PartyLobby', () => {
         });
 
         test('Share without the Web Share API copies the invite and says Code copied', async () => {
-            await show(PartyLobbyScreen);
+            await showInvite();
             fireEvent.click(button('Share'));
             await settle();
             expect(writeText).toHaveBeenCalledWith(expect.stringContaining('ABC234'));
@@ -529,15 +552,15 @@ describe('PartyLobby', () => {
         test('cancelling the share sheet does not copy', async () => {
             const share = jest.fn(async () => { throw Object.assign(new Error('cancel'), { name: 'AbortError' }); });
             Object.defineProperty(nav, 'share', { value: share, configurable: true });
-            await show(PartyLobbyScreen);
+            await showInvite();
             fireEvent.click(button('Share'));
             await settle();
             expect(writeText).not.toHaveBeenCalled();
         });
     });
 
-    test('the lobby shows a QR code of the join link', async () => {
-        await show(PartyLobbyScreen);
+    test('the Invite friends tab shows a QR code of the join link', async () => {
+        await showInvite();
         const qr = screen.getByRole('img', { name: 'QR code to join with ABC234' });
         expect(qr.querySelector('path')).not.toBeNull();
     });

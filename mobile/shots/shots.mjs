@@ -16,6 +16,7 @@ const p1 = { partyId: 'p1' };
 const screens = [
     ['Home', null],
     ['PartyLobby', ['PartyLobby', p1]],
+    ['PartyLobbyInvite', ['PartyLobby', p1], { tab: 'Invite friends' }],
     ['Swipe', ['Swipe', p1]],
     ['Match', ['Match', p1]],
     ['CalendarConfirmation', ['CalendarConfirmation', p1]],
@@ -119,6 +120,7 @@ async function shoot(browser, base, [name, route, opts = {}], theme, width) {
         }, route);
         await page.waitForLoadState('networkidle');
     }
+    if (opts.tab) await page.getByRole('tab', { name: opts.tab }).click();
     await page.waitForTimeout(1500);
     await page.screenshot({ path: join(out, `${name}-${theme}-${width}.png`) });
     await context.close();
