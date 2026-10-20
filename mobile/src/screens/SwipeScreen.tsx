@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, Dimensions, Modal, ActivityIndicator, Platform, Share } from 'react-native';
-import { ScreenHeader, Tap } from '../components/kit';
+import { ScreenHeader, Tap, useReducedMotion } from '../components/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -8,18 +8,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
-    interpolate,
-    withSpring,
     withTiming,
     runOnJS,
-    Extrapolation,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { X, Heart, MapPin, Info, Star, Check } from '../components/icons';
 import { api, photoUri } from '../services/api';
 import { errorText } from '../components/dialogs';
 import { LoadError, SlowLoadNote } from '../components/LoadState';
-import { deckProgress, sortDeck, turnLabel } from '../services/swipeDeck';
+import { cardTilt, deckProgress, sortDeck, stampOpacity, swipeDecision, turnLabel } from '../services/swipeDeck';
 import { supabase } from '../services/supabase';
 import HelpButton from '../components/HelpButton';
 import FirstVisitHint from '../components/FirstVisitHint';
@@ -40,7 +37,6 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
-const SWIPE_THRESHOLD = width * 0.25;
 
 interface Venue {
     id: string;
@@ -100,6 +96,7 @@ export default function SwipeScreen() {
     const partyId: string = route.params?.partyId ?? 'demo';
     const { colors, roles, isDark } = useTheme();
     const { isDemo: readOnly } = useAuth();
+    const reduced = useReducedMotion();
     const styles = useMemo(() => makeStyles(colors, roles), [colors, roles]);
     const isDemo = partyId === 'demo';
 
@@ -506,8 +503,8 @@ export default function SwipeScreen() {
                 }
                 if (crewRef.current.length === 1) load();
             } catch (err: any) {
-                translateX.value = withSpring(0);
-                translateY.value = withSpring(0);
+                translateX.value = withTiming(0, { duration: motion.fast });
+                translateY.value = withTiming(0, { duration: motion.fast });
                 console.warn('[swipe] vote failed', err?.message);
                 if (!isDemo) {
                     setCurrentVoteState(false, serverIndexRef.current);
@@ -541,6 +538,10 @@ export default function SwipeScreen() {
 
     const swipeOff = (direction: 'left' | 'right') => {
         const liked = direction === 'right';
+        if (reduced) {
+            advance(liked);
+            return;
+        }
         translateX.value = withTiming(direction === 'right' ? width * 1.5 : -width * 1.5, { duration: motion.fast }, () => {
             runOnJS(advance)(liked);
         });
@@ -549,6 +550,7 @@ export default function SwipeScreen() {
     const buttonsLocked = readOnly || (!isDemo && hasVotedCurrentCard && votedCardIndexRef.current === serverIndex);
 
     const pan = Gesture.Pan()
+        .enabled(!reduced)
         .onUpdate((e) => {
             // Don't allow panning if user already voted on this card
             if (buttonsLocked) return;
@@ -557,34 +559,27 @@ export default function SwipeScreen() {
         })
         .onEnd((e) => {
             if (buttonsLocked) return;
-            if (Math.abs(e.translationX) > SWIPE_THRESHOLD) {
-                const direction = e.translationX > 0 ? 'right' : 'left';
-                const liked = direction === 'right';
+            const decision = swipeDecision(e.translationX, width);
+            if (decision) {
+                const liked = decision === 'like';
                 translateX.value = withTiming(
-                    direction === 'right' ? width * 1.5 : -width * 1.5,
-                    { duration: 250 },
+                    liked ? width * 1.5 : -width * 1.5,
+                    { duration: motion.fast },
                     () => { runOnJS(advance)(liked); }
                 );
             } else {
-                translateX.value = withSpring(0);
-                translateY.value = withSpring(0);
+                translateX.value = withTiming(0, { duration: motion.fast });
+                translateY.value = withTiming(0, { duration: motion.fast });
             }
         });
 
-    const topCardStyle = useAnimatedStyle(() => {
-        const rotate = interpolate(translateX.value, [-width, 0, width], [-15, 0, 15], Extrapolation.CLAMP);
-        return {
-            transform: [{ translateX: translateX.value }, { translateY: translateY.value }, { rotate: `${rotate}deg` }],
-        };
-    });
-
-    const likeOpacityStyle = useAnimatedStyle(() => ({
-        opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP),
+    const topCardStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: translateX.value }, { translateY: translateY.value }, { rotate: `${cardTilt(translateX.value, width)}deg` }],
     }));
 
-    const nopeOpacityStyle = useAnimatedStyle(() => ({
-        opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], Extrapolation.CLAMP),
-    }));
+    const likeOpacityStyle = useAnimatedStyle(() => ({ opacity: stampOpacity(translateX.value, width).like }));
+
+    const nopeOpacityStyle = useAnimatedStyle(() => ({ opacity: stampOpacity(translateX.value, width).nope }));
 
     const isSolo = crew.length === 1 && partyId !== 'demo';
 
