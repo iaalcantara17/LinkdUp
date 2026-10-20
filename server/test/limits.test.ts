@@ -9,10 +9,13 @@ import partyRoutes, { JOIN_LIMIT } from '../src/routes/party';
 import schoolsRoutes, { LOOKUP_LIMIT } from '../src/routes/schools';
 import userRoutes, { USERNAME_CHECK_LIMIT } from '../src/routes/user';
 import feedRoutes from '../src/routes/feed';
+import discoverRoutes, { DISCOVER_SEARCH_LIMIT, DISCOVER_VENUES_LIMIT } from '../src/routes/discover';
+import { TEXT_SEARCH_CALLS_PER_DAY } from '../src/services/places';
+import axios from 'axios';
 import { supabaseAdmin } from '../src/db';
 import { mockSupabase, serve, auth, realFetch } from './supabaseMock';
 
-const USERS = { 'tok-a': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' };
+const USERS = { 'tok-a': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'tok-b': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' };
 
 afterEach(() => mock.restoreAll());
 
@@ -107,3 +110,58 @@ for (const ext of ['jpg', 'JPEG', 'png', 'webp', 'heic', 'gif']) {
         assert.match(path, new RegExp(`^${USERS['tok-a']}/\\d+\\.${ext.toLowerCase()}$`));
     });
 }
+
+const DAY = 24 * 60 * 60_000;
+const discoverLimited: [string, string, () => number][] = [
+    ['venues', '/api/discover/venues', () => DISCOVER_VENUES_LIMIT],
+    ['venues/more', '/api/discover/venues/more', () => DISCOVER_VENUES_LIMIT],
+    ['places/search', '/api/discover/places/search', () => DISCOVER_SEARCH_LIMIT],
+];
+
+for (const [name, path, limit] of discoverLimited) {
+    test(`discover ${name} is rate limited per user, not per IP`, async () => {
+        mock.timers.reset();
+        mock.timers.enable({ apis: ['Date'], now: Date.now() + 3 * DAY });
+        mockSupabase(USERS);
+        const post = mock.method(axios, 'post', async () => ({ data: { places: [] } }));
+        const { server, base } = await serve('/api/discover', discoverRoutes);
+        try {
+            const res = await hammer(base, 'GET', path, limit() + 1, undefined, auth('tok-a'));
+            assert.equal(res.status, 429);
+            const other = await realFetch(`${base}${path}`, { headers: auth('tok-b') });
+            assert.notEqual(other.status, 429);
+            assert.equal(post.mock.callCount(), 0);
+        } finally {
+            server.close();
+            mock.timers.reset();
+        }
+    });
+}
+
+test('place text search stops at a daily ceiling with venue_limit_reached', async () => {
+    mock.timers.reset();
+    mock.timers.enable({ apis: ['Date'], now: Date.now() + 20 * DAY });
+    mock.method(console, 'error', () => {});
+    mockSupabase(USERS);
+    const post = mock.method(axios, 'post', async () => ({ data: { places: [] } }));
+    const { server, base } = await serve('/api/discover', discoverRoutes);
+    try {
+        assert.ok(TEXT_SEARCH_CALLS_PER_DAY > 0);
+        for (let i = 0; i < TEXT_SEARCH_CALLS_PER_DAY; i++) {
+            if (i > 0 && i % DISCOVER_SEARCH_LIMIT === 0) mock.timers.tick(61_000);
+            const res = await realFetch(`${base}/api/discover/places/search?q=cafe${i}`, { headers: auth('tok-a') });
+            assert.equal(res.status, 200, `search ${i + 1}`);
+            await res.arrayBuffer();
+        }
+        mock.timers.tick(61_000);
+        const limited = await realFetch(`${base}/api/discover/places/search?q=one+more`, { headers: auth('tok-a') });
+        assert.equal(limited.status, 503);
+        assert.deepEqual(await limited.json(), { error: 'venue_limit_reached' });
+        assert.equal(post.mock.callCount(), TEXT_SEARCH_CALLS_PER_DAY);
+        mock.timers.tick(DAY);
+        assert.equal((await realFetch(`${base}/api/discover/places/search?q=next+day`, { headers: auth('tok-a') })).status, 200);
+    } finally {
+        server.close();
+        mock.timers.reset();
+    }
+});
