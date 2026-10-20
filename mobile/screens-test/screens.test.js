@@ -109,10 +109,22 @@ describe('Home', () => {
         expect(screen.queryByText('No parties yet')).toBeNull();
     });
 
-    test('empty shows the create or join prompt', async () => {
+    test('with no parties, three starter cards lead to Create, Join and Discover', async () => {
         await show(HomeScreen, { myParties: [] });
-        screen.getByText('No parties yet');
-        screen.getByText(/join one with a code/);
+        global.__navigation.navigate.mockClear();
+        fireEvent.click(button('Create a party'));
+        fireEvent.click(button('Join with a code'));
+        fireEvent.click(button('Try Discover'));
+        expect(global.__navigation.navigate.mock.calls).toEqual([['CreateParty'], ['JoinParty'], ['Discover']]);
+        expect(screen.queryByText(/Have a code\?/)).toBeNull();
+    });
+
+    test('starter cards are hidden once there is a party', async () => {
+        await show(HomeScreen);
+        screen.getByText('Friday Crew');
+        expect(screen.queryByRole('button', { name: 'Create a party' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Try Discover' })).toBeNull();
+        screen.getByText(/Have a code\?/);
     });
 
     test('a join link saved before sign-in opens the Join screen once', async () => {
