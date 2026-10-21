@@ -2,6 +2,8 @@
 
 Group meetups without the group chat: everyone shares a location, the group swipes on nearby spots, votes on a place, and locks in a date.
 
+Built by a five-person team for the NJIT CS/IT 491 capstone (Spring 2026), where it placed 2nd. I was the backend engineer.
+
 **Live:** [https://linkdup.app](https://linkdup.app)
 
 **Try the demo:** open the site and press **Try the demo** on the Login screen. No sign-up. The demo account is read-only.
@@ -119,6 +121,12 @@ Security fixes made during the project:
 - Internal error messages hidden from 500 responses
 - `CORS_ORIGIN` required in production
 - Input validation before Google calls, daily ceilings below each Google cap, and write caps on the cache table
+
+## What I'd point a reader to
+
+- `server/src/services/matchEngine.ts`: the locked-step voting. `tryAdvanceCard` moves the deck only after every member has voted, and `closeRound` starts the next voting round.
+- `server/src/routes/photo.ts`: the photo proxy that keeps the Maps key on the server, with fixed widths, rate limits, and an in-memory cache.
+- `server/src/services/locationFuzz.ts`: location fuzzing seeded with an HMAC of each user's ID.
 
 ## Run locally
 
