@@ -47,3 +47,6 @@ android/
 # Misc
 *.tsbuildinfo
 .cache/
+
+docs/CURSOR_PROMPTS.md
+docs/superpowers/plans/

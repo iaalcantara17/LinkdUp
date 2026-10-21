@@ -31,8 +31,6 @@ Step-by-step instructions to go from zero to running app. Do these in order.
    git push -u origin main
    ```
 
-6. Add your teammates as collaborators in **Settings → Collaborators** so the rubric "team contribution" optics look right even if they only commit a README change.
-
 ---
 
 ## 2. Supabase project (Postgres + Auth + Realtime)
