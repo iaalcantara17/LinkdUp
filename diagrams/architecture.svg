@@ -18,7 +18,7 @@
   <text class="sub" x="500" y="152" text-anchor="middle">Navigation • Auth Context • Theme</text>
 
   <rect class="box" x="380" y="240" width="240" height="100" rx="14"/>
-  <text class="lbl" x="500" y="275" text-anchor="middle">Express API (Railway)</text>
+  <text class="lbl" x="500" y="275" text-anchor="middle">Express API (Render)</text>
   <text class="sub" x="500" y="295" text-anchor="middle">Node + TypeScript</text>
   <text class="sub" x="500" y="312" text-anchor="middle">Routes • Services • Match Engine</text>
 
