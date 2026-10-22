@@ -70,7 +70,7 @@ Step-by-step instructions to go from zero to running app. Do these in order.
    - **Test users:** add your own Google email plus your team's emails. Save and continue.
    - Back to **Credentials → Create OAuth client ID**. Application type **Web application**. Name `LinkdUp Server`. Authorized redirect URIs:
      - `http://localhost:3000/api/calendar/oauth/callback`
-     - (later add your Railway URL with the same path)
+     - (later add `https://<your-service>.onrender.com/api/calendar/oauth/callback`, see step 6)
    - Click **Create**. Copy the Client ID → `GOOGLE_OAUTH_CLIENT_ID`. Copy the Client Secret → `GOOGLE_OAUTH_CLIENT_SECRET`.
 
 ---
